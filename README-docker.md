@@ -177,6 +177,32 @@ DB_PASSWORD_DOCKER=sandi-di-mysql-anda
 atau XAMPP yang sudah berjalan di komputer yang sama. Untuk MySQL di komputer
 lain, isi alamat IP-nya, misalnya `192.168.1.20`.
 
+Perlu diketahui: `DB_PASSWORD_DOCKER` **tidak boleh kosong**. Compose membaca
+seluruh berkas lebih dulu, jadi berkas ditolak dengan pesan
+`required variable DB_PASSWORD_DOCKER is missing a value` walaupun Anda hanya
+menjalankan layanan `app`, `web`, `queue`, dan `scheduler` tanpa `db`. Karena
+bawaan MySQL Laragon sering tanpa sandi root, buatkan satu pengguna khusus di
+MySQL komputer induk:
+
+```sql
+CREATE DATABASE IF NOT EXISTS absen_solat
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'absen_solat'@'%' IDENTIFIED BY 'AbsenSolat2026';
+GRANT ALL PRIVILEGES ON absen_solat.* TO 'absen_solat'@'%';
+FLUSH PRIVILEGES;
+```
+
+Akun `'absen_solat'@'%'` dipakai karena akun `root@localhost` milik Laragon
+tidak cocok untuk sambungan yang datang dari alamat jaringan Docker, dan
+hasilnya hanya `Access denied for user 'root'@'172.x.x.x'`. Setelah pengguna
+itu ada, isi `.env`:
+
+```env
+DB_HOST_DOCKER=host.docker.internal
+DB_USERNAME_DOCKER=absen_solat
+DB_PASSWORD_DOCKER=AbsenSolat2026
+```
+
 Pastikan akun MySQL tersebut boleh masuk dari luar komputer basis data
 (`'absen_solat'@'%'`) dan basis datanya sudah dibuat. Jalankan migrasi sendiri
 bila perlu:
@@ -191,6 +217,12 @@ secara tersendiri:
 ```sh
 docker compose up -d --build app web queue scheduler
 ```
+
+Dengan cara ini basis data yang dipakai aplikasi adalah basis data MySQL di
+komputer induk, bukan basis data di dalam wadah, sehingga data yang diisi lewat
+aplikasi langsung terlihat di HeidiSQL atau Laragon. Sebaliknya, bila
+`DB_HOST_DOCKER=db` dibiarkan, data tersimpan di dalam volume Docker
+`absen-solat-dbdata` dan terpisah dari basis data komputer induk.
 
 ## Mesin pengenal wajah
 
@@ -245,7 +277,8 @@ Berkas yang sudah dikompilasi bisa dibersihkan dengan
 | Galat 502 Bad Gateway                                   | Wadah `app` belum siap atau sedang dimulai. Lihat `docker compose ps` dan `docker compose logs app`                                                                                                                                              |
 | Galat 504 atau halaman berhenti saat mengunggah         | Batas waktu nginx dan batas ukuran unggahan. Nilai bawaannya sudah berjenjang: nginx 96 MB, `post_max_size` 64 MB, satu foto 5 MB                                                                                                                |
 | Kartu kemajuan unggahan wajah berhenti                  | Wadah `queue` mati atau mesin wajah tidak bisa dihubungi. Periksa `docker compose ps` dan `docker compose logs queue`                                                                                                                            |
-| Access denied for user                                  | Sandi di `DB_PASSWORD_DOCKER` tidak sama dengan sandi yang sudah tersimpan di volume MySQL. Kembalikan sandi lama, atau hapus volume dengan `docker compose down -v` bila datanya memang boleh hilang                                            |
+| Access denied for user                                  | Dua sebab. Bila `DB_HOST_DOCKER=db`: sandi di `DB_PASSWORD_DOCKER` tidak sama dengan sandi yang sudah tersimpan di volume MySQL, jadi kembalikan sandi lama atau hapus volume dengan `docker compose down -v` bila datanya boleh hilang. Bila memakai MySQL komputer induk: akun `root@localhost` tidak cocok untuk sambungan dari alamat jaringan Docker sehingga perlu pengguna `'absen_solat'@'%'`             |
+| `required variable DB_PASSWORD_DOCKER is missing a value` | `DB_PASSWORD_DOCKER` atau `DB_ROOT_PASSWORD` masih kosong di `.env`. Compose menolak seluruh berkas walaupun layanan `db` tidak ikut dijalankan, jadi isi kedua kunci itu dengan sandi yang sah                       |
 | Port sudah dipakai                                      | Ubah `APP_PORT` atau `DB_PUBLISH_PORT` di `.env`, lalu `docker compose up -d`                                                                                                                                                                    |
 | Hubungan ke MySQL lambat atau gagal berulang            | Pastikan volume basis data `absen-solat-dbdata` masih ada (`docker volume ls`) dan `docker compose logs db` tidak memuat galat                                                                                                                   |
 | Pembangunan berhenti pada pemeriksaan versi PHP         | Citra PHP yang dipakai lebih tua dari 8.4.1. Jangan turunkan citra; naikkan versinya                                                                                                                                                             |
