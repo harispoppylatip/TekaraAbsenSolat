@@ -19,25 +19,25 @@ rapi untuk dipasang di server sekolah.
 
 ## Halaman menurut peran
 
-| Peran              | Halaman                                                             |
-| ------------------ | ------------------------------------------------------------------- |
-| Administrator      | Ringkasan, Anggota, Waktu Solat, Sesi Absen, Rekap, Perangkat, Wajah |
-| Petugas            | Ringkasan, Sesi Absen, Rekap, Absen Wajah                           |
-| Murid              | Riwayat absen sendiri                                               |
-| Perangkat sensor   | API absen solat dan API pendaftaran wajah                           |
+| Peran            | Halaman                                                              |
+| ---------------- | -------------------------------------------------------------------- |
+| Administrator    | Ringkasan, Anggota, Waktu Solat, Sesi Absen, Rekap, Perangkat, Wajah |
+| Petugas          | Ringkasan, Sesi Absen, Rekap, Absen Wajah                            |
+| Murid            | Riwayat absen sendiri                                                |
+| Perangkat sensor | API absen solat dan API pendaftaran wajah                            |
 
 Semua peran masuk lewat halaman `/masuk`. Akun yang belum pernah mengganti
 sandi langsung diarahkan ke `/ganti-sandi`.
 
 ## Yang harus tersedia
 
-| Perkakas     | Versi                                | Catatan                                                             |
-| ------------ | ------------------------------------ | ------------------------------------------------------------------- |
+| Perkakas     | Versi                                | Catatan                                                               |
+| ------------ | ------------------------------------ | --------------------------------------------------------------------- |
 | PHP          | 8.4.1 atau lebih baru                | `composer.json` menulis `^8.3`, tetapi `composer.lock` menuntut 8.4.1 |
-| Composer     | 2.x                                  | Pemasang paket PHP                                                  |
-| Node.js      | 20.19 atau lebih baru, disarankan 24 | Vite 8 dipakai untuk membangun tampilan                             |
-| MySQL        | 8.x                                  | Server basis data. XAMPP, Laragon, atau MySQL resmi                 |
-| Ekstensi PHP | `pdo_mysql`, `mbstring`, `curl`      | Diperiksa dengan `php -m`                                           |
+| Composer     | 2.x                                  | Pemasang paket PHP                                                    |
+| Node.js      | 20.19 atau lebih baru, disarankan 24 | Vite 8 dipakai untuk membangun tampilan                               |
+| MySQL        | 8.x                                  | Server basis data. XAMPP, Laragon, atau MySQL resmi                   |
+| Ekstensi PHP | `pdo_mysql`, `mbstring`, `curl`      | Diperiksa dengan `php -m`                                             |
 
 Pemeriksaan cepat sebelum mulai:
 
@@ -188,15 +188,15 @@ masuk. Pakai akun bawaan di bawah, lalu ganti sandinya bila diminta.
 Periksa berurutan dari atas. Bila satu langkah gagal, perbaikannya ada di
 bagian "Kalau ada masalah".
 
-| Pemeriksaan                                          | Hasil yang benar                                |
-| ---------------------------------------------------- | ----------------------------------------------- |
-| `php artisan migrate:status`                         | Semua baris berstatus `Ran`                     |
-| `php artisan about`                                  | Tidak memuat galat hubungan ke basis data       |
-| Buka `http://localhost:8000`                         | Halaman masuk muncul berikut gaya dan warnanya  |
-| Masuk sebagai admin                                  | Halaman Ringkasan memuat kartu angka            |
-| Buka `/waktu-solat`                                  | Lima baris waktu solat sudah terisi             |
-| Buka `/perangkat`                                    | Perangkat `kamera-wajah` sudah terdaftar        |
-| Buka `/anggota`                                      | Enam akun murid dan dua akun pengurus ada       |
+| Pemeriksaan                  | Hasil yang benar                               |
+| ---------------------------- | ---------------------------------------------- |
+| `php artisan migrate:status` | Semua baris berstatus `Ran`                    |
+| `php artisan about`          | Tidak memuat galat hubungan ke basis data      |
+| Buka `http://localhost:8000` | Halaman masuk muncul berikut gaya dan warnanya |
+| Masuk sebagai admin          | Halaman Ringkasan memuat kartu angka           |
+| Buka `/waktu-solat`          | Lima baris waktu solat sudah terisi            |
+| Buka `/perangkat`            | Perangkat `kamera-wajah` sudah terdaftar       |
+| Buka `/anggota`              | Enam akun murid dan dua akun pengurus ada      |
 
 API untuk alat bisa dicoba tanpa perangkat sungguhan. Balasan berikut muncul
 ketika kode perangkat dikirim tanpa data lain.
@@ -236,10 +236,10 @@ lain, dan memakai MySQL yang sudah ada di komputer induk, ada di
 Akun ini dibuat oleh penyemai data. Ganti sandinya sebelum dipakai di
 lingkungan sekolah.
 
-| Peran   | Surel                                                 | Sandi                        |
-| ------- | ----------------------------------------------------- | ---------------------------- |
-| Admin   | `admin@smkistiqomah.sch.id`                           | `admin123`                   |
-| Petugas | `petugas@smkistiqomah.sch.id`                         | `petugas123`                 |
+| Peran   | Surel                                                 | Sandi                         |
+| ------- | ----------------------------------------------------- | ----------------------------- |
+| Admin   | `admin@smkistiqomah.sch.id`                           | `admin123`                    |
+| Petugas | `petugas@smkistiqomah.sch.id`                         | `petugas123`                  |
 | Murid   | `ahmad.fauzi@smkistiqomah.sch.id` dan lima murid lain | Nomor induk, misalnya `25001` |
 
 Akun murid memakai nomor induk sebagai sandi awal dan wajib diganti saat
@@ -282,19 +282,19 @@ supaya persen kemajuannya tidak terlalu cepat mentok di angka 100.
 
 ## Kalau ada masalah
 
-| Gejala                                              | Perbaikan                                                                                                       |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `could not find driver`                             | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                            |
-| `Unknown database 'absen_solat'`                    | Basis datanya belum dibuat. Kerjakan langkah 3                                                                  |
-| `Access denied for user 'root'@'localhost'`         | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                          |
-| Halaman terbuka tanpa gaya dan tanpa warna          | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                |
-| `Vite manifest not found`                           | Sama seperti di atas, berkas hasil build belum ada                                                              |
-| Galat 419 Page Expired                              | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`              |
-| Masuk berhasil lalu langsung kembali ke halaman masuk | Sesi tidak tersimpan. Pastikan `SESSION_DRIVER=database` dan migrasi sudah jalan, lalu periksa jam komputer    |
-| Halaman muncul tetapi semua daftar kosong           | `php artisan migrate --seed` belum dijalankan, atau hanya migrasinya saja                                       |
-| Unggah foto wajah gagal setelah menunggu lama       | Mesin wajah lambat atau mati. Periksa `FACE_SERVICE_URL`, lalu naikkan `FACE_SERVICE_TIMEOUT` bila memang lambat |
-| Pesan berhasil hilang sebelum sempat dibaca         | Halaman menyegarkan dirinya sendiri. Muat ulang halaman untuk melihat riwayatnya                                |
-| Perubahan `.env` tidak terasa                        | Jalankan `php artisan config:clear`, sebab konfigurasi bisa tersimpan di cache                                   |
+| Gejala                                                | Perbaikan                                                                                                        |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `could not find driver`                               | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                             |
+| `Unknown database 'absen_solat'`                      | Basis datanya belum dibuat. Kerjakan langkah 3                                                                   |
+| `Access denied for user 'root'@'localhost'`           | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                           |
+| Halaman terbuka tanpa gaya dan tanpa warna            | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                 |
+| `Vite manifest not found`                             | Sama seperti di atas, berkas hasil build belum ada                                                               |
+| Galat 419 Page Expired                                | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`               |
+| Masuk berhasil lalu langsung kembali ke halaman masuk | Sesi tidak tersimpan. Pastikan `SESSION_DRIVER=database` dan migrasi sudah jalan, lalu periksa jam komputer      |
+| Halaman muncul tetapi semua daftar kosong             | `php artisan migrate --seed` belum dijalankan, atau hanya migrasinya saja                                        |
+| Unggah foto wajah gagal setelah menunggu lama         | Mesin wajah lambat atau mati. Periksa `FACE_SERVICE_URL`, lalu naikkan `FACE_SERVICE_TIMEOUT` bila memang lambat |
+| Pesan berhasil hilang sebelum sempat dibaca           | Halaman menyegarkan dirinya sendiri. Muat ulang halaman untuk melihat riwayatnya                                 |
+| Perubahan `.env` tidak terasa                         | Jalankan `php artisan config:clear`, sebab konfigurasi bisa tersimpan di cache                                   |
 
 ## Pengujian
 
