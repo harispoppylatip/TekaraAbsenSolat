@@ -7,7 +7,7 @@ kehadiran dan keduanya bisa dipakai bersamaan:
   yang sudah didaftarkan.
 - Absen sensor, perangkat di gerbang mengirim data ke alamat API aplikasi.
 
-Aplikasi memakai Laravel 13, basis data MySQL, dan tampilan Tailwind yang
+Aplikasi memakai Laravel 13, database MySQL, dan tampilan Tailwind yang
 dibangun Vite. Pengenalan wajah dikerjakan layanan Python terpisah, jadi
 aplikasi tetap bisa dijalankan tanpa layanan itu. Yang tertunda hanya
 pemrosesan foto wajah.
@@ -27,7 +27,7 @@ rapi untuk dipasang di server sekolah.
 | Perangkat sensor | API absen solat dan API pendaftaran wajah                            |
 
 Semua peran masuk lewat halaman `/masuk`. Akun yang belum pernah mengganti
-sandi langsung diarahkan ke `/ganti-sandi`.
+password langsung diarahkan ke `/ganti-password`.
 
 ## Yang harus tersedia
 
@@ -36,7 +36,7 @@ sandi langsung diarahkan ke `/ganti-sandi`.
 | PHP          | 8.4.1 atau lebih baru                | `composer.json` menulis `^8.3`, tetapi `composer.lock` menuntut 8.4.1 |
 | Composer     | 2.x                                  | Pemasang paket PHP                                                    |
 | Node.js      | 20.19 atau lebih baru, disarankan 24 | Vite 8 dipakai untuk membangun tampilan                               |
-| MySQL        | 8.x                                  | Server basis data. XAMPP, Laragon, atau MySQL resmi                   |
+| MySQL        | 8.x                                  | Server database. XAMPP, Laragon, atau MySQL resmi                     |
 | Ekstensi PHP | `pdo_mysql`, `mbstring`, `curl`      | Diperiksa dengan `php -m`                                             |
 
 Pemeriksaan cepat sebelum mulai:
@@ -58,7 +58,7 @@ C:\php8\php.exe artisan serve --port=8000
 
 ## Cara tercepat
 
-Bila basis datanya sudah dibuat dan berkas `.env` sudah diisi, satu perintah
+Bila databasenya sudah dibuat dan file `.env` sudah diisi, satu perintah
 ini mengerjakan hampir semuanya: memasang paket PHP, membuat `.env`,
 membangkitkan `APP_KEY`, menjalankan migrasi, memasang paket Node, lalu
 membangun tampilan.
@@ -67,7 +67,7 @@ membangun tampilan.
 composer setup
 ```
 
-Dua hal yang tidak dikerjakan perintah di atas: membuat basis datanya, dan
+Dua hal yang tidak dikerjakan perintah di atas: membuat databasenya, dan
 mengisi data awal. Keduanya dijelaskan di langkah 3 dan langkah 4.
 
 ## Cara 1: menjalankan di komputer sendiri
@@ -82,10 +82,10 @@ cd absen_solat
 composer install
 ```
 
-### Langkah 2: siapkan berkas .env
+### Langkah 2: siapkan file .env
 
 Salin contohnya, lalu bangkitkan kunci aplikasi. `APP_KEY` wajib ada, kalau
-kosong sesi tidak bisa disimpan dan muncul galat 419 Page Expired.
+kosong sesi tidak bisa disimpan dan muncul error 419 Page Expired.
 
 ```sh
 copy .env.example .env
@@ -97,7 +97,7 @@ Di Linux atau macOS perintahnya `cp .env.example .env`. Setelah itu:
 php artisan key:generate
 ```
 
-Periksa bagian ini di dalam `.env`. Sesuaikan pengguna dan sandi MySQL
+Periksa bagian ini di dalam `.env`. Sesuaikan user dan password MySQL
 dengan komputer yang dipakai.
 
 ```env
@@ -111,13 +111,13 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-Laragon dan XAMPP biasanya memakai pengguna `root` tanpa sandi. Bila MySQL
-memakai sandi, isi juga `DB_PASSWORD`.
+Laragon dan XAMPP biasanya memakai user `root` tanpa password. Bila MySQL
+memakai password, isi juga `DB_PASSWORD`.
 
-### Langkah 3: buat basis datanya
+### Langkah 3: buat databasenya
 
-Laravel tidak membuat basis datanya sendiri, jadi langkah ini dikerjakan
-sekali. Di Laragon, klik kanan lalu pilih Database dan buat basis data
+Laravel tidak membuat databasenya sendiri, jadi langkah ini dikerjakan
+sekali. Di Laragon, klik kanan lalu pilih Database dan buat database
 bernama `absen_solat`. Lewat terminal:
 
 ```sh
@@ -125,7 +125,7 @@ mysql -u root -p -e "CREATE DATABASE absen_solat CHARACTER SET utf8mb4 COLLATE u
 ```
 
 Muatan `utf8mb4` dipilih supaya nama dan catatan berbahasa Indonesia
-tersimpan utuh, dan sama dengan penyetelan citra MySQL pada
+tersimpan utuh, dan sama dengan penyetelan image MySQL pada
 `docker-compose.yml`.
 
 ### Langkah 4: jalankan migrasi dan isi data awal
@@ -136,11 +136,11 @@ php artisan migrate --seed
 
 Perintah itu membuat semua tabel, lalu mengisi waktu solat, perangkat kamera
 bawaan, dan beberapa akun contoh. Bila hanya ingin tabelnya saja, jalankan
-`php artisan migrate` dan lakukan penyemaian kapan saja dengan
+`php artisan migrate` dan lakukan seeding kapan saja dengan
 `php artisan db:seed`.
 
-Perhatian: penyemaian tidak boleh dijalankan pada basis data yang sudah
-dipakai, karena sandi akun bawaan ikut ditulis ulang.
+Perhatian: seeding tidak boleh dijalankan pada database yang sudah
+dipakai, karena password akun bawaan ikut ditulis ulang.
 
 ### Langkah 5: pasang paket tampilan dan bangun aset
 
@@ -150,7 +150,7 @@ npm run build
 ```
 
 Tanpa langkah ini halaman akan terbuka tanpa gaya dan tanpa skrip, sebab
-tampilan dilayani berkas hasil build.
+tampilan dilayani file hasil build.
 
 ### Langkah 6: jalankan aplikasinya
 
@@ -159,29 +159,29 @@ php artisan serve --port=8000
 ```
 
 Untuk pekerjaan sehari-hari, satu perintah ini menjalankan tiga proses
-sekaligus: server PHP, pengolah antrean, dan Vite dalam mode pantau.
+sekaligus: server PHP, pengolah queue, dan Vite dalam mode pantau.
 
 ```sh
 composer dev
 ```
 
-Bila antrean dijalankan terpisah, perintahnya:
+Bila queue dijalankan terpisah, perintahnya:
 
 ```sh
 php artisan queue:work
 ```
 
-Antrean wajib hidup supaya unggahan foto wajah diproses di latar belakang.
-Tanpa antrean, foto tetap tersimpan tetapi berstatus menunggu.
+Queue wajib hidup supaya upload foto wajah diproses di latar belakang.
+Tanpa queue, foto tetap tersimpan tetapi berstatus menunggu.
 
-Jadwal harian yang membuang berkas foto sementara bisa dijalankan dengan
+Jadwal harian yang membuang file foto sementara bisa dijalankan dengan
 `php artisan schedule:work`. Sifatnya opsional di komputer sendiri, wajib di
 server.
 
 ### Langkah 7: buka dan masuk
 
 Buka `http://localhost:8000`, halaman pertama yang muncul adalah halaman
-masuk. Pakai akun bawaan di bawah, lalu ganti sandinya bila diminta.
+masuk. Pakai akun bawaan di bawah, lalu ganti passwordnya bila diminta.
 
 ## Tanda aplikasi sudah jalan
 
@@ -191,7 +191,7 @@ bagian "Kalau ada masalah".
 | Pemeriksaan                  | Hasil yang benar                               |
 | ---------------------------- | ---------------------------------------------- |
 | `php artisan migrate:status` | Semua baris berstatus `Ran`                    |
-| `php artisan about`          | Tidak memuat galat hubungan ke basis data      |
+| `php artisan about`          | Tidak ada error koneksi database               |
 | Buka `http://localhost:8000` | Halaman masuk muncul berikut gaya dan warnanya |
 | Masuk sebagai admin          | Halaman Ringkasan memuat kartu angka           |
 | Buka `/waktu-solat`          | Lima baris waktu solat sudah terisi            |
@@ -211,7 +211,7 @@ didaftarkan mendapat kode 403 dengan keterangan `Belum terdaftar`.
 
 ## Cara 2: menjalankan dengan Docker
 
-Cara ini memasang aplikasi, MySQL, nginx, pengolah antrean, dan penjadwal
+Cara ini memasang aplikasi, MySQL, nginx, pengolah queue, dan penjadwal
 sekaligus. Isi bagian `_DOCKER` di `.env` lebih dulu, terutama
 `DB_PASSWORD_DOCKER` dan `DB_ROOT_PASSWORD` yang tidak boleh kosong.
 
@@ -221,28 +221,28 @@ docker compose ps
 ```
 
 Setelah semua layanan berstatus `healthy`, buka `http://localhost:8080`. Bila
-basis datanya baru dan masih kosong, isi data awalnya sekali saja.
+databasenya baru dan masih kosong, isi data awalnya sekali saja.
 
 ```sh
 docker compose exec app php artisan db:seed --force
 ```
 
 Panduan lengkapnya, termasuk mengganti port, membuka MySQL dari komputer
-lain, dan memakai MySQL yang sudah ada di komputer induk, ada di
+lain, dan memakai MySQL yang sudah ada di komputer host, ada di
 [`README-docker.md`](README-docker.md).
 
 ## Akun bawaan
 
-Akun ini dibuat oleh penyemai data. Ganti sandinya sebelum dipakai di
+Akun ini dibuat oleh seeder data. Ganti passwordnya sebelum dipakai di
 lingkungan sekolah.
 
-| Peran   | Surel                                                 | Sandi                         |
+| Peran   | Email                                                 | Password                      |
 | ------- | ----------------------------------------------------- | ----------------------------- |
 | Admin   | `admin@smkistiqomah.sch.id`                           | `admin123`                    |
 | Petugas | `petugas@smkistiqomah.sch.id`                         | `petugas123`                  |
 | Murid   | `ahmad.fauzi@smkistiqomah.sch.id` dan lima murid lain | Nomor induk, misalnya `25001` |
 
-Akun murid memakai nomor induk sebagai sandi awal dan wajib diganti saat
+Akun murid memakai nomor induk sebagai password awal dan wajib diganti saat
 pertama masuk. Akun petugas ditandai sebagai petugas kamera, jadi bisa
 membuka halaman Absen Wajah.
 
@@ -273,11 +273,11 @@ Alur pemakaiannya:
 3. Petugas membuka `/absen-wajah` dari ponsel atau komputer berkamera, lalu
    jepretan dikirim ke layanan wajah dan kehadirannya tercatat.
 
-Satu foto butuh sekitar 15 detik pada komputer tanpa kartu grafis, karena
-itu unggahan masuk antrean dan kemajuannya bisa dilihat di panel Proses
-pendaftaran wajah. Bila mesin wajah mati, foto tetap masuk antrean dengan
+Satu foto butuh sekitar 15 detik pada komputer tanpa GPU, karena
+itu upload masuk queue dan kemajuannya bisa dilihat di panel Proses
+pendaftaran wajah. Bila mesin wajah mati, foto tetap masuk queue dengan
 status `service_unavailable` dan bisa diulang setelah layanannya hidup.
-Kecilkan `FACE_EXPECTED_SECONDS` bila mesin wajahnya memakai kartu grafis
+Kecilkan `FACE_EXPECTED_SECONDS` bila mesin wajahnya memakai GPU
 supaya persen kemajuannya tidak terlalu cepat mentok di angka 100.
 
 ## Kalau ada masalah
@@ -285,11 +285,11 @@ supaya persen kemajuannya tidak terlalu cepat mentok di angka 100.
 | Gejala                                                | Perbaikan                                                                                                        |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `could not find driver`                               | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                             |
-| `Unknown database 'absen_solat'`                      | Basis datanya belum dibuat. Kerjakan langkah 3                                                                   |
+| `Unknown database 'absen_solat'`                      | Databasenya belum dibuat. Kerjakan langkah 3                                                                     |
 | `Access denied for user 'root'@'localhost'`           | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                           |
 | Halaman terbuka tanpa gaya dan tanpa warna            | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                 |
-| `Vite manifest not found`                             | Sama seperti di atas, berkas hasil build belum ada                                                               |
-| Galat 419 Page Expired                                | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`               |
+| `Vite manifest not found`                             | Sama seperti di atas, file hasil build belum ada                                                                 |
+| Error 419 Page Expired                                | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`               |
 | Masuk berhasil lalu langsung kembali ke halaman masuk | Sesi tidak tersimpan. Pastikan `SESSION_DRIVER=database` dan migrasi sudah jalan, lalu periksa jam komputer      |
 | Halaman muncul tetapi semua daftar kosong             | `php artisan migrate --seed` belum dijalankan, atau hanya migrasinya saja                                        |
 | Unggah foto wajah gagal setelah menunggu lama         | Mesin wajah lambat atau mati. Periksa `FACE_SERVICE_URL`, lalu naikkan `FACE_SERVICE_TIMEOUT` bila memang lambat |
@@ -303,8 +303,8 @@ php artisan test
 vendor/bin/pint --format agent
 ```
 
-Perintah pertama menjalankan seluruh tes dengan basis data sementara di
-memori, jadi basis data aslinya tidak tersentuh. Perintah kedua merapikan
+Perintah pertama menjalankan seluruh tes dengan database sementara di
+memori, jadi database aslinya tidak tersentuh. Perintah kedua merapikan
 gaya penulisan kode PHP.
 
 ## Struktur folder
@@ -313,25 +313,25 @@ gaya penulisan kode PHP.
 app/
   Console/Commands/     perintah artisan, misalnya face:purge-uploads
   Http/Controllers/     halaman web dan alamat API
-  Http/Middleware/      pemeriksaan peran, petugas kamera, ganti sandi wajib
-  Jobs/                 pekerjaan antrean, misalnya pemrosesan foto wajah
-  Models/               model basis data
+  Http/Middleware/      pemeriksaan peran, petugas kamera, ganti password wajib
+  Jobs/                 pekerjaan queue, misalnya pemrosesan foto wajah
+  Models/               model database
   Services/             wajah, perangkat, sesi absen, pencatat absen, rekap
   Support/              menu, label status, balasan untuk perangkat
 database/
   migrations/           tabel aplikasi dan tabel bawaan Laravel
-  seeders/              penyemai akun, waktu solat, dan perangkat
-docker/                 berkas untuk Docker: nginx, php.ini, entrypoint
+  seeders/              seeder akun, waktu solat, dan perangkat
+docker/                 file untuk Docker: nginx, php.ini, entrypoint
 resources/
   css/app.css           gaya tampilan
-  js/app.js             skrip halaman, termasuk panel kemajuan antrean
+  js/app.js             skrip halaman, termasuk panel kemajuan queue
   views/                layout, halaman, dan potongan tampilan
 routes/web.php          seluruh rute web dan API
 config/solat.php        waktu solat bawaan, toleransi terlambat, daftar peran
 config/face.php         alamat, toleransi, dan batas layanan wajah
 ```
 
-## Berkas terkait
+## File terkait
 
 - `README-docker.md` untuk panduan Docker yang lebih terperinci.
 - `.env.example` untuk seluruh kunci pengaturan beserta keterangannya.
