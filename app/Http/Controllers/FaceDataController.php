@@ -1,0 +1,193 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\FaceEmbedding;
+use App\Models\User;
+use App\Services\FaceEncodingService;
+use App\Services\FacePhotoQueueService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class FaceDataController extends Controller
+{
+    /** Jumlah anggota per halaman pada daftar wajah terdaftar. */
+    public const PerPage = 10;
+
+    public function index(Request $request, FacePhotoQueueService $queue): View
+    {
+        $term = trim((string) $request->query('q', ''));
+
+        $members = User::query()
+            ->search($term !== '' ? $term : null)
+            ->with(['faceEmbeddings' => fn ($query) => $query->orderBy('id')])
+            ->withCount('faceEmbeddings')
+            ->orderBy('name')
+            ->paginate(self::PerPage)
+            ->withQueryString();
+
+        return view('face.index', [
+            'members' => $members,
+            'term' => $term,
+            'serviceReady' => app(FaceEncodingService::class)->isAvailable(),
+            'serviceUrl' => (string) config('face.service_url'),
+            'stats' => [
+                'anggota' => User::query()->count(),
+                'berwajah' => User::query()->has('faceEmbeddings')->count(),
+                'foto' => FaceEmbedding::query()->count(),
+                'batas' => (int) config('face.max_photos_per_user', 20),
+            ],
+            'operators' => User::query()
+                ->where('can_scan_face', true)
+                ->orderBy('name')
+                ->get(),
+            'candidates' => User::query()->orderBy('name')->get(['id', 'name', 'identifier_number', 'role']),
+            'maxSubmit' => (int) config('face.max_photos_per_submit', 10),
+            'batches' => $queue->batches(),
+            'expectedSeconds' => (int) config('face.expected_seconds', 15),
+        ]);
+    }
+
+    /**
+     * Terima foto wajah, lalu titipkan pengubahannya ke antrean.
+     *
+     * Halaman tidak menunggu mesin wajah: berkasnya langsung disimpan dan
+     * jawabannya kembali seketika. Kemajuannya dipantau dari panel Proses
+     * pendaftaran wajah.
+     */
+    public function store(Request $request, FacePhotoQueueService $queue): RedirectResponse
+    {
+        $max = (int) config('face.max_photos_per_submit', 10);
+
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'photos' => ['required', 'array', 'min:1', 'max:'.$max],
+            'photos.*' => ['required', 'image', 'max:5120'],
+            'replace' => ['nullable', 'boolean'],
+        ], [
+            'user_id.required' => 'Pilih anggota yang wajahnya didaftarkan.',
+            'user_id.exists' => 'Anggota yang dipilih tidak ditemukan.',
+            'photos.required' => 'Pilih foto wajah lebih dulu.',
+            'photos.max' => 'Sekali kirim paling banyak '.$max.' foto.',
+            'photos.*.image' => 'Berkas wajah harus berupa gambar.',
+            'photos.*.max' => 'Ukuran satu foto paling besar 5 MB.',
+        ]);
+
+        $member = User::query()->findOrFail((int) $data['user_id']);
+        $replace = $request->boolean('replace');
+        $result = $queue->enqueue($member, $request->file('photos') ?? [], $request->user(), null, $replace);
+
+        return back()->with('status', $result['count'].' foto wajah '.$member->name.' berhasil diunggah dan masuk antrean pemrosesan.'
+            .($replace ? ' Foto lama anggota ini diganti begitu satu foto barunya selesai diproses.' : '')
+            .' Kemajuannya bisa dilihat pada panel Proses pendaftaran wajah.');
+    }
+
+    /**
+     * Kemajuan antrean pemrosesan wajah untuk dipantau peramban.
+     */
+    public function progress(FacePhotoQueueService $queue): JsonResponse
+    {
+        return response()->json([
+            'batches' => $queue->batches(),
+            'unfinished' => $queue->hasUnfinished(),
+        ]);
+    }
+
+    /**
+     * Ulangi foto yang gagal pada satu kelompok unggahan.
+     */
+    public function retry(string $batch, FacePhotoQueueService $queue): RedirectResponse
+    {
+        $retried = $queue->retryBatch($batch);
+
+        if ($retried === 0) {
+            return back()->with('error', 'Tidak ada foto yang bisa diulang. Foto yang gagal karena isinya tidak terbaca harus diunggah ulang.');
+        }
+
+        return back()->with('status', $retried.' foto dimasukkan kembali ke antrean pemrosesan.');
+    }
+
+    /**
+     * Impor satu berkas, dipakai pengunggah berkala dari peramban.
+     */
+    public function upload(Request $request, FacePhotoQueueService $queue): JsonResponse
+    {
+        $data = $request->validate([
+            'photo' => ['required', 'image', 'max:5120'],
+            'folder' => ['nullable', 'string', 'max:60'],
+            'identifier_number' => ['nullable', 'string', 'max:40'],
+            'batch_id' => ['nullable', 'uuid'],
+        ], [
+            'photo.required' => 'Berkas foto tidak diterima.',
+            'photo.image' => 'Berkas yang dikirim bukan gambar.',
+        ]);
+
+        $identifier = trim((string) ($data['folder'] ?? ''));
+
+        if ($identifier === '') {
+            $identifier = trim((string) ($data['identifier_number'] ?? ''));
+        }
+
+        $member = User::query()->where('identifier_number', $identifier)->first();
+
+        if ($member === null) {
+            return response()->json([
+                'queued' => false,
+                'message' => $identifier === ''
+                    ? 'Nomor induk tidak terbaca. Nama folder harus sama dengan nomor induk anggota.'
+                    : 'Tidak ada anggota bernomor induk '.$identifier.'.',
+            ]);
+        }
+
+        $queue->enqueueOne(
+            $member,
+            $request->file('photo'),
+            $data['batch_id'] ?? null,
+            $request->user(),
+            'Impor folder',
+        );
+
+        return response()->json([
+            'queued' => true,
+            'message' => $member->name.': foto diunggah dan masuk antrean pemrosesan.',
+            'member' => ['id' => $member->id, 'name' => $member->name],
+            'total' => $member->faceEmbeddings()->count(),
+        ]);
+    }
+
+    public function destroyPhoto(FaceEmbedding $faceEmbedding): RedirectResponse
+    {
+        $owner = $faceEmbedding->user?->name ?? 'anggota';
+        $faceEmbedding->delete();
+
+        return back()->with('status', 'Satu foto wajah '.$owner.' dihapus.');
+    }
+
+    public function destroyMember(User $member): RedirectResponse
+    {
+        $total = $member->faceEmbeddings()->count();
+        $member->faceEmbeddings()->delete();
+
+        return back()->with('status', $total.' foto wajah '.$member->name.' dihapus. Anggota dan riwayat absennya tetap ada.');
+    }
+
+    /**
+     * Menugaskan atau menarik tugas kamera absen.
+     */
+    public function updateOperator(Request $request, User $member): RedirectResponse
+    {
+        $assign = $request->boolean('assigned');
+
+        if ($assign && $member->isMurid()) {
+            return back()->with('error', 'Anggota berperan murid tidak bisa ditugaskan memegang kamera absen.');
+        }
+
+        $member->forceFill(['can_scan_face' => $assign])->save();
+
+        return back()->with('status', $assign
+            ? $member->name.' sekarang boleh memakai kamera absen.'
+            : $member->name.' tidak lagi boleh memakai kamera absen.');
+    }
+}

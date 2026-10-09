@@ -1,0 +1,50 @@
+# ---------------------------------------------------------------------------
+# Berkas yang tidak perlu ikut masuk ke citra Docker
+#
+# Yang dibangun ulang di dalam citra dan karena itu tidak boleh dikirim dari
+# komputer: node_modules, vendor, dan public/build. Ini juga mencegah berkas
+# biner Windows (mis. pustaka Tailwind atau Rollup untuk Windows) ikut masuk.
+# ---------------------------------------------------------------------------
+
+# --- Git dan alat editor --------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.github
+.vscode
+.idea
+.codegraph
+.ai
+CLAUDE.md
+AGENTS.md
+
+# --- Dokumentasi ----------------------------------------------------------
+README.md
+README-docker.md
+
+# --- Dependensi lokal -----------------------------------------------------
+node_modules
+vendor
+public/build
+public/hot
+public/storage
+
+# --- Berkas lingkungan ----------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Data lokal -----------------------------------------------------------
+database/*.sqlite
+storage/app/private/*
+storage/app/public/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+.phpunit.result.cache
+
+# --- Sisa sistem ----------------------------------------------------------
+*.log
+.DS_Store
+Thumbs.db

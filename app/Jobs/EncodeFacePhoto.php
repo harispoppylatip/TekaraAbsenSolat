@@ -1,0 +1,115 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\FacePhotoUpload;
+use App\Services\FaceEnrollmentService;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
+
+/**
+ * Ubah satu foto wajah menjadi 128 angka wajah di luar permintaan web.
+ *
+ * Satu foto memakan waktu belasan detik di mesin tanpa kartu grafis, jadi
+ * pekerjaan ini tidak boleh menahan halaman admin. Halaman Wajah hanya
+ * menitipkan berkasnya lalu melempar pekerjaan ini ke antrean; baris
+ * FacePhotoUpload yang mencatat kemajuannya.
+ */
+class EncodeFacePhoto implements ShouldQueue
+{
+    use Queueable;
+
+    /**
+     * Tidak diulang otomatis. Kegagalan harus terlihat admin di panel kemajuan,
+     * bukan disembunyikan di belakang percobaan ulang yang tidak terlihat.
+     */
+    public int $tries = 1;
+
+    /** Satu foto sekitar 15 detik; batas ini hanya pengaman agar tidak menggantung. */
+    public int $timeout = 120;
+
+    public function __construct(public int $uploadId) {}
+
+    public function handle(FaceEnrollmentService $faces): void
+    {
+        $row = FacePhotoUpload::query()->with('user')->find($this->uploadId);
+
+        // Baris yang sudah diproses tidak dikerjakan dua kali.
+        if ($row === null || $row->status !== FacePhotoUpload::StatusMenunggu) {
+            return;
+        }
+
+        if ($row->user === null) {
+            $this->settle($row, FacePhotoUpload::StatusGagal, null, 'Anggota pemilik foto ini sudah tidak ada.');
+
+            return;
+        }
+
+        $row->forceFill([
+            'status' => FacePhotoUpload::StatusDiproses,
+            'started_at' => now(),
+        ])->save();
+
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($row->path)) {
+            $this->settle($row, FacePhotoUpload::StatusGagal, null, 'Berkas foto sudah dihapus dari server. Unggah ulang fotonya.');
+
+            return;
+        }
+
+        $result = $faces->enrollFromContents($row->user, $disk->get($row->path), $row->label, $row->replace);
+        $saved = $result['status'] === FaceEnrollmentService::StatusSaved;
+
+        $this->settle(
+            $row,
+            $saved ? FacePhotoUpload::StatusBerhasil : FacePhotoUpload::StatusGagal,
+            $result['status'],
+            $result['message'],
+            $result['embedding_id'] ?? null,
+            $result['status'] === FaceEnrollmentService::StatusUnavailable,
+        );
+    }
+
+    /**
+     * Pekerjaan yang meledak tidak boleh meninggalkan baris menggantung di
+     * "sedang diproses", sebab panel kemajuan akan berhenti di angka itu dan
+     * admin tidak tahu apa yang terjadi.
+     */
+    public function failed(?Throwable $error): void
+    {
+        $row = FacePhotoUpload::query()->find($this->uploadId);
+
+        if ($row === null) {
+            return;
+        }
+
+        $this->settle($row, FacePhotoUpload::StatusGagal, null, 'Pengolahan foto terhenti karena gangguan di server. Coba lagi sebentar.');
+    }
+
+    private function settle(
+        FacePhotoUpload $row,
+        string $status,
+        ?string $resultStatus,
+        string $message,
+        ?int $embeddingId = null,
+        bool $keepPhoto = false,
+    ): void {
+        $row->forceFill([
+            'status' => $status,
+            'result_status' => $resultStatus,
+            'message' => $message,
+            'face_embedding_id' => $embeddingId,
+            'finished_at' => now(),
+        ])->save();
+
+        // Berkas foto hanya dipakai sampai angkanya tersimpan, kecuali bila
+        // kegagalannya karena layanan wajah mati: fotonya masih benar sehingga
+        // bisa dicoba ulang setelah layanan dinyalakan.
+        if (! $keepPhoto) {
+            Storage::disk('local')->delete($row->path);
+        }
+    }
+}

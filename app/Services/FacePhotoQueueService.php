@@ -1,0 +1,376 @@
+<?php
+
+namespace App\Services;
+
+use App\Jobs\EncodeFacePhoto;
+use App\Models\FacePhotoUpload;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+/**
+ * Pintu tunggal unggahan foto wajah yang dikerjakan di latar belakang.
+ *
+ * Halaman Wajah tidak lagi menunggu mesin wajah. Foto dititipkan ke penyimpanan
+ * sementara, satu baris kemajuan dibuat untuk setiap foto, lalu pekerjaannya
+ * dimasukkan ke antrean. Kelas ini juga yang menghitung kemajuan, sehingga
+ * panel di halaman dan jawaban JSON yang dipantau peramban selalu membaca angka
+ * yang sama.
+ */
+class FacePhotoQueueService
+{
+    /** Folder penyimpanan sementara foto sebelum diubah menjadi angka wajah. */
+    public const Folder = 'antrean-wajah';
+
+    /** Banyak kelompok unggahan yang ditampilkan panel kemajuan. */
+    public const BatchesShown = 5;
+
+    /**
+     * Lama menunggu sebelum antrean dianggap belum dijalankan. Dipakai untuk
+     * memberi tahu admin bahwa pekerja antrean belum hidup.
+     */
+    public const StallSeconds = 60;
+
+    /**
+     * Lama kartu kelompok yang sudah selesai tetap tampil sebelum dihilangkan
+     * dari panel kemajuan. Hitungannya dari foto terakhir yang selesai, dan
+     * hanya berlaku bila tidak ada pekerjaan yang tersisa sehingga panel tidak
+     * penuh kartu lama.
+     */
+    public const DoneLingerSeconds = 20;
+
+    /**
+     * Titipkan beberapa foto satu anggota ke antrean.
+     *
+     * @param  array<int, UploadedFile>  $photos
+     * @return array{batch: string, count: int}
+     */
+    public function enqueue(User $member, array $photos, ?User $uploader = null, ?string $label = null, bool $replace = false): array
+    {
+        $batch = (string) Str::uuid();
+        $count = 0;
+
+        foreach ($photos as $photo) {
+            if ($photo instanceof UploadedFile) {
+                $this->enqueueOne($member, $photo, $batch, $uploader, $label, $replace);
+                $count++;
+            }
+        }
+
+        return ['batch' => $batch, 'count' => $count];
+    }
+
+    /**
+     * Titipkan satu foto ke antrean lalu jalankan pekerjaannya di latar belakang.
+     */
+    public function enqueueOne(
+        User $member,
+        UploadedFile $photo,
+        ?string $batch = null,
+        ?User $uploader = null,
+        ?string $label = null,
+        bool $replace = false,
+    ): FacePhotoUpload {
+        $row = FacePhotoUpload::create([
+            'batch_id' => $batch ?? (string) Str::uuid(),
+            'user_id' => $member->getKey(),
+            'uploaded_by' => $uploader?->getKey(),
+            'original_name' => Str::limit($photo->getClientOriginalName(), 120, ''),
+            'path' => (string) $photo->store(self::Folder, 'local'),
+            'label' => $label ?? $photo->getClientOriginalName(),
+            'replace' => $replace,
+            'status' => FacePhotoUpload::StatusMenunggu,
+        ]);
+
+        EncodeFacePhoto::dispatch((int) $row->getKey());
+
+        return $row;
+    }
+
+    /**
+     * Ulangi satu foto yang gagal selama berkasnya masih tersimpan.
+     */
+    public function retry(FacePhotoUpload $row): bool
+    {
+        if (! $row->canRetry()) {
+            return false;
+        }
+
+        $row->forceFill([
+            'status' => FacePhotoUpload::StatusMenunggu,
+            'result_status' => null,
+            'message' => null,
+            'started_at' => null,
+            'finished_at' => null,
+        ])->save();
+
+        EncodeFacePhoto::dispatch((int) $row->getKey());
+
+        return true;
+    }
+
+    /**
+     * Ulangi semua foto yang gagal pada satu kelompok unggahan.
+     */
+    public function retryBatch(string $batchId): int
+    {
+        $retried = 0;
+
+        foreach ($this->rowsOfBatch($batchId) as $row) {
+            if ($row->status === FacePhotoUpload::StatusGagal && $this->retry($row)) {
+                $retried++;
+            }
+        }
+
+        return $retried;
+    }
+
+    public function hasUnfinished(): bool
+    {
+        return FacePhotoUpload::query()->unfinished()->exists();
+    }
+
+    /**
+     * Ringkasan kemajuan beberapa kelompok unggahan terakhir.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function batches(int $limit = self::BatchesShown): array
+    {
+        $batchIds = FacePhotoUpload::query()
+            ->orderByDesc('id')
+            ->limit(200)
+            ->pluck('batch_id')
+            ->unique()
+            ->take($limit)
+            ->values()
+            ->all();
+
+        if ($batchIds === []) {
+            return [];
+        }
+
+        $grouped = FacePhotoUpload::query()
+            ->with('user')
+            ->whereIn('batch_id', $batchIds)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('batch_id');
+
+        $batches = [];
+
+        foreach ($batchIds as $batchId) {
+            /** @var Collection<int, FacePhotoUpload> $rows */
+            $rows = $grouped->get($batchId) ?? collect();
+
+            if ($rows->isEmpty()) {
+                continue;
+            }
+
+            $removal = $this->removalMoment($rows);
+
+            if ($removal !== null && now()->greaterThanOrEqualTo($removal)) {
+                continue;
+            }
+
+            $batches[] = $this->summarise((string) $batchId, $rows);
+        }
+
+        return $batches;
+    }
+
+    /**
+     * Saat kartu kelompok ini boleh dihilangkan dari panel kemajuan.
+     *
+     * Kartu dipertahankan selama masih ada foto yang dikerjakan, dan selama
+     * masih ada foto gagal yang berkasnya belum dibuang sehingga tombol Ulangi
+     * tetap bisa ditekan. Bila tidak ada pekerjaan yang tersisa, kartunya
+     * hilang setelah waktu tunggu terhitung dari foto terakhir yang selesai.
+     *
+     * @param  Collection<int, FacePhotoUpload>  $rows
+     */
+    private function removalMoment(Collection $rows): ?Carbon
+    {
+        $pending = $rows->contains(
+            fn (FacePhotoUpload $row): bool => $row->finished_at === null || $row->canRetry()
+        );
+
+        if ($pending) {
+            return null;
+        }
+
+        $lastFinished = $rows->map(fn (FacePhotoUpload $row) => $row->finished_at)->filter()->max();
+
+        /** @var Carbon|null $lastFinished */
+        return $lastFinished?->copy()->addSeconds(self::DoneLingerSeconds);
+    }
+
+    /**
+     * Buang berkas dan catatan antrean yang sudah lama supaya foto sementara
+     * tidak menumpuk di server.
+     *
+     * @return array{rows: int, files: int}
+     */
+    public function purge(int $days = 7): array
+    {
+        $cutoff = now()->subDays(max(1, $days));
+
+        $rows = FacePhotoUpload::query()
+            ->where('status', '!=', FacePhotoUpload::StatusDiproses)
+            ->where(function ($query) use ($cutoff): void {
+                $query->where('finished_at', '<=', $cutoff)
+                    ->orWhere(fn ($inner) => $inner->whereNull('finished_at')->where('created_at', '<=', $cutoff));
+            })
+            ->get();
+
+        $files = 0;
+
+        foreach ($rows as $row) {
+            if (Storage::disk('local')->delete($row->path)) {
+                $files++;
+            }
+        }
+
+        FacePhotoUpload::query()->whereKey($rows->modelKeys())->delete();
+
+        return ['rows' => $rows->count(), 'files' => $files];
+    }
+
+    /**
+     * @return Collection<int, FacePhotoUpload>
+     */
+    private function rowsOfBatch(string $batchId): Collection
+    {
+        return FacePhotoUpload::query()->with('user')->where('batch_id', $batchId)->orderBy('id')->get();
+    }
+
+    /**
+     * @param  Collection<int, FacePhotoUpload>  $rows
+     * @return array<string, mixed>
+     */
+    private function summarise(string $batchId, Collection $rows): array
+    {
+        $expected = max(1, (int) config('face.expected_seconds', 15));
+        $member = $rows->first()?->user;
+
+        $total = $rows->count();
+        $saved = $this->countByStatus($rows, FacePhotoUpload::StatusBerhasil);
+        $failed = $this->countByStatus($rows, FacePhotoUpload::StatusGagal);
+        $waiting = $this->countByStatus($rows, FacePhotoUpload::StatusMenunggu);
+        $processing = $this->countByStatus($rows, FacePhotoUpload::StatusDiproses);
+        $retryable = $rows->filter(fn (FacePhotoUpload $row): bool => $row->canRetry())->count();
+
+        $share = $rows
+            ->filter(fn (FacePhotoUpload $row): bool => $row->status === FacePhotoUpload::StatusDiproses)
+            ->sum(fn (FacePhotoUpload $row): float => $this->runningShare($row, $expected));
+
+        $finished = $saved + $failed;
+        $percent = $total === 0 ? 0 : (int) round((($finished + $share) / $total) * 100);
+        $percent = max(0, min(100, $percent));
+
+        $stalled = $rows->contains(fn (FacePhotoUpload $row): bool => $row->status === FacePhotoUpload::StatusMenunggu
+            && $row->created_at !== null
+            && $row->created_at->diffInSeconds(now()) > self::StallSeconds);
+
+        return [
+            'id' => $batchId,
+            'member' => $member?->name ?? 'Anggota terhapus',
+            'member_note' => 'Nomor induk '.($member?->identifier_number ?: 'belum ada')
+                .($member?->class_name ? ', kelas '.$member->class_name : ''),
+            'identifier' => $member?->identifier_number,
+            'class_name' => $member?->class_name,
+            'total' => $total,
+            'finished' => $finished,
+            'saved' => $saved,
+            'failed' => $failed,
+            'waiting' => $waiting,
+            'processing' => $processing,
+            'percent' => $percent,
+            'done' => $finished >= $total,
+            'stalled' => $stalled && $finished < $total,
+            'retryable' => $retryable,
+            'remove_at' => $this->removalMoment($rows)?->toIso8601String(),
+            'note' => $this->batchNote($total, $finished, $saved, $failed, $waiting, $processing),
+            'rows' => $rows
+                ->map(fn (FacePhotoUpload $row): array => $this->rowSummary($row, $expected))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function batchNote(int $total, int $finished, int $saved, int $failed, int $waiting, int $processing): string
+    {
+        if ($finished >= $total) {
+            return 'Selesai. '.$saved.' foto tersimpan'.($failed > 0 ? ', '.$failed.' foto gagal' : '').'.';
+        }
+
+        $parts = [$finished.' dari '.$total.' foto selesai'];
+
+        if ($processing > 0) {
+            $parts[] = $processing.' foto sedang berjalan';
+        }
+
+        if ($waiting > 0) {
+            $parts[] = $waiting.' foto menunggu antrean';
+        }
+
+        return implode(', ', $parts).'.';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rowSummary(FacePhotoUpload $row, int $expected): array
+    {
+        $running = $row->status === FacePhotoUpload::StatusDiproses;
+        $percent = match ($row->status) {
+            FacePhotoUpload::StatusBerhasil, FacePhotoUpload::StatusGagal => 100,
+            FacePhotoUpload::StatusDiproses => (int) round($this->runningShare($row, $expected) * 100),
+            default => 0,
+        };
+
+        $note = match ($row->status) {
+            FacePhotoUpload::StatusBerhasil => $row->message ?: 'Tersimpan',
+            FacePhotoUpload::StatusGagal => 'Gagal. '.($row->message ?: 'Pengolahan foto tidak berhasil.'),
+            FacePhotoUpload::StatusDiproses => 'Sedang berjalan, perkiraan '.$percent.'%',
+            default => 'Menunggu antrean',
+        };
+
+        return [
+            'id' => (int) $row->getKey(),
+            'name' => $row->shortName(),
+            'status' => $row->status,
+            'note' => $note,
+            'percent' => $running ? $percent : ($row->isFinished() ? 100 : 0),
+            'can_retry' => $row->canRetry(),
+        ];
+    }
+
+    /**
+     * Bagian pekerjaan satu foto yang sudah berjalan, dipakai sebagai
+     * sumbangan persen selama foto itu belum selesai.
+     */
+    private function runningShare(FacePhotoUpload $row, int $expected): float
+    {
+        if ($row->status !== FacePhotoUpload::StatusDiproses || $row->started_at === null) {
+            return 0.0;
+        }
+
+        $elapsed = abs((int) round($row->started_at->diffInSeconds(now())));
+
+        // Ditahan di 95 persen supaya bar tidak pernah menampilkan angka penuh
+        // padahal angkanya belum tersimpan.
+        return min(0.95, $elapsed / $expected);
+    }
+
+    /**
+     * @param  Collection<int, FacePhotoUpload>  $rows
+     */
+    private function countByStatus(Collection $rows, string $status): int
+    {
+        return $rows->filter(fn (FacePhotoUpload $row): bool => $row->status === $status)->count();
+    }
+}
