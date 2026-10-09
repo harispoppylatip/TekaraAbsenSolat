@@ -247,6 +247,83 @@ Salah satu tandanya adalah panel queue di halaman Wajah berhenti di tengah
 jalan dan log container `queue` berisi pesan mesin wajah tidak bisa
 dihubungi.
 
+## Memakai domain dan HTTPS
+
+Container `web` hanya melayani HTTP di dalam jaringan Docker. Sertifikat dan
+nama domain dipegang oleh proxy di depannya, misalnya nginx, Caddy, Traefik,
+atau Cloudflare. Susunannya seperti ini:
+
+```text
+peramban  ->  https://domain  ->  proxy pemegang sertifikat
+                              ->  http://127.0.0.1:8080  ->  container web
+```
+
+Ada dua hal yang wajib dikerjakan supaya pengaturan ini tidak error.
+
+**1. Proxy wajib mengirim header asal permintaan.** Tanpa header ini aplikasi
+tidak tahu bahwa penggunanya datang lewat https. Pada nginx biasa tambahkan:
+
+```nginx
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+Caddy, Traefik, dan Nginx Proxy Manager sudah mengirim ketiganya sendiri,
+jadi tidak perlu ditambahkan.
+
+**2. Isi `.env` seperti berikut.**
+
+```env
+APP_PORT=127.0.0.1:8080
+APP_URL_DOCKER=https://domain-anda.sch.id
+```
+
+Angka pentingnya ada pada `X-Forwarded-Proto`. Aplikasi mempercayai header itu
+hanya bila proxy-nya termasuk alamat yang dipercaya, dan daftar itu sudah diisi
+di `bootstrap/app.php` untuk alamat jaringan lokal (`127.0.0.1`, `10.0.0.0/8`,
+`172.16.0.0/12`, dan `192.168.0.0/16`). Bila proxy-nya ada di alamat lain,
+tambahkan alamat itu ke daftar tersebut lalu jalankan
+`docker compose up -d --build app web queue scheduler`.
+
+`APP_PORT=127.0.0.1:8080` membuat port aplikasi hanya bisa dibuka dari
+komputer server sendiri, sehingga tidak ada orang yang bisa melewati proxy.
+Jaringan sekolah tetap bisa memakai aplikasi domain karena yang diakses
+pengguna adalah port 443 milik proxy.
+
+Akibat bila dua hal itu terlewat, gejalanya mudah dikenali: halaman depan
+terbuka normal, panel yang menyegarkan diri sendiri juga jalan, tetapi tombol
+kamera di halaman absen wajah berbunyi `Sambungan ke server terputus.`
+Alasannya, aplikasi menulis alamat `http://domain` pada atribut `data-endpoint`,
+sedangkan peramban menolak permintaan http dari halaman https.
+
+Urutan memasangnya:
+
+```sh
+# 1. Proxy diarahkan ke 127.0.0.1:8080 dan sertifikatnya dipasang lebih dulu
+# 2. Perbarui berkas aplikasi
+cd /var/www/absen-solat
+git pull
+# 3. Bangun ulang, lalu pastikan kesehatan tiap layanan
+sudo docker compose up -d --build app web queue scheduler
+docker compose ps
+# 4. Periksa alamat yang dibuat aplikasi, hasilnya harus diawali https
+sudo docker compose exec app php artisan tinker --execute="echo route('attendance.wajah.scan');"
+```
+
+Langkah 4 adalah bukti tercepat. Hasil yang benar berbunyi
+`https://domain-anda.sch.id/absen-wajah/pindai`. Bila masih `http://`, berarti
+`APP_URL_DOCKER` belum terbaca atau headernya belum dikirim proxy.
+
+Untuk memastikan dari sisi lain, buka halaman absen wajah di peramban,
+tekan F12, lalu lihat tab Console. Bila muncul pesan `Mixed Content` yang
+menyebut alamat `http://`, penyebabnya memang alamat yang dihasilkan aplikasi.
+
+Bila aplikasi ternyata hanya dipakai lewat http di jaringan sekolah, tidak ada
+yang perlu diubah pada bagian ini. Dua hal di atas hanya perlu saat memakai
+domain dengan sertifikat.
+
 ## Perintah sehari-hari
 
 | Keperluan                                | Perintah                                             |
@@ -280,6 +357,7 @@ File yang sudah dikompilasi bisa dibersihkan dengan
 | Access denied for user                                    | Dua sebab. Bila `DB_HOST_DOCKER=db`: password di `DB_PASSWORD_DOCKER` tidak sama dengan password yang sudah tersimpan di volume MySQL, jadi kembalikan password lama atau hapus volume dengan `docker compose down -v` bila datanya boleh hilang. Bila memakai MySQL komputer host: akun `root@localhost` tidak cocok untuk sambungan dari alamat jaringan Docker sehingga perlu user `'absen_solat'@'%'` |
 | `required variable DB_PASSWORD_DOCKER is missing a value` | `DB_PASSWORD_DOCKER` atau `DB_ROOT_PASSWORD` masih kosong di `.env`. Compose menolak seluruh file walaupun layanan `db` tidak ikut dijalankan, jadi isi kedua kunci itu dengan password yang sah                                                                                                                                                                                                          |
 | Port sudah dipakai                                        | Ubah `APP_PORT` atau `DB_PUBLISH_PORT` di `.env`, lalu `docker compose up -d`                                                                                                                                                                                                                                                                                                                             |
+| Tombol kamera berbunyi `Sambungan ke server terputus.`    | Aplikasi di belakang proxy pemegang sertifikat, tetapi proxy belum mengirim header `X-Forwarded-Proto` atau alamatnya belum terdaftar sebagai proxy yang dipercaya. Ikuti bagian **Memakai domain dan HTTPS** di atas                                                                                                                                                                                     |
 | Koneksi ke MySQL lambat atau gagal berulang               | Pastikan volume database `absen-solat-dbdata` masih ada (`docker volume ls`) dan `docker compose logs db` tidak ada error                                                                                                                                                                                                                                                                                 |
 | Build berhenti pada pemeriksaan versi PHP                 | Image PHP yang dipakai lebih tua dari 8.4.1. Jangan turunkan image; naikkan versinya                                                                                                                                                                                                                                                                                                                      |
 
