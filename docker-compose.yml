@@ -7,12 +7,26 @@
 #              migrasi dan cache konfigurasi
 #   web        nginx, satu-satunya pintu masuk pengguna
 #   queue      pekerja antrean (pengubah foto wajah menjadi angka)
-#   scheduler  penjadwal (pembersihan harian face:purge-uploads)
+#   scheduler  penjadwal: menyiapkan sesi absen harian, membuka dan menutup
+#              sesi setiap menit, serta membersihkan data wajah tiap hari
 #
 # Semua pengaturan dibaca dari berkas .env. Kunci yang khusus Docker memakai
 # akhiran _DOCKER supaya .env tetap bisa dipakai untuk pengembangan di
 # komputer (php artisan serve) tanpa saling menimpa.
 #
+# Kunci di bawah ini dipakai bersama oleh aplikasi di dalam dan di luar
+# container, jadi tidak memakai akhiran _DOCKER dan cukup diatur sekali:
+#
+#   SOLAT_LATE_MINUTES         menit toleransi keterlambatan (bawaan 10)
+#   SOLAT_DEVICE_ID            kode perangkat kamera absen (kamera-wajah)
+#   SOLAT_EARLY_OPEN_MINUTES   menit sebelum jam mulai saat sesi boleh
+#                              dibuka (bawaan 10)
+#   SOLAT_SESSION_CREATE_TIME  jam penyiapan sesi harian (bawaan 00:05)
+#   SOLAT_PREPARE_DAYS_AHEAD   hari sesudah hari ini yang ikut disiapkan
+#                              sesinya (bawaan 1, isi 0 bila hanya hari ini)
+#   FACE_SERVICE_URL           alamat mesin wajah
+#
+# Kunci khusus Docker:
 #   APP_PORT               port web di komputer induk (bawaan 8080)
 #   APP_URL_DOCKER         alamat yang dilihat pengguna (bawaan localhost:8080)
 #   APP_ENV_DOCKER         bawaan production
@@ -194,8 +208,11 @@ services:
     # -------------------------------------------------------------------------
     # Penjadwal
     #
-    # Menjalankan face:purge-uploads setiap hari supaya tidak ada foto wajah
-    # sementara yang menumpuk di server.
+    # Tiga jadwal berjalan di sini dan wajib hidup:
+    #   solat:sesi-harian     menyiapkan sesi absen hari ini dan besok,
+    #                         sekali sehari pada SOLAT_SESSION_CREATE_TIME
+    #   solat:sesi-otomatis   membuka dan menutup sesi setiap menit
+    #   face:purge-uploads    membuang foto wajah sementara setiap hari
     # -------------------------------------------------------------------------
     scheduler:
         <<: *app-wadah

@@ -19,6 +19,7 @@ class AttendanceController extends Controller
     {
         return view('attendance.wajah', [
             'activeSession' => $sessions->activeSession(),
+            'earlyOpenMinutes' => SolatSessionService::earlyOpenMinutes(),
             'serviceReady' => $encoder->isAvailable(),
             'serviceMessage' => $encoder->unavailableMessage(),
             'todaySessions' => SolatSession::query()

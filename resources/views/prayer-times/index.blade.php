@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Waktu Solat')
-@section('note', 'Jam acuan pembuatan sesi absen setiap hari')
+@section('note', 'Jam acuan pembukaan sesi absen setiap hari')
 
 @section('content')
     <section class="card">
@@ -9,7 +9,10 @@
             <div>
                 <h2 class="section-title">Tambah waktu solat</h2>
                 <p class="section-note">
-                    Sesi absen dibuat dari daftar ini. Waktu solat yang tidak aktif tidak ikut dibuat.
+                    Sesi absen dibuat dari daftar ini dan jendelanya mengikuti jam di sini. Sesinya disiapkan sendiri
+                    setiap hari sesudah tengah malam, dibuka sendiri
+                    {{ $earlyOpenMinutes }} menit sebelum jam mulai, dan ditutup di akhir jendela. Waktu solat yang
+                    tidak aktif tidak ikut dibuat.
                 </p>
             </div>
         </div>

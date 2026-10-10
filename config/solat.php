@@ -24,6 +24,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sesi absen otomatis
+    |--------------------------------------------------------------------------
+    |
+    | Sesi absen disiapkan, dibuka, dan ditutup sendiri oleh penjadwal
+    | aplikasi. Angka di bawah ini dipakai mesin sesi maupun batas buka
+    | petugas, jadi keduanya selalu memakai angka yang sama.
+    |
+    | early_open_minutes  menit sebelum jam mulai saat sesi sudah boleh dibuka
+    | create_time         jam penjadwal menyiapkan sesi hari itu (24 jam)
+    | prepare_days_ahead  berapa hari sesudah hari ini ikut disiapkan
+    |
+    */
+
+    'early_open_minutes' => (int) env('SOLAT_EARLY_OPEN_MINUTES', 10),
+
+    'create_time' => env('SOLAT_SESSION_CREATE_TIME', '00:05'),
+
+    'prepare_days_ahead' => (int) env('SOLAT_PREPARE_DAYS_AHEAD', 1),
+
+    /*
+    |--------------------------------------------------------------------------
     | Waktu solat bawaan
     |--------------------------------------------------------------------------
     |

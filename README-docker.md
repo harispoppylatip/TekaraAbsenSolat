@@ -21,6 +21,19 @@ diperiksa dan diambil dari komputer lain memakai HeidiSQL, DBeaver, Navicat,
 | `.dockerignore`             | File yang tidak perlu masuk image                                               |
 | `.env` dan `.env.example`   | Tambahan blok Docker di bagian bawah                                            |
 
+Layanan `scheduler` menjalankan `php artisan schedule:work` dan memegang tiga
+jadwal:
+
+| Perintah              | Waktu        | Kegunaan                                     |
+| --------------------- | ------------ | -------------------------------------------- |
+| `solat:sesi-harian`   | setiap hari  | Menyiapkan sesi hari ini dan hari berikutnya |
+| `solat:sesi-otomatis` | setiap menit | Membuka dan menutup sesi absen               |
+| `face:purge-uploads`  | setiap hari  | Membuang file foto sementara                 |
+
+Jam `solat:sesi-harian` diambil dari `SOLAT_SESSION_CREATE_TIME` dan jumlah hari
+sesudahnya dari `SOLAT_PREPARE_DAYS_AHEAD`. Biarkan layanan `scheduler` selalu
+hidup supaya sesi absen selalu tersedia, terbuka, dan tertutup sendiri.
+
 ## Yang harus tersedia
 
 Docker Desktop atau Docker Engine dengan Compose. Untuk Windows, cara paling
@@ -62,6 +75,30 @@ Port web dipilih `8080` supaya tidak bentrok dengan `php artisan serve`
 komputer lain, isi `APP_URL_DOCKER` dengan alamat yang dipakai pengguna,
 misalnya `http://192.168.1.10:8080`, agar tautan yang dibuat aplikasi ikut
 tepat.
+
+### Aturan sesi absen
+
+Kunci di bawah ini ditulis tanpa akhiran `_DOCKER` karena dipakai bersama oleh
+`php artisan serve` dan Docker. Karena `docker-compose.yml` memakai
+`env_file: .env`, kuncinya otomatis ikut masuk ke layanan `app`, `queue`, dan
+`scheduler`.
+
+| Kunci                       | Arti                                                                   | Bawaan         |
+| --------------------------- | ---------------------------------------------------------------------- | -------------- |
+| `SOLAT_LATE_MINUTES`        | Menit toleransi sebelum absen dicatat terlambat                        | `10`           |
+| `SOLAT_DEVICE_ID`           | Kode perangkat kamera absen bawaan                                     | `kamera-wajah` |
+| `SOLAT_EARLY_OPEN_MINUTES`  | Menit sebelum jam mulai saat sesi sudah boleh dibuka                   | `10`           |
+| `SOLAT_SESSION_CREATE_TIME` | Jam `solat:sesi-harian` menyiapkan sesi hari itu                       | `00:05`        |
+| `SOLAT_PREPARE_DAYS_AHEAD`  | Berapa hari sesudah hari ini ikut disiapkan, `0` berarti hari ini saja | `1`            |
+
+Mengubah kuncinya cukup lewat `.env` lalu `docker compose up -d`; image tidak
+perlu dibangun ulang. Untuk menyiapkan sesi di luar jadwal, misalnya saat
+memasang aplikasi di tengah hari, jalankan sekali perintah berikut di dalam
+container.
+
+```sh
+docker compose exec app php artisan solat:sesi-harian --days=2
+```
 
 ### Mengganti port
 
@@ -330,6 +367,7 @@ domain dengan sertifikat.
 | ---------------------------------------- | ---------------------------------------------------- |
 | Melihat log aplikasi                     | `docker compose logs -f app`                         |
 | Melihat log worker queue                 | `docker compose logs -f queue`                       |
+| Melihat log penjadwal                    | `docker compose logs -f scheduler`                   |
 | Melihat log web                          | `docker compose logs -f web`                         |
 | Masuk ke container aplikasi              | `docker compose exec app sh`                         |
 | Menjalankan perintah artisan             | `docker compose exec app php artisan migrate:status` |
@@ -395,6 +433,11 @@ docker compose config --quiet
    yang masih kosong.
 7. Log aplikasi dikirim ke output container (`LOG_CHANNEL=stderr`) supaya
    terbaca dengan `docker compose logs` dan tidak menumpuk di dalam volume.
+8. Sesi absen dibuka dan ditutup sendiri oleh layanan `scheduler` setiap menit,
+   jadi absen tidak bergantung pada siapa yang mengingat menekan tombol Buka.
+   Bila layanan itu mati, sesi tidak terbuka sendiri dan pesannya terlihat di
+   `docker compose logs scheduler`. Tombol Buka di halaman Sesi Absen tetap bisa
+   dipakai sebagai jalan darurat.
 
 ## File terkait
 

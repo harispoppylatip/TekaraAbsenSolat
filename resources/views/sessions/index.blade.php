@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Sesi Absen')
-@section('note', 'Buka dan tutup sesi absen setiap waktu solat')
+@section('note', 'Sesi absen dibuka dan ditutup sendiri setiap waktu solat')
 
 @php($sessionService = app(\App\Services\SolatSessionService::class))
 
@@ -11,8 +11,10 @@
             <div>
                 <h2 class="section-title">Sesi tanggal {{ $date->translatedFormat('l, d F Y') }}</h2>
                 <p class="section-note">
-                    Absen hanya masuk selama sesi dibuka. Petugas bisa membuka {{ $sessionService::EarlyOpenMinutes }}
-                    menit sebelum jam mulai sampai jam selesai. Admin bebas memilih tanggal.
+                    Absen hanya masuk selama sesi dibuka. Sistem menyiapkan sesi untuk hari ini dan besok sesudah
+                    tengah malam, membuka sesi {{ $sessionService::earlyOpenMinutes() }} menit sebelum jam mulai, dan
+                    menutupnya di akhir jendela waktu solat, asalkan penjadwal aplikasi hidup. Tombol buka dan tutup
+                    tetap tersedia untuk keadaan yang perlu dibuka lebih dulu. Admin bebas memilih tanggal.
                 </p>
             </div>
 
@@ -84,7 +86,8 @@
                 </div>
 
                 @if ($sessions->isEmpty())
-                    <p class="empty-state">Belum ada sesi pada tanggal ini. Tekan tombol Buat sesi tanggal ini.</p>
+                    <p class="empty-state">Belum ada sesi pada tanggal ini. Sesi hari ini disiapkan sendiri sesudah
+                        tengah malam. Tekan tombol Buat sesi tanggal ini bila ingin menyiapkannya sekarang.</p>
                 @else
                     <div class="table-wrap">
                         <table class="data-table">
@@ -160,9 +163,14 @@
                         <p class="section-note">
                             @if ($selected)
                                 {{ $selected->date?->translatedFormat('d F Y') }} jam {{ $selected->windowLabel() }}.
-                                Dibuka {{ $selected->opener?->name ?? 'belum' }}@if ($selected->closer)
-                                    , ditutup {{ $selected->closer->name }}
-                                @endif.
+                                @if ($selected->opened_at === null)
+                                    Sesi belum dibuka.
+                                @else
+                                    Dibuka {{ $selected->opener?->name ?? 'secara otomatis' }}.
+                                @endif
+                                @if ($selected->closed_at !== null)
+                                    Ditutup {{ $selected->closer?->name ?? 'secara otomatis' }}.
+                                @endif
                             @else
                                 Belum ada sesi yang bisa ditampilkan.
                             @endif

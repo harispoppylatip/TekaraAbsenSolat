@@ -30,7 +30,7 @@
                 <p class="stat-label">Sesi sedang dibuka</p>
                 <p class="stat-value">{{ $activeSession ? $activeSession->prayerLabel() : 'Belum ada' }}</p>
                 <p class="stat-note">
-                    {{ $activeSession ? 'Jam ' . $activeSession->windowLabel() : 'Buka sesi di halaman Sesi Absen' }}
+                    {{ $activeSession ? 'Jam ' . $activeSession->windowLabel() : 'Terbuka sendiri menjelang waktu solat' }}
                 </p>
             </div>
         </section>
@@ -49,7 +49,8 @@
                 </div>
 
                 @if ($todaySessions->isEmpty())
-                    <p class="empty-state">Belum ada sesi untuk hari ini. Buat sesi lewat halaman Sesi Absen.</p>
+                    <p class="empty-state">Belum ada sesi untuk hari ini. Sesi dibuat sendiri menjelang jam waktu
+                        solat, dan bisa disiapkan lebih dulu lewat halaman Sesi Absen.</p>
                 @else
                     <div class="table-wrap">
                         <table class="data-table">

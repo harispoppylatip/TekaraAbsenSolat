@@ -29,6 +29,25 @@ rapi untuk dipasang di server sekolah.
 Semua peran masuk lewat halaman `/masuk`. Akun yang belum pernah mengganti
 password langsung diarahkan ke `/ganti-password`.
 
+## Cara kerja sesi absen
+
+Absen hanya diterima selama sesi dibuka. Sesi dikelola sendiri oleh penjadwal:
+
+- Sesi untuk hari ini dan besok disiapkan sekali sehari sesudah tengah malam,
+  jadi daftar sesi sudah lengkap sebelum waktu solat pertama dimulai.
+- Sesi dibuka sepuluh menit sebelum jam mulai, lalu ditutup di akhir jendela.
+  Angka menitnya bisa diubah lewat `SOLAT_EARLY_OPEN_MINUTES`.
+- Bila masih ada sesi yang terbuka, sesi berikutnya ditandai Terjadwal dan
+  terbuka sendiri begitu sesi sebelumnya ditutup.
+- Sesi yang tertinggal dari hari sebelumnya ditutup lebih dulu supaya tidak
+  menghalangi sesi hari ini.
+- Bila sesi dibuka atau ditutup sendiri oleh petugas, keputusan petugas selalu
+  menang dan mesin tidak mengubahnya.
+
+Tombol Buka dan Tutup di halaman Sesi Absen tetap ada untuk keadaan yang perlu
+dibuka lebih dulu. Karena itu penjadwal wajib hidup: `php artisan schedule:work`
+di komputer sendiri, atau layanan `scheduler` bila memakai Docker.
+
 ## Yang harus tersedia
 
 | Perkakas     | Versi                                | Catatan                                                               |
@@ -68,7 +87,7 @@ composer setup
 ```
 
 Dua hal yang tidak dikerjakan perintah di atas: membuat databasenya, dan
-mengisi data awal. Keduanya dijelaskan di langkah 3 dan langkah 4.
+mengisi data awal. Keduanya dijelaskan di langkah 4 dan langkah 5.
 
 ## Cara 1: menjalankan di komputer sendiri
 
@@ -114,7 +133,32 @@ DB_PASSWORD=
 Laragon dan XAMPP biasanya memakai user `root` tanpa password. Bila MySQL
 memakai password, isi juga `DB_PASSWORD`.
 
-### Langkah 3: buat databasenya
+### Langkah 3: sesuaikan aturan sesi absen
+
+Bagian `Aturan absen solat` di dalam `.env` menentukan kapan sesi disiapkan,
+dibuka, dan ditutup. Nilai bawaannya sudah cocok untuk pemakaian biasa.
+
+```env
+SOLAT_LATE_MINUTES=10
+SOLAT_DEVICE_ID=kamera-wajah
+SOLAT_EARLY_OPEN_MINUTES=10
+SOLAT_SESSION_CREATE_TIME=00:05
+SOLAT_PREPARE_DAYS_AHEAD=1
+```
+
+| Kunci                       | Arti                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `SOLAT_LATE_MINUTES`        | Menit toleransi sebelum absen dicatat terlambat                                |
+| `SOLAT_DEVICE_ID`           | Kode perangkat kamera absen bawaan                                             |
+| `SOLAT_EARLY_OPEN_MINUTES`  | Menit sebelum jam mulai saat sesi sudah boleh dibuka petugas maupun mesin      |
+| `SOLAT_SESSION_CREATE_TIME` | Jam penjadwal menyiapkan sesi hari itu                                         |
+| `SOLAT_PREPARE_DAYS_AHEAD`  | Berapa hari sesudah hari ini ikut disiapkan sesinya, isi 0 bila hanya hari ini |
+
+Kunci yang sama juga berlaku di dalam Docker karena `docker-compose.yml` membaca
+berkas `.env`, jadi tidak perlu diatur dua kali. Daftar kunci khusus Docker ada
+di `README-docker.md` dan di komentar paling atas `docker-compose.yml`.
+
+### Langkah 4: buat databasenya
 
 Laravel tidak membuat databasenya sendiri, jadi langkah ini dikerjakan
 sekali. Di Laragon, klik kanan lalu pilih Database dan buat database
@@ -128,7 +172,7 @@ Muatan `utf8mb4` dipilih supaya nama dan catatan berbahasa Indonesia
 tersimpan utuh, dan sama dengan penyetelan image MySQL pada
 `docker-compose.yml`.
 
-### Langkah 4: jalankan migrasi dan isi data awal
+### Langkah 5: jalankan migrasi dan isi data awal
 
 ```sh
 php artisan migrate --seed
@@ -142,7 +186,7 @@ bawaan, dan beberapa akun contoh. Bila hanya ingin tabelnya saja, jalankan
 Perhatian: seeding tidak boleh dijalankan pada database yang sudah
 dipakai, karena password akun bawaan ikut ditulis ulang.
 
-### Langkah 5: pasang paket tampilan dan bangun aset
+### Langkah 6: pasang paket tampilan dan bangun aset
 
 ```sh
 npm install
@@ -152,7 +196,7 @@ npm run build
 Tanpa langkah ini halaman akan terbuka tanpa gaya dan tanpa skrip, sebab
 tampilan dilayani file hasil build.
 
-### Langkah 6: jalankan aplikasinya
+### Langkah 7: jalankan aplikasinya
 
 ```sh
 php artisan serve --port=8000
@@ -174,11 +218,21 @@ php artisan queue:work
 Queue wajib hidup supaya upload foto wajah diproses di latar belakang.
 Tanpa queue, foto tetap tersimpan tetapi berstatus menunggu.
 
-Jadwal harian yang membuang file foto sementara bisa dijalankan dengan
-`php artisan schedule:work`. Sifatnya opsional di komputer sendiri, wajib di
-server.
+Jadwal yang berjalan di penjadwal ada tiga: penyiapan sesi absen harian sekali
+sehari, pembukaan dan penutupan sesi absen setiap menit, serta pembuangan file
+foto sementara setiap hari. Jalankan dengan `php artisan schedule:work`.
+Daftarnya bisa dilihat dengan `php artisan schedule:list`.
 
-### Langkah 7: buka dan masuk
+Tanpa penjadwal, sesi absen tidak akan disiapkan, dibuka, maupun ditutup
+sendiri. Absen masih bisa berjalan dengan menekan tombol Buka di halaman Sesi
+Absen, dan sesi satu hari bisa disiapkan sekaligus lewat perintah:
+
+```sh
+php artisan solat:sesi-harian
+php artisan solat:sesi-harian --date=2026-10-11 --days=2
+```
+
+### Langkah 8: buka dan masuk
 
 Buka `http://localhost:8000`, halaman pertama yang muncul adalah halaman
 masuk. Pakai akun bawaan di bawah, lalu ganti passwordnya bila diminta.
@@ -188,15 +242,17 @@ masuk. Pakai akun bawaan di bawah, lalu ganti passwordnya bila diminta.
 Periksa berurutan dari atas. Bila satu langkah gagal, perbaikannya ada di
 bagian "Kalau ada masalah".
 
-| Pemeriksaan                  | Hasil yang benar                               |
-| ---------------------------- | ---------------------------------------------- |
-| `php artisan migrate:status` | Semua baris berstatus `Ran`                    |
-| `php artisan about`          | Tidak ada error koneksi database               |
-| Buka `http://localhost:8000` | Halaman masuk muncul berikut gaya dan warnanya |
-| Masuk sebagai admin          | Halaman Ringkasan memuat kartu angka           |
-| Buka `/waktu-solat`          | Lima baris waktu solat sudah terisi            |
-| Buka `/perangkat`            | Perangkat `kamera-wajah` sudah terdaftar       |
-| Buka `/anggota`              | Enam akun murid dan dua akun pengurus ada      |
+| Pemeriksaan                  | Hasil yang benar                                      |
+| ---------------------------- | ----------------------------------------------------- |
+| `php artisan migrate:status` | Semua baris berstatus `Ran`                           |
+| `php artisan about`          | Tidak ada error koneksi database                      |
+| Buka `http://localhost:8000` | Halaman masuk muncul berikut gaya dan warnanya        |
+| Masuk sebagai admin          | Halaman Ringkasan memuat kartu angka                  |
+| Buka `/waktu-solat`          | Lima baris waktu solat sudah terisi                   |
+| Buka `/perangkat`            | Perangkat `kamera-wajah` sudah terdaftar              |
+| Buka `/anggota`              | Enam akun murid dan dua akun pengurus ada             |
+| Buka `/sesi-absen`           | Sesi hari ini dan besok sudah terisi sendiri          |
+| Jalankan penjadwal           | Sesi absen disiapkan, lalu dibuka dan ditutup sendiri |
 
 API untuk alat bisa dicoba tanpa perangkat sungguhan. Balasan berikut muncul
 ketika kode perangkat dikirim tanpa data lain.
@@ -226,6 +282,10 @@ databasenya baru dan masih kosong, isi data awalnya sekali saja.
 ```sh
 docker compose exec app php artisan db:seed --force
 ```
+
+Aturan sesi absen di bagian `Aturan absen solat` pada `.env` tidak perlu diubah
+lagi untuk Docker. Berkas itu dibaca langsung oleh `docker-compose.yml` dan
+diserahkan ke layanan `app`, `queue`, dan `scheduler`.
 
 Panduan lengkapnya, termasuk mengganti port, membuka MySQL dari komputer
 lain, dan memakai MySQL yang sudah ada di komputer host, ada di
@@ -285,7 +345,7 @@ supaya persen kemajuannya tidak terlalu cepat mentok di angka 100.
 | Gejala                                                | Perbaikan                                                                                                        |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `could not find driver`                               | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                             |
-| `Unknown database 'absen_solat'`                      | Databasenya belum dibuat. Kerjakan langkah 3                                                                     |
+| `Unknown database 'absen_solat'`                      | Databasenya belum dibuat. Kerjakan langkah 4                                                                     |
 | `Access denied for user 'root'@'localhost'`           | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                           |
 | Halaman terbuka tanpa gaya dan tanpa warna            | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                 |
 | `Vite manifest not found`                             | Sama seperti di atas, file hasil build belum ada                                                                 |
@@ -311,7 +371,8 @@ gaya penulisan kode PHP.
 
 ```
 app/
-  Console/Commands/     perintah artisan, misalnya face:purge-uploads
+  Console/Commands/     perintah artisan: solat:sesi-harian, solat:sesi-otomatis,
+                        face:purge-uploads
   Http/Controllers/     halaman web dan alamat API
   Http/Middleware/      pemeriksaan peran, petugas kamera, ganti password wajib
   Jobs/                 pekerjaan queue, misalnya pemrosesan foto wajah
@@ -327,6 +388,7 @@ resources/
   js/app.js             skrip halaman, termasuk panel kemajuan queue
   views/                layout, halaman, dan potongan tampilan
 routes/web.php          seluruh rute web dan API
+routes/console.php      jadwal penjadwal: sesi otomatis tiap menit, pembersihan harian
 config/solat.php        waktu solat bawaan, toleransi terlambat, daftar peran
 config/face.php         alamat, toleransi, dan batas layanan wajah
 ```

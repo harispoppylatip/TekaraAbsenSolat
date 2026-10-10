@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PrayerTimeRequest;
 use App\Models\PrayerTime;
 use App\Models\SolatSession;
+use App\Services\SolatSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -15,6 +16,7 @@ class PrayerTimeController extends Controller
         return view('prayer-times.index', [
             'prayers' => PrayerTime::query()->ordered()->get(),
             'suggestions' => (array) config('solat.prayer_defaults'),
+            'earlyOpenMinutes' => SolatSessionService::earlyOpenMinutes(),
             'sessionTotals' => SolatSession::query()
                 ->selectRaw('prayer_name, COUNT(*) as total')
                 ->groupBy('prayer_name')

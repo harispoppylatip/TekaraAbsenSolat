@@ -215,6 +215,89 @@ function setupCameras(scope = document) {
     });
 }
 
+// Pilihan kamera disimpan sebagai satu nilai: arah hadap ("facing:user")
+// atau perangkat tertentu ("device:<id>"). Cara ini membuat ponsel bisa
+// berpindah antara kamera depan dan belakang, sedangkan komputer bisa
+// memilih kamera tambahan yang terpasang.
+const CAMERA_FACING_OPTIONS = [
+    ["facing:user", "Kamera depan"],
+    ["facing:environment", "Kamera belakang"],
+];
+
+function cameraConstraint(value) {
+    if (typeof value === "string" && value.startsWith("device:")) {
+        return { deviceId: { exact: value.slice(7) } };
+    }
+
+    if (typeof value === "string" && value.startsWith("facing:")) {
+        return { facingMode: value.slice(7) };
+    }
+
+    return { facingMode: "user" };
+}
+
+// Nama kamera baru terbaca peramban setelah izin diberikan, jadi daftar
+// perangkat hanya bisa dilengkapi setelah kamera pernah dinyalakan.
+async function cameraDevices() {
+    if (
+        !navigator.mediaDevices ||
+        typeof navigator.mediaDevices.enumerateDevices !== "function"
+    ) {
+        return [];
+    }
+
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+
+        return devices.filter(
+            (device) => device.kind === "videoinput" && device.label,
+        );
+    } catch (error) {
+        return [];
+    }
+}
+
+function buildCameraChoices(picker, cameras, preferred) {
+    picker.innerHTML = "";
+
+    const facingGroup = document.createElement("optgroup");
+    facingGroup.label = "Arah kamera";
+
+    CAMERA_FACING_OPTIONS.forEach(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        facingGroup.appendChild(option);
+    });
+
+    picker.appendChild(facingGroup);
+
+    if (cameras.length > 0) {
+        const deviceGroup = document.createElement("optgroup");
+        deviceGroup.label = "Kamera yang terdeteksi";
+
+        cameras.forEach((camera, index) => {
+            const option = document.createElement("option");
+            option.value = `device:${camera.deviceId}`;
+            option.textContent = camera.label || `Kamera ${index + 1}`;
+            deviceGroup.appendChild(option);
+        });
+
+        picker.appendChild(deviceGroup);
+    }
+
+    // Pilihan lama dipertahankan bila masih tersedia, supaya daftar yang
+    // diperbarui tidak diam-diam memindahkan kamera yang sedang dipakai.
+    const options = Array.from(picker.options);
+    const chosen = preferred
+        .filter((value) => value)
+        .find((value) => options.some((option) => option.value === value));
+
+    picker.value = chosen || CAMERA_FACING_OPTIONS[0][0];
+
+    return picker.value;
+}
+
 function initCamera(root) {
     const video = root.querySelector("[data-camera-video]");
     const canvas = root.querySelector("[data-camera-canvas]");
@@ -223,6 +306,7 @@ function initCamera(root) {
     const report = root.querySelector("[data-camera-report]");
     const status = root.querySelector("[data-camera-status]");
     const placeholder = root.querySelector("[data-camera-placeholder]");
+    const picker = root.querySelector("[data-camera-facing]");
     const endpoint = root.dataset.endpoint;
     const interval = Number(root.dataset.interval || 1500);
 
@@ -230,6 +314,14 @@ function initCamera(root) {
     let timer = null;
     let busy = false;
     let lastMessage = "";
+    let facing =
+        picker && picker.value ? picker.value : CAMERA_FACING_OPTIONS[0][0];
+    let starting = false;
+
+    // Nomor urut percobaan menyalakan kamera. Izin kamera bisa lama diminta
+    // peramban, jadi hasil percobaan lama tidak boleh lagi mengubah tombol,
+    // teks status, maupun pencatatan bila kamera sudah dimatikan atau diganti.
+    let attempt = 0;
 
     function say(text) {
         if (status) {
@@ -259,19 +351,76 @@ function initCamera(root) {
         }
     }
 
+    // Perbarui daftar pilihan kamera tanpa mengubah kamera yang sedang dipakai.
+    async function refreshChoices() {
+        if (!picker) {
+            return;
+        }
+
+        const cameras = await cameraDevices();
+
+        facing = buildCameraChoices(picker, cameras, [facing, picker.value]);
+    }
+
     async function start() {
         if (stream !== null) {
             return;
         }
 
+        if (picker && picker.value) {
+            facing = picker.value;
+        }
+
+        const mine = ++attempt;
+
+        starting = true;
+
+        // Tombol ditukar sebelum menunggu izin peramban supaya penyalaan bisa
+        // dibatalkan selagi izinnya belum dijawab.
+        if (startButton) {
+            startButton.disabled = true;
+        }
+
+        if (stopButton) {
+            stopButton.disabled = false;
+        }
+
         say("Menyalakan kamera. Izinkan akses kamera bila peramban meminta.");
 
+        let opened = null;
+
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: { ideal: 640 } },
+            opened = await navigator.mediaDevices.getUserMedia({
+                video: Object.assign(
+                    { width: { ideal: 640 } },
+                    cameraConstraint(facing),
+                ),
                 audio: false,
             });
         } catch (error) {
+            opened = null;
+        }
+
+        // Kamera sudah dimatikan atau diganti selagi izin diminta.
+        if (mine !== attempt) {
+            if (opened) {
+                opened.getTracks().forEach((track) => track.stop());
+            }
+
+            return;
+        }
+
+        starting = false;
+
+        if (opened === null) {
+            if (startButton) {
+                startButton.disabled = false;
+            }
+
+            if (stopButton) {
+                stopButton.disabled = true;
+            }
+
             say(
                 "Kamera tidak bisa dinyalakan. Periksa izin kamera pada peramban lalu coba lagi.",
             );
@@ -279,6 +428,7 @@ function initCamera(root) {
             return;
         }
 
+        stream = opened;
         video.srcObject = stream;
         video.hidden = false;
 
@@ -286,7 +436,10 @@ function initCamera(root) {
             placeholder.hidden = true;
         }
 
-        await video.play().catch(() => {});
+        // Tidak ditunggu. Peramban baru menyelesaikan play() setelah gambar
+        // pertama tiba, jadi menunggunya bisa membuat tombol dan teks status
+        // tertahan lama walau siaran sudah siap.
+        video.play().catch(() => {});
 
         if (startButton) {
             startButton.disabled = true;
@@ -301,9 +454,16 @@ function initCamera(root) {
         );
 
         timer = window.setInterval(capture, interval);
+
+        // Nama kamera baru terbaca lengkap setelah izin diberikan.
+        await refreshChoices();
     }
 
-    function stop() {
+    function closeStream() {
+        // Setiap siaran yang ditutup membatalkan percobaan menyalakan yang
+        // masih berjalan, termasuk yang sedang menunggu izin peramban.
+        attempt += 1;
+
         if (timer !== null) {
             window.clearInterval(timer);
             timer = null;
@@ -322,6 +482,10 @@ function initCamera(root) {
         if (placeholder) {
             placeholder.hidden = false;
         }
+    }
+
+    function stop() {
+        closeStream();
 
         if (startButton) {
             startButton.disabled = false;
@@ -403,6 +567,30 @@ function initCamera(root) {
     if (stopButton) {
         stopButton.disabled = true;
         stopButton.addEventListener("click", stop);
+    }
+
+    // Berganti kamera saat siaran berjalan, atau saat izinnya sedang diminta,
+    // berarti membuka ulang perangkatnya.
+    if (picker) {
+        picker.addEventListener("change", async () => {
+            facing = picker.value;
+
+            if (stream === null && !starting) {
+                return;
+            }
+
+            closeStream();
+            await start();
+        });
+    }
+
+    if (
+        navigator.mediaDevices &&
+        typeof navigator.mediaDevices.addEventListener === "function"
+    ) {
+        navigator.mediaDevices.addEventListener("devicechange", () => {
+            refreshChoices();
+        });
     }
 
     window.addEventListener("pagehide", stop);
