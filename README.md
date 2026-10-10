@@ -52,6 +52,37 @@ Tombol Buka dan Tutup di halaman Sesi Absen tetap ada untuk keadaan yang perlu
 dibuka lebih dulu. Karena itu penjadwal wajib hidup: `php artisan schedule:work`
 di komputer sendiri, atau layanan `scheduler` bila memakai Docker.
 
+## Menghapus sesi
+
+Sesi yang salah dibuat bisa dibersihkan admin dari halaman Sesi Absen dalam
+tiga cara, semuanya ikut menghapus catatan kehadiran beserta foto buktinya:
+
+| Cara                    | Yang terhapus                                      |
+| ----------------------- | -------------------------------------------------- |
+| Tombol Hapus pada baris | Satu sesi saja                                     |
+| Hapus yang dicentang    | Sesi yang kotaknya dicentang, bisa lebih dari satu |
+| Hapus sesi tanggal ini  | Seluruh sesi pada tanggal yang sedang dilihat      |
+
+Sesi yang sedang dibuka tidak ikut terhapus dan pesannya menyebutkan hal itu,
+karena catatan yang baru saja ditulis alat tidak boleh hilang begitu saja.
+Tutup dulu sesi tersebut, baru hapus.
+
+## Mode uji coba absen
+
+Menguji kamera absen tidak lagi menuntut sesi solat yang sungguhan dibuka.
+Admin menyalakan Mode uji coba absen di halaman Sesi Absen, lalu satu sesi
+khusus bernama Uji coba terbuka. Selama mode itu menyala:
+
+- Petugas dan anggota yang ditugaskan memindai wajah boleh ikut mencoba.
+- Halaman Absen Wajah menampilkan pemberitahuan bahwa mode uji coba sedang
+  menyala, jadi tidak ada yang salah paham.
+- Orang yang sama baru bisa dipindai lagi setelah empat menit, jeda itu diatur
+  lewat `SOLAT_TEST_COOLDOWN_MINUTES`.
+- Hasil percobaan tidak dihitung di rekap, riwayat, maupun ringkasan.
+
+Tombol Hapus sesi uji coba membersihkan sesi percobaan itu beserta catatan dan
+foto buktinya, jadi tidak ada sisa data uji yang menumpuk.
+
 ## Bukti foto absen wajah
 
 Catatan absen wajah menyimpan satu foto potret jamaah sebagai bukti. Fotonya
@@ -179,15 +210,17 @@ SOLAT_DEVICE_ID=kamera-wajah
 SOLAT_EARLY_OPEN_MINUTES=10
 SOLAT_SESSION_CREATE_TIME=00:05
 SOLAT_PREPARE_DAYS_AHEAD=1
+SOLAT_TEST_COOLDOWN_MINUTES=4
 ```
 
-| Kunci                       | Arti                                                                           |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| `SOLAT_LATE_MINUTES`        | Menit toleransi sebelum absen dicatat terlambat                                |
-| `SOLAT_DEVICE_ID`           | Kode perangkat kamera absen bawaan                                             |
-| `SOLAT_EARLY_OPEN_MINUTES`  | Menit sebelum jam mulai saat sesi sudah boleh dibuka petugas maupun mesin      |
-| `SOLAT_SESSION_CREATE_TIME` | Jam penjadwal menyiapkan sesi hari itu                                         |
-| `SOLAT_PREPARE_DAYS_AHEAD`  | Berapa hari sesudah hari ini ikut disiapkan sesinya, isi 0 bila hanya hari ini |
+| Kunci                         | Arti                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| `SOLAT_LATE_MINUTES`          | Menit toleransi sebelum absen dicatat terlambat                                |
+| `SOLAT_DEVICE_ID`             | Kode perangkat kamera absen bawaan                                             |
+| `SOLAT_EARLY_OPEN_MINUTES`    | Menit sebelum jam mulai saat sesi sudah boleh dibuka petugas maupun mesin      |
+| `SOLAT_SESSION_CREATE_TIME`   | Jam penjadwal menyiapkan sesi hari itu                                         |
+| `SOLAT_PREPARE_DAYS_AHEAD`    | Berapa hari sesudah hari ini ikut disiapkan sesinya, isi 0 bila hanya hari ini |
+| `SOLAT_TEST_COOLDOWN_MINUTES` | Jeda menit sebelum orang yang sama boleh dipindai lagi di mode uji coba        |
 
 Kunci yang sama juga berlaku di dalam Docker karena `docker-compose.yml` membaca
 berkas `.env`, jadi tidak perlu diatur dua kali. Daftar kunci khusus Docker ada

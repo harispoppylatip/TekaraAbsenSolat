@@ -31,7 +31,10 @@ class MemberController extends Controller
             ->when($filters['class_name'] !== '', fn (Builder $inner) => $inner->where('class_name', $filters['class_name']))
             ->when($filters['face'] === 'ada', fn (Builder $inner) => $inner->has('faceEmbeddings'))
             ->when($filters['face'] === 'kosong', fn (Builder $inner) => $inner->doesntHave('faceEmbeddings'))
-            ->withCount(['faceEmbeddings', 'attendanceLogs']);
+            ->withCount([
+                'faceEmbeddings',
+                'attendanceLogs' => fn (Builder $inner) => $inner->whereHas('session', fn (Builder $session) => $session->real()),
+            ]);
 
         match ($filters['sort']) {
             'identifier' => $query->orderBy('identifier_number'),

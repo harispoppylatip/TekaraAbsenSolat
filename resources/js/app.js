@@ -108,6 +108,32 @@ function restoreDetailState(scope, state) {
     });
 }
 
+// Kotak centang pilihan baris dikunci dengan nama dan nilainya supaya centang
+// tidak hilang saat wilayah halaman menyegarkan diri sendiri.
+function checkboxKey(input) {
+    return `${input.name}|${input.value}`;
+}
+
+function checkedState(scope) {
+    const state = {};
+
+    scope.querySelectorAll('input[type="checkbox"][name]').forEach((input) => {
+        state[checkboxKey(input)] = input.checked;
+    });
+
+    return state;
+}
+
+function restoreCheckedState(scope, state) {
+    scope.querySelectorAll('input[type="checkbox"][name]').forEach((input) => {
+        const key = checkboxKey(input);
+
+        if (Object.prototype.hasOwnProperty.call(state, key)) {
+            input.checked = state[key];
+        }
+    });
+}
+
 async function refreshLiveRegions() {
     const regions = Array.from(document.querySelectorAll("[data-live]"));
 
@@ -146,8 +172,10 @@ async function refreshLiveRegions() {
         }
 
         const state = detailState(region);
+        const checks = checkedState(region);
         region.innerHTML = incoming.innerHTML;
         restoreDetailState(region, state);
+        restoreCheckedState(region, checks);
         setupCameras(region);
         setupBulkUpload(region);
     });

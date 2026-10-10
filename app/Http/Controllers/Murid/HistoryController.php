@@ -29,6 +29,7 @@ class HistoryController extends Controller
 
         $totals = SolatAttendanceLog::query()
             ->where('user_id', $user->id)
+            ->whereHas('session', fn ($query) => $query->real())
             ->whereBetween('scanned_at', [$start, $end])
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
@@ -36,6 +37,7 @@ class HistoryController extends Controller
 
         $perPrayer = SolatAttendanceLog::query()
             ->join('solat_sessions', 'solat_sessions.id', '=', 'solat_attendance_logs.solat_session_id')
+            ->where('solat_sessions.is_test', false)
             ->where('solat_attendance_logs.user_id', $user->id)
             ->whereBetween('solat_attendance_logs.scanned_at', [$start, $end])
             ->selectRaw('solat_sessions.prayer_name as prayer_name')
@@ -59,7 +61,8 @@ class HistoryController extends Controller
             ->values();
 
         $openedSessions = SolatSession::query()
-            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->real()
+            ->betweenDates($from, $to)
             ->where('status', '!=', SolatSession::StatusBelumDibuka)
             ->count();
 

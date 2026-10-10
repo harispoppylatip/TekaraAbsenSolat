@@ -4,6 +4,7 @@
 @section('note', 'Sesi absen dibuka dan ditutup sendiri setiap waktu solat')
 
 @php($sessionService = app(\App\Services\SolatSessionService::class))
+@php($isAdmin = auth()->user()?->isAdmin() ?? false)
 
 @section('content')
     <section class="card">
@@ -76,6 +77,118 @@
             </div>
         </section>
 
+        @if ($isAdmin || $testSession !== null)
+            <section class="card">
+                <div class="section-head">
+                    <div>
+                        <h2 class="section-title">Mode uji coba absen</h2>
+                        <p class="section-note">
+                            Mode uji coba membuka satu sesi khusus untuk mencoba kamera absen wajah tanpa membuka sesi
+                            waktu solat yang sungguhan. Percobaan yang masuk tidak dihitung pada rekap, riwayat, maupun
+                            ringkasan, dan orang yang sama baru boleh dicoba lagi setelah
+                            {{ $testCooldownMinutes }} menit. Sengaja disediakan supaya absen boleh diuji kapan saja.
+                        </p>
+                    </div>
+
+                    <div class="section-actions">
+                        <a class="btn btn-outline btn-small" href="{{ route('attendance.wajah') }}">Halaman absen
+                            wajah</a>
+                    </div>
+                </div>
+
+                @if ($testSession === null)
+                    <div class="alert alert-info">
+                        <strong>Mode uji coba mati</strong>
+                        Absen hanya masuk kalau ada sesi waktu solat yang sedang dibuka atau mode uji coba dinyalakan.
+                    </div>
+
+                    @if ($isAdmin)
+                        <div class="form-actions">
+                            <form method="POST" action="{{ route('sessions.test.start') }}">
+                                @csrf
+                                <button class="btn btn-primary" type="submit">Nyalakan mode uji coba</button>
+                            </form>
+                            @if ($activeSession !== null)
+                                <span class="field-hint">Tutup dulu sesi waktu solat yang sedang dibuka sebelum
+                                    menyalakan mode uji coba.</span>
+                            @else
+                                <span class="field-hint">Tidak ada sesi waktu solat yang sedang dibuka, jadi mode uji
+                                    coba boleh dinyalakan sekarang.</span>
+                            @endif
+                        </div>
+                    @endif
+                @else
+                    <div class="alert alert-success">
+                        <strong>Mode uji coba menyala</strong>
+                        Sejak pukul {{ $testSession->opened_at?->format('H:i') }}
+                        tanggal {{ $testSession->date?->translatedFormat('d F Y') }}. Petugas dan anggota yang ditugaskan
+                        memindai wajah boleh ikut mencoba, tanpa perlu menunggu waktu solat.
+                    </div>
+
+                    @if ($isAdmin)
+                        <div class="form-actions">
+                            <form method="POST" action="{{ route('sessions.test.stop') }}">
+                                @csrf
+                                @method('PUT')
+                                <button class="btn btn-secondary" type="submit">Matikan mode uji coba</button>
+                            </form>
+
+                            <form method="POST" action="{{ route('sessions.test.destroy') }}"
+                                data-confirm="Hapus sesi uji coba beserta {{ $testCount }} catatan percobaan dan foto buktinya?">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn btn-danger" type="submit">Hapus sesi uji coba</button>
+                            </form>
+
+                            <span class="field-hint">{{ $testCount }} catatan percobaan tersimpan.</span>
+                        </div>
+                    @else
+                        <p class="field-hint">Hanya admin yang bisa mematikan atau menghapus sesi uji coba.</p>
+                    @endif
+
+                    @if ($testLogs->isEmpty())
+                        <p class="empty-state">Belum ada percobaan yang masuk. Buka halaman absen wajah lalu pindai satu
+                            wajah untuk mencobanya.</p>
+                    @else
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nama</th>
+                                        <th>Kelas</th>
+                                        <th>Pukul</th>
+                                        <th>Keadaan</th>
+                                        <th>Bukti</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($testLogs as $log)
+                                        <tr>
+                                            <td class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }}</td>
+                                            <td>{{ $log->user?->class_name ?: '-' }}</td>
+                                            <td>{{ $log->scanned_at?->format('H:i:s') }}</td>
+                                            <td><span
+                                                    class="status {{ \App\Support\Status::log($log->status) }}">{{ $log->statusLabel() }}</span>
+                                            </td>
+                                            <td>@include('partials.proof-photo', [
+                                                'log' => $log,
+                                                'proofFallback' => 'Tanpa bukti',
+                                            ])</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if ($testCount > $testLogs->count())
+                            <p class="cell-note">Menampilkan {{ $testLogs->count() }} percobaan terbaru dari
+                                {{ $testCount }}.</p>
+                        @endif
+                    @endif
+                @endif
+            </section>
+        @endif
+
         <div class="grid-2">
             <section class="card">
                 <div class="section-head">
@@ -83,6 +196,26 @@
                         <h2 class="section-title">Daftar sesi</h2>
                         <p class="section-note">Pilih satu sesi untuk melihat catatan kehadirannya.</p>
                     </div>
+
+                    @if ($isAdmin)
+                        <div class="section-actions">
+                            <form id="hapus-sesi-terpilih" method="POST" action="{{ route('sessions.destroy-selected') }}"
+                                data-confirm="Hapus sesi yang dicentang? Catatan kehadiran dan foto buktinya ikut terhapus.">
+                                @csrf
+                                @method('DELETE')
+                                <input type="hidden" name="date" value="{{ $date->toDateString() }}">
+                                <button class="btn btn-small btn-danger" type="submit">Hapus yang dicentang</button>
+                            </form>
+
+                            <form method="POST" action="{{ route('sessions.destroy-day') }}"
+                                data-confirm="Hapus semua sesi tanggal {{ $date->translatedFormat('d F Y') }} beserta catatan kehadirannya?">
+                                @csrf
+                                @method('DELETE')
+                                <input type="hidden" name="date" value="{{ $date->toDateString() }}">
+                                <button class="btn btn-small btn-danger" type="submit">Hapus sesi tanggal ini</button>
+                            </form>
+                        </div>
+                    @endif
                 </div>
 
                 @if ($sessions->isEmpty())
@@ -93,6 +226,9 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    @if ($isAdmin)
+                                        <th>Pilih</th>
+                                    @endif
                                     <th>Waktu solat</th>
                                     <th>Jam</th>
                                     <th>Keadaan</th>
@@ -103,6 +239,13 @@
                             <tbody>
                                 @foreach ($sessions as $session)
                                     <tr>
+                                        @if ($isAdmin)
+                                            <td class="check-cell">
+                                                <input type="checkbox" name="sessions[]" value="{{ $session->id }}"
+                                                    form="hapus-sesi-terpilih"
+                                                    aria-label="Pilih sesi {{ $session->prayerLabel() }}">
+                                            </td>
+                                        @endif
                                         <td>
                                             <span class="cell-strong">{{ $session->prayerLabel() }}</span>
                                             @if ($selected && $selected->is($session))
@@ -143,6 +286,17 @@
                                                 @else
                                                     <span
                                                         class="cell-note">{{ $sessionService->openGuard($session, auth()->user()) }}</span>
+                                                @endif
+
+                                                @if ($isAdmin)
+                                                    <form id="hapus-sesi-{{ $session->id }}" method="POST"
+                                                        action="{{ route('sessions.destroy', $session) }}"
+                                                        data-confirm="Hapus sesi {{ $session->prayerLabel() }} tanggal {{ $date->translatedFormat('d F Y') }} beserta {{ $session->logs_count }} catatan kehadirannya?">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                    </form>
+                                                    <button class="btn btn-small btn-danger" type="submit"
+                                                        form="hapus-sesi-{{ $session->id }}">Hapus</button>
                                                 @endif
                                             </div>
                                         </td>

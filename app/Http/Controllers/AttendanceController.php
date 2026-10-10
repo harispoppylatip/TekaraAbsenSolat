@@ -17,9 +17,13 @@ class AttendanceController extends Controller
 {
     public function index(SolatSessionService $sessions, FaceEncodingService $encoder): View
     {
+        $testSession = $sessions->testSession();
+
         return view('attendance.wajah', [
             'activeSession' => $sessions->activeSession(),
             'earlyOpenMinutes' => SolatSessionService::earlyOpenMinutes(),
+            'testSession' => $testSession,
+            'testCooldownMinutes' => SolatSessionService::testCooldownMinutes(),
             'serviceReady' => $encoder->isAvailable(),
             'serviceMessage' => $encoder->unavailableMessage(),
             'todaySessions' => SolatSession::query()
@@ -57,7 +61,9 @@ class AttendanceController extends Controller
             return response()->json($reply['payload'], $reply['http']);
         }
 
-        $result = $attendance->recordFromImage($contents, config('face.device_id'), now());
+        // Kamera petugas boleh memakai sesi uji coba supaya admin bisa melihat
+        // log absen masuk tanpa membuka sesi waktu solat yang sungguhan.
+        $result = $attendance->recordFromImage($contents, config('face.device_id'), now(), allowTestSession: true);
 
         // Halaman kamera petugas ikut menampilkan foto bukti yang baru
         // tersimpan. Kunci ini hanya ada di jalur peramban, jadi bentuk balasan

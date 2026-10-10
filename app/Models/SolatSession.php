@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'start_time',
     'end_time',
     'status',
+    'is_test',
     'opened_at',
     'closed_at',
     'opened_by',
@@ -22,6 +23,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class SolatSession extends Model
 {
+    /**
+     * Nama waktu solat untuk sesi uji coba.
+     *
+     * Sengaja bukan salah satu nama waktu solat supaya tidak pernah bertabrakan
+     * dengan indeks unik (prayer_name, date) milik sesi yang sungguhan.
+     */
+    public const TestPrayerName = 'testing';
+
     public const StatusBelumDibuka = 'belum_dibuka';
 
     public const StatusSedangDibuka = 'sedang_dibuka';
@@ -37,6 +46,7 @@ class SolatSession extends Model
     {
         return [
             'date' => 'date',
+            'is_test' => 'boolean',
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
@@ -71,6 +81,14 @@ class SolatSession extends Model
         return $this->status === self::StatusSedangDibuka;
     }
 
+    /**
+     * Sesi uji coba, bukan sesi waktu solat yang sungguhan.
+     */
+    public function isTest(): bool
+    {
+        return (bool) $this->is_test;
+    }
+
     public function isClosed(): bool
     {
         return $this->status === self::StatusSudahDitutup;
@@ -78,6 +96,10 @@ class SolatSession extends Model
 
     public function prayerLabel(): string
     {
+        if ($this->isTest()) {
+            return 'Uji coba';
+        }
+
         $defaults = collect(config('solat.prayer_defaults'))->keyBy('prayer_name');
 
         return (string) ($defaults->get($this->prayer_name)['label'] ?? ucfirst((string) $this->prayer_name));
@@ -127,10 +149,45 @@ class SolatSession extends Model
     }
 
     /**
+     * Sesi pada rentang tanggal, ujung-ujungnya ikut dihitung.
+     *
+     * Kolom date ditulis oleh aplikasi sebagai tanggal lengkap dengan jam,
+     * jadi perbandingan teks sederhana untuk satu hari tidak pernah cocok.
+     * Karena itu bagian tanggalnya yang dibandingkan, sama seperti forDate,
+     * supaya rentang satu hari di mesin pengembangan dan di peladen sama saja.
+     *
+     * @param  Builder<SolatSession>  $query
+     */
+    public function scopeBetweenDates(Builder $query, mixed $from, mixed $to): void
+    {
+        $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+    }
+
+    /**
      * @param  Builder<SolatSession>  $query
      */
     public function scopeOpen(Builder $query): void
     {
         $query->where('status', self::StatusSedangDibuka);
+    }
+
+    /**
+     * Hanya sesi waktu solat yang sungguhan, tanpa sesi uji coba.
+     *
+     * @param  Builder<SolatSession>  $query
+     */
+    public function scopeReal(Builder $query): void
+    {
+        $query->where('is_test', false);
+    }
+
+    /**
+     * Hanya sesi uji coba.
+     *
+     * @param  Builder<SolatSession>  $query
+     */
+    public function scopeTest(Builder $query): void
+    {
+        $query->where('is_test', true);
     }
 }

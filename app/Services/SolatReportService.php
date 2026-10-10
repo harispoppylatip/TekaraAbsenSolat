@@ -79,7 +79,8 @@ class SolatReportService
     public function sessionBreakdown(CarbonInterface $from, CarbonInterface $to, int $limit = 30): Collection
     {
         return SolatSession::query()
-            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->real()
+            ->betweenDates($from, $to)
             ->withCount([
                 'logs as log_count',
                 'logs as present_count' => fn (Builder $query) => $query->where('status', SolatAttendanceLog::StatusHadir),
@@ -99,6 +100,7 @@ class SolatReportService
     public function memberHistory(User $user, int $perPage = 15): LengthAwarePaginator
     {
         return $user->attendanceLogs()
+            ->whereHas('session', fn (Builder $query) => $query->real())
             ->with('session')
             ->orderByDesc('scanned_at')
             ->paginate($perPage)
@@ -106,11 +108,15 @@ class SolatReportService
     }
 
     /**
+     * Sesi uji coba tidak pernah ikut dihitung, supaya percobaan tidak
+     * mengotori angka rekap yang sungguhan.
+     *
      * @param  Builder<SolatSession>  $query
      */
     private function scopeSessions(Builder $query, CarbonInterface $from, CarbonInterface $to, ?string $prayer = null): void
     {
-        $query->whereBetween('date', [$from->toDateString(), $to->toDateString()]);
+        $query->real();
+        $query->betweenDates($from, $to);
 
         if (filled($prayer)) {
             $query->where('prayer_name', $prayer);

@@ -4,7 +4,11 @@
 @section('note', 'Kamera absen solat untuk petugas')
 
 @section('content')
-    @if ($activeSession === null)
+    @php
+        $testOpen = $testSession?->isOpen() ?? false;
+    @endphp
+
+    @if ($activeSession === null && !$testOpen)
         <div class="alert alert-warning">
             <strong>Belum ada sesi yang dibuka</strong>
             <p>
@@ -18,12 +22,33 @@
             <strong>Layanan wajah tidak menyala</strong>
             <p>{{ $serviceMessage }} Nyalakan layanan wajah lebih dulu, lalu muat ulang halaman ini.</p>
         </div>
-    @else
+    @elseif ($activeSession !== null)
         <div class="alert alert-success">
             <strong>Sesi {{ $activeSession->prayerLabel() }} sedang dibuka</strong>
             <p>
                 {{ $activeSession->date?->translatedFormat('d F Y') }} jam {{ $activeSession->windowLabel() }}.
                 Jamaah cukup berdiri di depan kamera, absen tercatat sendiri.
+            </p>
+        </div>
+    @else
+        <div class="alert alert-success">
+            <strong>Kamera siap menerima percobaan</strong>
+            <p>Mode uji coba sedang menyala, jadi absen boleh dicoba sekarang tanpa menunggu waktu solat.</p>
+        </div>
+    @endif
+
+    @if ($testOpen)
+        <div class="alert alert-info">
+            <strong>Mode uji coba menyala</strong>
+            <p>
+                Absen yang masuk pada mode ini dicatat sebagai percobaan, tidak dihitung pada rekap, riwayat, maupun
+                ringkasan. Petugas dan anggota yang ditugaskan memindai wajah boleh ikut mencoba, dan orang yang sama
+                baru bisa dicoba lagi setelah {{ $testCooldownMinutes }} menit.
+                @if ($activeSession !== null)
+                    Sebuah sesi waktu solat juga sedang dibuka, jadi absen masuk ke sesi
+                    {{ $activeSession->prayerLabel() }}, bukan sebagai percobaan.
+                @endif
+                Admin mematikan mode ini di halaman Sesi Absen.
             </p>
         </div>
     @endif

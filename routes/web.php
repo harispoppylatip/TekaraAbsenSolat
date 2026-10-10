@@ -92,6 +92,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/rekap', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/rekap/unduh', [ReportController::class, 'export'])->name('reports.export');
     });
+
+    /*
+    | Merapikan sesi yang salah dibuat dan mengurus mode uji coba hanya boleh
+    | dilakukan admin, karena keduanya menghapus catatan kehadiran yang sudah
+    | masuk dan menyalakan absen percobaan.
+    */
+    Route::prefix('sesi-absen')->middleware('role:admin')->group(function () {
+        Route::delete('/hapus-terpilih', [SolatSessionController::class, 'destroySelected'])->name('sessions.destroy-selected');
+        Route::delete('/hapus-tanggal', [SolatSessionController::class, 'destroyDay'])->name('sessions.destroy-day');
+        Route::delete('/{solatSession}', [SolatSessionController::class, 'destroy'])
+            ->whereNumber('solatSession')
+            ->name('sessions.destroy');
+
+        Route::post('/uji/nyalakan', [SolatSessionController::class, 'startTest'])->name('sessions.test.start');
+        Route::put('/uji/matikan', [SolatSessionController::class, 'stopTest'])->name('sessions.test.stop');
+        Route::delete('/uji/hapus', [SolatSessionController::class, 'destroyTest'])->name('sessions.test.destroy');
+    });
 });
 
 /*

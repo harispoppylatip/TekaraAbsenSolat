@@ -30,6 +30,17 @@ class SolatSessionService
     }
 
     /**
+     * Jeda sebelum orang yang sama boleh tercatat lagi pada sesi uji coba.
+     *
+     * Angka ini dipakai bersama oleh mesin absen dan teks halaman, jadi yang
+     * dibaca petugas sama dengan yang dihitung aplikasi.
+     */
+    public static function testCooldownMinutes(): int
+    {
+        return (int) config('solat.test_cooldown_minutes', 4);
+    }
+
+    /**
      * Buat sesi untuk semua waktu solat aktif pada tanggal tertentu.
      *
      * Sesi yang sudah ada tidak diganggu, jadi menekan tombol ini dua kali
@@ -79,10 +90,13 @@ class SolatSessionService
     /**
      * Sesi yang sedang dibuka. Hanya satu sesi yang boleh terbuka pada satu
      * waktu supaya kehadiran tidak tercampur ke waktu solat lain.
+     *
+     * Sesi uji coba tidak masuk hitungan, sebab sesi itu tidak menerima absen
+     * waktu solat yang sungguhan.
      */
     public function activeSession(): ?SolatSession
     {
-        return SolatSession::query()->open()->latest('opened_at')->first();
+        return SolatSession::query()->real()->open()->latest('opened_at')->first();
     }
 
     /**
@@ -220,6 +234,7 @@ class SolatSessionService
     private function staleSessions(CarbonInterface $stamp): Collection
     {
         return SolatSession::query()
+            ->real()
             ->whereDate('date', '<', $stamp->toDateString())
             ->whereIn('status', [SolatSession::StatusSedangDibuka, SolatSession::StatusTerjadwal])
             ->get();
@@ -237,6 +252,7 @@ class SolatSessionService
     {
         return SolatSession::query()
             ->forDate($stamp)
+            ->real()
             ->open()
             ->get()
             ->filter(fn (SolatSession $session): bool => $stamp->greaterThan($this->moment($session, 'end_time')))
@@ -257,6 +273,7 @@ class SolatSessionService
 
         $session = SolatSession::query()
             ->where('prayer_name', $prayer->prayer_name)
+            ->real()
             ->forDate($day)
             ->first();
 
@@ -406,5 +423,215 @@ class SolatSessionService
     public function canOpen(SolatSession $session, ?User $by = null): bool
     {
         return $this->openGuard($session, $by) === null && ! $session->isOpen();
+    }
+
+    /**
+     * Sesi uji coba yang sedang dipakai, bila ada.
+     *
+     * Sesi uji coba dipakai admin untuk mencoba kamera absen wajah tanpa
+     * membuka sesi waktu solat yang sungguhan. Barisnya tetap memakai tabel dan
+     * pengatur yang sama supaya catatan kehadiran serta foto bukti memakai
+     * jalan yang sudah ada, tetapi sengaja tidak pernah dibuat maupun ditutup
+     * mesin sesi otomatis dan tidak dihitung pada rekap mana pun.
+     */
+    public function testSession(): ?SolatSession
+    {
+        return SolatSession::query()
+            ->test()
+            ->whereIn('status', [SolatSession::StatusSedangDibuka, SolatSession::StatusTerjadwal])
+            ->latest('opened_at')
+            ->first();
+    }
+
+    /**
+     * Nyalakan mode uji coba absen wajah.
+     *
+     * @return array{ok: bool, message: string}
+     */
+    public function startTestSession(?User $by = null): array
+    {
+        $test = $this->testSession();
+
+        if ($test !== null && $test->isOpen()) {
+            return ['ok' => false, 'message' => 'Mode uji coba sudah menyala. Kamera siap menerima percobaan absen.'];
+        }
+
+        if (($other = $this->activeSession()) !== null) {
+            return [
+                'ok' => false,
+                'message' => 'Sesi '.$other->label().' masih dibuka. Tutup dulu sebelum menyalakan mode uji coba.',
+            ];
+        }
+
+        $now = Carbon::now();
+
+        if ($test === null) {
+            $test = SolatSession::create([
+                'prayer_name' => SolatSession::TestPrayerName,
+                'date' => $now->toDateString(),
+                'start_time' => $now->format('H:i'),
+                'end_time' => $now->copy()->endOfDay()->format('H:i'),
+                'status' => SolatSession::StatusBelumDibuka,
+                'is_test' => true,
+            ]);
+        } else {
+            $test->forceFill(['date' => $now->toDateString()])->save();
+        }
+
+        $this->markOpened($test, $by, $now);
+
+        return [
+            'ok' => true,
+            'message' => 'Mode uji coba menyala. Absen yang masuk tidak dihitung pada rekap, dan orang yang sama bisa mencoba lagi setelah '
+                .self::testCooldownMinutes().' menit.',
+        ];
+    }
+
+    /**
+     * Matikan mode uji coba tanpa menghapus catatannya.
+     *
+     * @return array{ok: bool, message: string}
+     */
+    public function stopTestSession(?User $by = null): array
+    {
+        $test = $this->testSession();
+
+        if ($test === null || ! $test->isOpen()) {
+            return ['ok' => false, 'message' => 'Mode uji coba belum menyala.'];
+        }
+
+        $total = $test->logs()->count();
+
+        $this->markClosed($test, $by, Carbon::now());
+
+        return [
+            'ok' => true,
+            'message' => 'Mode uji coba dimatikan dengan '.$total.' catatan percobaan. Catatannya masih bisa dilihat dan dihapus lewat tombol hapus sesi uji coba.',
+        ];
+    }
+
+    /**
+     * Hapus semua sesi uji coba beserta catatan dan foto buktinya.
+     *
+     * @return array{ok: bool, message: string}
+     */
+    public function deleteTestSession(?SolatProofService $proofs = null): array
+    {
+        $proofs ??= app(SolatProofService::class);
+
+        $sessions = SolatSession::query()->test()->withCount('logs')->get();
+
+        if ($sessions->isEmpty()) {
+            return ['ok' => false, 'message' => 'Belum ada sesi uji coba yang bisa dihapus.'];
+        }
+
+        $total = (int) $sessions->sum('logs_count');
+
+        $proofs->forgetForSessions($sessions->modelKeys());
+
+        foreach ($sessions as $session) {
+            $session->delete();
+        }
+
+        return [
+            'ok' => true,
+            'message' => 'Sesi uji coba dihapus bersama '.$total.' catatan percobaan dan foto buktinya.',
+        ];
+    }
+
+    /**
+     * Hapus satu sesi waktu solat beserta catatan kehadirannya.
+     *
+     * @return array{ok: bool, message: string, deleted: int}
+     */
+    public function delete(SolatSession $session, ?SolatProofService $proofs = null): array
+    {
+        return $this->deleteRows(new Collection([$session]), $proofs ?? app(SolatProofService::class));
+    }
+
+    /**
+     * Hapus sesi terpilih beserta catatan kehadirannya.
+     *
+     * @param  Collection<int, SolatSession>  $sessions
+     * @return array{ok: bool, message: string, deleted: int}
+     */
+    public function deleteMany(Collection $sessions, ?SolatProofService $proofs = null): array
+    {
+        return $this->deleteRows($sessions, $proofs ?? app(SolatProofService::class));
+    }
+
+    /**
+     * Hapus semua sesi pada satu tanggal beserta catatan kehadirannya.
+     *
+     * Dipakai saat petugas salah membuat sesi untuk tanggal yang keliru.
+     * Daftar waktu solat tidak pernah ikut tersentuh.
+     *
+     * @return array{ok: bool, message: string, deleted: int}
+     */
+    public function deleteForDate(CarbonInterface|string $date, ?SolatProofService $proofs = null): array
+    {
+        $day = Carbon::parse($date)->toDateString();
+        $sessions = SolatSession::query()->real()->forDate($day)->get();
+
+        if ($sessions->isEmpty()) {
+            return [
+                'ok' => false,
+                'message' => 'Tidak ada sesi pada tanggal '.Carbon::parse($day)->translatedFormat('d F Y').'.',
+                'deleted' => 0,
+            ];
+        }
+
+        return $this->deleteRows($sessions, $proofs ?? app(SolatProofService::class));
+    }
+
+    /**
+     * Jalan yang sama untuk ketiga cara penghapusan.
+     *
+     * Tiga hal yang sengaja dijaga:
+     *
+     * 1. Sesi uji coba tidak pernah lewat sini, karena cara penghapusannya
+     *    sendiri ada di deleteTestSession().
+     * 2. Sesi yang sedang dibuka hanya dilaporkan, bukan dihapus. Menghapusnya
+     *    berarti kamera yang sedang menerima absen kehilangan sesinya tanpa
+     *    ada yang menyadari.
+     * 3. Berkas foto bukti dibuang lebih dulu, sebab catatan kehadirannya ikut
+     *    terhapus bersama sesinya sehingga berkasnya tidak akan bisa ditemukan
+     *    lagi dan hanya jadi sampah di penyimpanan.
+     *
+     * @param  Collection<int, SolatSession>  $sessions
+     * @return array{ok: bool, message: string, deleted: int}
+     */
+    private function deleteRows(Collection $sessions, SolatProofService $proofs): array
+    {
+        $rows = $sessions
+            ->reject(fn (SolatSession $session): bool => $session->isTest())
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return ['ok' => false, 'message' => 'Tidak ada sesi yang bisa dihapus.', 'deleted' => 0];
+        }
+
+        $open = $rows->first(fn (SolatSession $session): bool => $session->isOpen());
+        $rows = $rows->reject(fn (SolatSession $session): bool => $session->isOpen())->values();
+
+        $proofs->forgetForSessions($rows->modelKeys());
+
+        foreach ($rows as $session) {
+            $session->delete();
+        }
+
+        $deleted = $rows->count();
+
+        $message = match (true) {
+            $deleted === 0 => 'Tidak ada sesi yang dihapus.',
+            $deleted === 1 => 'Sesi '.$rows->first()->label().' dihapus beserta catatan kehadirannya.',
+            default => $deleted.' sesi dihapus beserta catatan kehadirannya.',
+        };
+
+        if ($open !== null) {
+            $message .= ' Sesi '.$open->label().' sedang dibuka sehingga tidak ikut terhapus, tutup dulu sesi itu.';
+        }
+
+        return ['ok' => $deleted > 0, 'message' => $message, 'deleted' => $deleted];
     }
 }

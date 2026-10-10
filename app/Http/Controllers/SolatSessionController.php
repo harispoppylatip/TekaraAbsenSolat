@@ -19,6 +19,7 @@ class SolatSessionController extends Controller
         $date = $this->resolveDate($request->query('date'));
 
         $sessions = SolatSession::query()
+            ->real()
             ->forDate($date)
             ->with(['opener', 'closer'])
             ->withCount([
@@ -38,6 +39,8 @@ class SolatSessionController extends Controller
             $selected = $sessions->firstWhere('status', SolatSession::StatusSedangDibuka) ?? $sessions->first();
         }
 
+        $testSession = $service->testSession();
+
         return view('sessions.index', [
             'date' => $date,
             'sessions' => $sessions,
@@ -46,6 +49,12 @@ class SolatSessionController extends Controller
             'logs' => $selected?->logs()->with('user')->orderByDesc('scanned_at')->get() ?? collect(),
             'memberTotal' => User::query()->where('role', User::RoleMurid)->count(),
             'prayerOptions' => PrayerTime::query()->ordered()->get(),
+            'testSession' => $testSession,
+            'testCount' => $testSession === null ? 0 : $testSession->logs()->count(),
+            'testLogs' => $testSession === null
+                ? collect()
+                : $testSession->logs()->with('user')->orderByDesc('scanned_at')->limit(15)->get(),
+            'testCooldownMinutes' => SolatSessionService::testCooldownMinutes(),
         ]);
     }
 
@@ -84,6 +93,103 @@ class SolatSessionController extends Controller
 
         return redirect()
             ->route('sessions.index', ['date' => $solatSession->date?->toDateString(), 'session' => $solatSession->id])
+            ->with($result['ok'] ? 'status' : 'error', $result['message']);
+    }
+
+    /**
+     * Hapus satu sesi beserta catatan kehadirannya.
+     *
+     * Sesi yang sedang dibuka ditolak oleh layanan supaya kamera yang sedang
+     * menerima absen tidak kehilangan sesinya tanpa ada yang menyadari.
+     */
+    public function destroy(Request $request, SolatSession $solatSession, SolatSessionService $service): RedirectResponse
+    {
+        if ($solatSession->isTest()) {
+            return redirect()
+                ->route('sessions.index')
+                ->with('error', 'Sesi uji coba dihapus dari panel mode uji coba, bukan dari daftar sesi.');
+        }
+
+        $date = $solatSession->date?->toDateString();
+        $result = $service->delete($solatSession);
+
+        return redirect()
+            ->route('sessions.index', ['date' => $date])
+            ->with($result['ok'] ? 'status' : 'error', $result['message']);
+    }
+
+    /**
+     * Hapus sesi yang dicentang petugas.
+     */
+    public function destroySelected(Request $request, SolatSessionService $service): RedirectResponse
+    {
+        $data = $request->validate([
+            'sessions' => ['required', 'array'],
+            'sessions.*' => ['integer'],
+            'date' => ['nullable', 'date'],
+        ], [
+            'sessions.required' => 'Centang dulu sesi yang ingin dihapus.',
+        ]);
+
+        $sessions = SolatSession::query()
+            ->real()
+            ->whereIn('id', $data['sessions'])
+            ->get();
+
+        $result = $service->deleteMany($sessions);
+
+        return redirect()
+            ->route('sessions.index', array_filter(['date' => $data['date'] ?? null]))
+            ->with($result['ok'] ? 'status' : 'error', $result['message']);
+    }
+
+    /**
+     * Hapus semua sesi pada satu tanggal.
+     */
+    public function destroyDay(Request $request, SolatSessionService $service): RedirectResponse
+    {
+        $data = $request->validate(['date' => ['required', 'date']]);
+        $date = Carbon::parse($data['date'])->startOfDay();
+        $result = $service->deleteForDate($date);
+
+        return redirect()
+            ->route('sessions.index', ['date' => $date->toDateString()])
+            ->with($result['ok'] ? 'status' : 'error', $result['message']);
+    }
+
+    /**
+     * Nyalakan mode uji coba absen wajah.
+     */
+    public function startTest(Request $request, SolatSessionService $service): RedirectResponse
+    {
+        $result = $service->startTestSession($request->user());
+
+        return redirect()
+            ->route('sessions.index')
+            ->with($result['ok'] ? 'status' : 'error', $result['message']);
+    }
+
+    /**
+     * Matikan mode uji coba tanpa menghapus catatannya.
+     */
+    public function stopTest(Request $request, SolatSessionService $service): RedirectResponse
+    {
+        $result = $service->stopTestSession($request->user());
+
+        return redirect()
+            ->route('sessions.index')
+            ->with($result['ok'] ? 'status' : 'error', $result['message']);
+    }
+
+    /**
+     * Hapus sesi uji coba bersama catatan percobaan dan foto buktinya.
+     */
+    public function destroyTest(SolatSessionService $service): RedirectResponse
+    {
+        $result = $service->deleteTestSession();
+
+        return redirect()
+            ->route('sessions.index')
             ->with($result['ok'] ? 'status' : 'error', $result['message']);
     }
 

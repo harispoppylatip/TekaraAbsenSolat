@@ -78,11 +78,48 @@ class SolatProofService
      */
     public function forgetForUser(User $user): int
     {
-        $paths = SolatAttendanceLog::query()
+        return $this->deleteFiles(SolatAttendanceLog::query()
             ->where('user_id', $user->getKey())
             ->whereNotNull('proof_photo_path')
-            ->pluck('proof_photo_path');
+            ->pluck('proof_photo_path'));
+    }
 
+    /**
+     * Bersihkan semua bukti foto milik kumpulan sesi.
+     *
+     * Dipakai sebelum sesi dihapus, karena catatan kehadirannya ikut terhapus
+     * bersama sesinya sehingga berkasnya tidak akan bisa ditemukan lagi.
+     *
+     * @param  array<int, int|string>  $sessionIds
+     */
+    public function forgetForSessions(array $sessionIds): int
+    {
+        if ($sessionIds === []) {
+            return 0;
+        }
+
+        return $this->deleteFiles(SolatAttendanceLog::query()
+            ->whereIn('solat_session_id', $sessionIds)
+            ->whereNotNull('proof_photo_path')
+            ->pluck('proof_photo_path'));
+    }
+
+    /**
+     * Buang satu berkas bukti.
+     *
+     * Dipakai saat catatan absen ditimpa dengan foto yang lebih baru, supaya
+     * foto lama tidak tertinggal tanpa catatan.
+     */
+    public function forget(?string $path): bool
+    {
+        return is_string($path) && $path !== '' && Storage::disk(self::Disk)->delete($path);
+    }
+
+    /**
+     * @param  iterable<int, mixed>  $paths
+     */
+    private function deleteFiles(iterable $paths): int
+    {
         $deleted = 0;
 
         foreach ($paths as $path) {

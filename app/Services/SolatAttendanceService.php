@@ -47,11 +47,19 @@ class SolatAttendanceService
     /**
      * Catat kehadiran dari sebuah foto wajah.
      *
+     * `$allowTestSession` hanya dipakai kamera petugas di halaman absen wajah.
+     * Kamera gerbang dan perangkat sensor tetap menunggu sesi waktu solat yang
+     * sungguhan, karena absen yang masuk dari sana dihitung sebagai kehadiran.
+     *
      * @return array<string, mixed>
      */
-    public function recordFromImage(string $contents, ?string $deviceId = null, ?CarbonInterface $at = null): array
-    {
-        $session = $this->sessions->activeSession();
+    public function recordFromImage(
+        string $contents,
+        ?string $deviceId = null,
+        ?CarbonInterface $at = null,
+        bool $allowTestSession = false,
+    ): array {
+        $session = $this->resolveSession($allowTestSession);
 
         if ($session === null) {
             return $this->reply(
@@ -123,6 +131,27 @@ class SolatAttendanceService
     }
 
     /**
+     * Sesi yang menerima catatan absen.
+     *
+     * Sesi uji coba berada di tabel yang sama dengan sesi waktu solat, jadi
+     * hanya kamera petugas yang boleh memakainya. Perangkat gerbang tetap
+     * diarahkan ke sesi waktu solat supaya tidak ada absen percobaan yang
+     * tercampur ke kehadiran yang sungguhan.
+     */
+    private function resolveSession(bool $allowTestSession): ?SolatSession
+    {
+        $session = $this->sessions->activeSession();
+
+        if ($session !== null || ! $allowTestSession) {
+            return $session;
+        }
+
+        $test = $this->sessions->testSession();
+
+        return $test?->isOpen() === true ? $test : null;
+    }
+
+    /**
      * Catat kehadiran seorang anggota pada sesi tertentu.
      *
      * `$photo` berisi isi berkas JPEG foto bukti, bila mesin wajah mengirimnya.
@@ -147,6 +176,27 @@ class SolatAttendanceService
             ->first();
 
         if ($existing !== null) {
+            if ($session->isTest()) {
+                $left = $this->cooldownLeft($existing, $moment);
+
+                if ($left !== null) {
+                    return $this->reply(
+                        status: self::StatusDuplicate,
+                        ok: false,
+                        label: 'Jeda pindai',
+                        message: $user->name.' sudah mencoba pukul '.$existing->scanned_at?->format('H:i')
+                            .'. Jeda mode uji coba masih sekitar '.$left.' menit.',
+                        display: 'Tunggu '.$left.' menit',
+                        session: $session,
+                        user: $user,
+                        log: $existing,
+                        distance: $distance,
+                    );
+                }
+
+                return $this->refresh($existing, $user, $session, $distance, $deviceId, $moment, $photo);
+            }
+
             return $this->reply(
                 status: self::StatusDuplicate,
                 ok: false,
@@ -178,14 +228,81 @@ class SolatAttendanceService
             status: $late ? self::StatusLate : self::StatusRecorded,
             ok: true,
             label: $late ? 'Terlambat' : 'Hadir',
-            message: $user->name.' tercatat '.($late ? 'terlambat' : 'hadir').' pada solat '
-                .$session->prayerLabel().' pukul '.$moment->format('H:i').'.',
+            message: $session->isTest()
+                ? 'Percobaan '.$user->name.' tercatat pukul '.$moment->format('H:i').'. Data ini tidak dihitung pada rekap.'
+                : $user->name.' tercatat '.($late ? 'terlambat' : 'hadir').' pada solat '
+                    .$session->prayerLabel().' pukul '.$moment->format('H:i').'.',
             display: $late ? 'Terlambat' : 'Absen tersimpan',
             session: $session,
             user: $user,
             log: $log,
             distance: $distance,
         );
+    }
+
+    /**
+     * Perbarui catatan percobaan yang sudah ada pada sesi uji coba.
+     *
+     * Indeks unik (sesi, anggota) tetap dijaga, jadi percobaan ulang sesudah
+     * jeda memperbarui baris yang sama, bukan menumpuk baris baru. Foto bukti
+     * lama dibuang supaya tidak ada berkas tanpa catatan.
+     *
+     * @return array<string, mixed>
+     */
+    private function refresh(
+        SolatAttendanceLog $log,
+        User $user,
+        SolatSession $session,
+        ?float $distance,
+        ?string $deviceId,
+        CarbonInterface $moment,
+        ?string $photo,
+    ): array {
+        $status = $this->statusFor($session, $moment);
+        $late = $status === SolatAttendanceLog::StatusTerlambat;
+
+        $this->proofs->forget($log->proof_photo_path);
+
+        $log->forceFill([
+            'scanned_at' => $moment,
+            'status' => $status,
+            'match_distance' => $distance,
+            'device_id' => $deviceId,
+            'proof_photo_path' => $this->keepProof($photo, $session, $moment),
+        ])->save();
+
+        return $this->reply(
+            status: $late ? self::StatusLate : self::StatusRecorded,
+            ok: true,
+            label: $late ? 'Terlambat' : 'Hadir',
+            message: 'Percobaan '.$user->name.' diperbarui pukul '.$moment->format('H:i').'. Data ini tidak dihitung pada rekap.',
+            display: $late ? 'Terlambat' : 'Uji coba OK',
+            session: $session,
+            user: $user,
+            log: $log,
+            distance: $distance,
+        );
+    }
+
+    /**
+     * Sisa menit jeda sebelum orang yang sama boleh dipindai lagi pada sesi uji
+     * coba. Null berarti jedanya sudah lewat atau jedanya dimatikan.
+     */
+    private function cooldownLeft(SolatAttendanceLog $log, CarbonInterface $moment): ?int
+    {
+        $minutes = SolatSessionService::testCooldownMinutes();
+
+        if ($minutes <= 0 || $log->scanned_at === null) {
+            return null;
+        }
+
+        $wait = ($minutes * 60) - ($moment->getTimestamp() - $log->scanned_at->getTimestamp());
+
+        if ($wait <= 0) {
+            return null;
+        }
+
+        return (int) ceil($wait / 60);
     }
 
     /**

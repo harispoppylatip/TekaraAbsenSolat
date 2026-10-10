@@ -16,6 +16,7 @@ class DashboardController extends Controller
         $today = Carbon::today();
 
         $todaySessions = SolatSession::query()
+            ->real()
             ->forDate($today)
             ->withCount('logs')
             ->orderBy('start_time')
@@ -26,12 +27,13 @@ class DashboardController extends Controller
             'berwajah' => User::query()->has('faceEmbeddings')->count(),
             'sesi' => $todaySessions->count(),
             'absen' => SolatAttendanceLog::query()
-                ->whereHas('session', fn ($query) => $query->forDate($today))
+                ->whereHas('session', fn ($query) => $query->real()->forDate($today))
                 ->count(),
         ];
 
         $recent = SolatAttendanceLog::query()
             ->with(['user', 'session'])
+            ->whereHas('session', fn ($query) => $query->real())
             ->latest('scanned_at')
             ->limit(8)
             ->get();
@@ -44,7 +46,7 @@ class DashboardController extends Controller
             $week[] = [
                 'label' => $day->translatedFormat('d M'),
                 'total' => SolatAttendanceLog::query()
-                    ->whereHas('session', fn ($query) => $query->forDate($day))
+                    ->whereHas('session', fn ($query) => $query->real()->forDate($day))
                     ->count(),
             ];
         }

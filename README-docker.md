@@ -84,16 +84,17 @@ Kunci di bawah ini ditulis tanpa akhiran `_DOCKER` karena dipakai bersama oleh
 `env_file: .env`, kuncinya otomatis ikut masuk ke layanan `app`, `queue`, dan
 `scheduler`.
 
-| Kunci                        | Arti                                                                   | Bawaan         |
-| ---------------------------- | ---------------------------------------------------------------------- | -------------- |
-| `SOLAT_LATE_MINUTES`         | Menit toleransi sebelum absen dicatat terlambat                        | `10`           |
-| `SOLAT_DEVICE_ID`            | Kode perangkat kamera absen bawaan                                     | `kamera-wajah` |
-| `SOLAT_EARLY_OPEN_MINUTES`   | Menit sebelum jam mulai saat sesi sudah boleh dibuka                   | `10`           |
-| `SOLAT_SESSION_CREATE_TIME`  | Jam `solat:sesi-harian` menyiapkan sesi hari itu                       | `00:05`        |
-| `SOLAT_PREPARE_DAYS_AHEAD`   | Berapa hari sesudah hari ini ikut disiapkan, `0` berarti hari ini saja | `1`            |
-| `SOLAT_KEEP_PROOF_PHOTO`     | Simpan foto bukti pada setiap absen wajah                              | `true`         |
-| `SOLAT_PROOF_MAX_BYTES`      | Batas ukuran satu foto bukti yang diterima, dalam bita                 | `262144`       |
-| `SOLAT_PROOF_RETENTION_DAYS` | Umur foto bukti sebelum dibuang, `0` berarti disimpan selamanya        | `90`           |
+| Kunci                         | Arti                                                                   | Bawaan         |
+| ----------------------------- | ---------------------------------------------------------------------- | -------------- |
+| `SOLAT_LATE_MINUTES`          | Menit toleransi sebelum absen dicatat terlambat                        | `10`           |
+| `SOLAT_DEVICE_ID`             | Kode perangkat kamera absen bawaan                                     | `kamera-wajah` |
+| `SOLAT_EARLY_OPEN_MINUTES`    | Menit sebelum jam mulai saat sesi sudah boleh dibuka                   | `10`           |
+| `SOLAT_SESSION_CREATE_TIME`   | Jam `solat:sesi-harian` menyiapkan sesi hari itu                       | `00:05`        |
+| `SOLAT_PREPARE_DAYS_AHEAD`    | Berapa hari sesudah hari ini ikut disiapkan, `0` berarti hari ini saja | `1`            |
+| `SOLAT_TEST_COOLDOWN_MINUTES` | Jeda menit sebelum orang yang sama dipindai lagi di mode uji coba      | `4`            |
+| `SOLAT_KEEP_PROOF_PHOTO`      | Simpan foto bukti pada setiap absen wajah                              | `true`         |
+| `SOLAT_PROOF_MAX_BYTES`       | Batas ukuran satu foto bukti yang diterima, dalam bita                 | `262144`       |
+| `SOLAT_PROOF_RETENTION_DAYS`  | Umur foto bukti sebelum dibuang, `0` berarti disimpan selamanya        | `90`           |
 
 Foto bukti absen wajah disimpan di dalam volume `absen-solat-storage` pada
 folder `bukti-absen`. Volume itu wajib dipertahankan: `docker compose down -v`

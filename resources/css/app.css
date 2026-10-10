@@ -635,6 +635,20 @@ select.select-field {
     color: var(--on-surface-variant);
 }
 
+/* Kotak centang pemilihan baris, dipakai di daftar sesi absen supaya beberapa
+   sesi bisa dihapus sekaligus. */
+.check-cell {
+    width: 44px;
+}
+
+.check-cell input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
 /* ---------- Foto bukti absen ---------- */
 
 /* Foto bukti hanya bisa dibuka lewat rute berizin, jadi yang tampil di daftar

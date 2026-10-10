@@ -45,6 +45,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sesi uji coba absen
+    |--------------------------------------------------------------------------
+    |
+    | Admin bisa menyalakan mode uji coba supaya kamera absen wajah bisa dicoba
+    | tanpa membuka sesi waktu solat yang sungguhan. Catatan percobaan tidak
+    | dihitung pada rekap mana pun, jadi waktunya bebas.
+    |
+    | test_cooldown_minutes  jeda sebelum orang yang sama boleh tercatat lagi
+    |                        pada mode uji coba; isi 0 supaya jedanya dimatikan
+    |
+    */
+
+    'test_cooldown_minutes' => (int) env('SOLAT_TEST_COOLDOWN_MINUTES', 4),
+
+    /*
+    |--------------------------------------------------------------------------
     | Bukti foto absen
     |--------------------------------------------------------------------------
     |
