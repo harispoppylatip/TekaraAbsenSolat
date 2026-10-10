@@ -24,3 +24,8 @@ Schedule::command('solat:sesi-harian')->dailyAt(config('solat.create_time'));
 // ini wajib hidup supaya absen tidak bergantung pada siapa yang ingat
 // menekan tombol Buka.
 Schedule::command('solat:sesi-otomatis')->everyMinute();
+
+// Foto bukti absen dibuang setelah lewat umur simpannya supaya cakram server
+// tidak penuh. Catatan absennya sendiri tidak ikut terhapus. Lama simpannya
+// diatur lewat SOLAT_PROOF_RETENTION_DAYS, dan isi 0 berarti disimpan selalu.
+Schedule::command('solat:bersihkan-bukti')->dailyAt('03:00');

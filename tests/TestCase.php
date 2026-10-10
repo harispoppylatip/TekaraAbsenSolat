@@ -89,14 +89,24 @@ abstract class TestCase extends BaseTestCase
      * Ganti layanan wajah dengan jawaban tetap supaya pengujian tidak perlu
      * menjalankan mesin wajah Python.
      *
+     * `$photo` berisi isi berkas bukti yang dikirim mesin wajah, sedangkan
+     * `$withPhoto` mencatat apakah pemanggilnya memang meminta foto bukti.
+     *
      * @param  array<int, float>|null  $encoding
      */
-    protected function fakeFaceService(?array $encoding = null, int $faceCount = 1, bool $available = true): void
-    {
+    protected function fakeFaceService(
+        ?array $encoding = null,
+        int $faceCount = 1,
+        bool $available = true,
+        ?string $photo = null,
+    ): void {
         $embedding = $encoding ?? array_fill(0, FaceEmbedding::Dimensions, 0.01);
 
-        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available) extends FaceEncodingService
+        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available, $photo) extends FaceEncodingService
         {
+            /** Apakah foto bukti diminta pada pemanggilan terakhir. */
+            public bool $askedForPhoto = false;
+
             /**
              * @param  array<int, float>  $embedding
              */
@@ -104,21 +114,25 @@ abstract class TestCase extends BaseTestCase
                 private array $embedding,
                 private int $faceCount,
                 private bool $available,
+                private ?string $photo,
             ) {}
 
-            public function encode(UploadedFile $image): array
+            public function encode(UploadedFile $image, bool $withPhoto = false): array
             {
-                return $this->encodeContents('potret uji');
+                return $this->encodeContents('potret uji', $withPhoto);
             }
 
-            public function encodeContents(string $contents): array
+            public function encodeContents(string $contents, bool $withPhoto = false): array
             {
+                $this->askedForPhoto = $withPhoto;
+
                 if (! $this->available) {
                     return [
                         'status' => self::StatusUnavailable,
                         'encoding' => null,
                         'face_count' => 0,
                         'message' => $this->unavailableMessage(),
+                        'photo' => null,
                     ];
                 }
 
@@ -128,6 +142,7 @@ abstract class TestCase extends BaseTestCase
                         'encoding' => null,
                         'face_count' => 0,
                         'message' => 'Wajah tidak terlihat. Dekatkan wajah ke kamera dan pastikan cahaya cukup.',
+                        'photo' => null,
                     ];
                 }
 
@@ -136,6 +151,7 @@ abstract class TestCase extends BaseTestCase
                     'encoding' => $this->embedding,
                     'face_count' => $this->faceCount,
                     'message' => 'Wajah terbaca.',
+                    'photo' => $this->photo,
                 ];
             }
 

@@ -41,6 +41,7 @@ class SolatAttendanceService
         private FaceEncodingService $encoder,
         private FaceMatcherService $matcher,
         private SolatSessionService $sessions,
+        private SolatProofService $proofs,
     ) {}
 
     /**
@@ -63,7 +64,7 @@ class SolatAttendanceService
             );
         }
 
-        $encoded = $this->encoder->encodeContents($contents);
+        $encoded = $this->encoder->encodeContents($contents, (bool) config('solat.keep_proof_photo', true));
 
         if ($encoded['status'] !== FaceEncodingService::StatusSuccess) {
             return match ($encoded['status']) {
@@ -118,11 +119,15 @@ class SolatAttendanceService
             );
         }
 
-        return $this->record($match['user'], $session, $match['distance'], $deviceId, $at);
+        return $this->record($match['user'], $session, $match['distance'], $deviceId, $at, $encoded['photo'] ?? null);
     }
 
     /**
      * Catat kehadiran seorang anggota pada sesi tertentu.
+     *
+     * `$photo` berisi isi berkas JPEG foto bukti, bila mesin wajah mengirimnya.
+     * Bukti foto hanya pelengkap: bila penyimpanannya gagal, absennya tetap
+     * tercatat dan kegagalannya hanya muncul di catatan galat aplikasi.
      *
      * @return array<string, mixed>
      */
@@ -132,6 +137,7 @@ class SolatAttendanceService
         ?float $distance = null,
         ?string $deviceId = null,
         ?CarbonInterface $at = null,
+        ?string $photo = null,
     ): array {
         $moment = $at !== null ? Carbon::parse($at) : Carbon::now();
 
@@ -165,6 +171,7 @@ class SolatAttendanceService
             'status' => $status,
             'match_distance' => $distance,
             'device_id' => $deviceId,
+            'proof_photo_path' => $this->keepProof($photo, $session, $moment),
         ]);
 
         return $this->reply(
@@ -200,6 +207,27 @@ class SolatAttendanceService
     }
 
     /**
+     * Simpan foto bukti bila ada dan bila fiturnya memang menyala.
+     *
+     * Kegagalan penyimpanan tidak pernah dilempar ke pemanggil. Bukti foto
+     * berguna untuk menelusuri absen, sedangkan absennya sendiri yang utama.
+     */
+    private function keepProof(?string $photo, SolatSession $session, CarbonInterface $moment): ?string
+    {
+        if ($photo === null || $photo === '' || ! config('solat.keep_proof_photo', true)) {
+            return null;
+        }
+
+        try {
+            return $this->proofs->store($photo, $session, $moment);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
+    }
+
+    /**
      * Susun satu bentuk balasan supaya halaman web dan layar perangkat
      * membaca hasil yang sama.
      *
@@ -225,6 +253,7 @@ class SolatAttendanceService
             'log' => $log,
             'session' => $session,
             'distance' => $distance,
+            'proof_url' => $this->proofs->url($log),
             'display_message' => $display,
             'display_detail' => $user !== null ? $user->name : 'Lapor operator',
         ];

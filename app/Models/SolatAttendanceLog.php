@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'solat_session_id', 'scanned_at', 'status', 'match_distance', 'device_id'])]
+#[Fillable(['user_id', 'solat_session_id', 'scanned_at', 'status', 'match_distance', 'device_id', 'proof_photo_path'])]
 class SolatAttendanceLog extends Model
 {
     public const StatusHadir = 'hadir';

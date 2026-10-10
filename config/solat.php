@@ -45,6 +45,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Bukti foto absen
+    |--------------------------------------------------------------------------
+    |
+    | Setiap absen wajah yang berhasil menyimpan foto orangnya sebagai bukti.
+    | Fotonya sudah diperkecil mesin wajah sebelum dikirim, jadi yang tersimpan
+    | hanya berkas kecil. Foto bukti tidak pernah menggagalkan absen: bila
+    | penyimpanannya bermasalah, absennya tetap tercatat tanpa foto.
+    |
+    | keep_proof_photo  false berarti tidak ada foto yang diminta atau disimpan
+    | proof_max_bytes   batas aman ukuran foto yang mau diterima dari mesin
+    |                   wajah; balasan yang melebihi batas ini diabaikan
+    | proof_retention_days  umur simpan bukti sebelum dibersihkan penjadwal;
+    |                   isi 0 supaya bukti disimpan selamanya
+    |
+    */
+
+    'keep_proof_photo' => (bool) env('SOLAT_KEEP_PROOF_PHOTO', true),
+
+    'proof_max_bytes' => (int) env('SOLAT_PROOF_MAX_BYTES', 262144),
+
+    'proof_retention_days' => (int) env('SOLAT_PROOF_RETENTION_DAYS', 90),
+
+    /*
+    |--------------------------------------------------------------------------
     | Waktu solat bawaan
     |--------------------------------------------------------------------------
     |

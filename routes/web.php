@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\FaceApiController;
 use App\Http\Controllers\Api\SolatScanController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceProofController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\DashboardController;
@@ -43,6 +44,9 @@ Route::middleware('auth')->group(function () {
         ->name('dashboard');
 
     Route::get('/riwayat', HistoryController::class)->name('murid.riwayat');
+
+    // Foto bukti absen disajikan lewat rute berizin, bukan berkas publik.
+    Route::get('/bukti-absen/{log}', AttendanceProofController::class)->name('attendance.proof');
 
     Route::middleware('camera')->group(function () {
         Route::get('/absen-wajah', [AttendanceController::class, 'index'])->name('attendance.wajah');

@@ -59,6 +59,12 @@ class AttendanceController extends Controller
 
         $result = $attendance->recordFromImage($contents, config('face.device_id'), now());
 
-        return response()->json(SensorReply::fromResult($result));
+        // Halaman kamera petugas ikut menampilkan foto bukti yang baru
+        // tersimpan. Kunci ini hanya ada di jalur peramban, jadi bentuk balasan
+        // untuk sensor perangkat tidak berubah.
+        $payload = SensorReply::fromResult($result);
+        $payload['proof_url'] = $result['proof_url'] ?? null;
+
+        return response()->json($payload);
     }
 }

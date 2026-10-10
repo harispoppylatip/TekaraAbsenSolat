@@ -12,6 +12,10 @@ dibangun Vite. Pengenalan wajah dikerjakan layanan Python terpisah, jadi
 aplikasi tetap bisa dijalankan tanpa layanan itu. Yang tertunda hanya
 pemrosesan foto wajah.
 
+Setiap absen wajah menyimpan satu foto potret jamaah sebagai bukti. Fotonya
+dikecilkan oleh layanan Python sebelum dikirim, lalu disimpan aplikasi dan
+bisa dilihat di riwayat absen.
+
 Panduan di bawah ditulis berurutan supaya aplikasi benar-benar jalan di
 komputer baru. Ada dua cara menjalankannya: langsung di komputer sendiri,
 atau lewat Docker. Cara pertama lebih cepat untuk mencoba, cara kedua lebih
@@ -47,6 +51,37 @@ Absen hanya diterima selama sesi dibuka. Sesi dikelola sendiri oleh penjadwal:
 Tombol Buka dan Tutup di halaman Sesi Absen tetap ada untuk keadaan yang perlu
 dibuka lebih dulu. Karena itu penjadwal wajib hidup: `php artisan schedule:work`
 di komputer sendiri, atau layanan `scheduler` bila memakai Docker.
+
+## Bukti foto absen wajah
+
+Catatan absen wajah menyimpan satu foto potret jamaah sebagai bukti. Fotonya
+datang bersama hasil pengenalan wajah dari layanan Python, ukurannya sudah
+dikecilkan di sana, dan aplikasi hanya menyimpannya.
+
+| Hal                | Keterangan                                                      |
+| ------------------ | --------------------------------------------------------------- |
+| Tempat penyimpanan | Folder privat `storage/app/private/bukti-absen/tahun/bulan`     |
+| Ukuran berkas      | Di bawah 50 KB, umumnya sekitar 13 KB pada potret 320 kali 480  |
+| Yang boleh membuka | Admin, petugas, dan pemilik catatannya sendiri                  |
+| Tempat melihat     | Riwayat absen murid, Sesi Absen, dan log di halaman Absen Wajah |
+| Pembersihan        | `solat:bersihkan-bukti` setiap hari pukul 03.00, bawaan 90 hari |
+
+Pengaturan yang menaunginya ada di bagian `Bukti foto absen wajah` pada
+`.env`.
+
+```env
+SOLAT_KEEP_PROOF_PHOTO=true
+SOLAT_PROOF_MAX_BYTES=262144
+SOLAT_PROOF_RETENTION_DAYS=90
+```
+
+Isi `SOLAT_KEEP_PROOF_PHOTO=false` bila foto bukti tidak diinginkan, dan isi
+`SOLAT_PROOF_RETENTION_DAYS=0` bila foto ingin disimpan selamanya. Foto yang
+gagal diambil, terlalu besar, atau bukan berkas JPEG tidak menghalangi absen:
+catatannya tetap tersimpan, hanya tanpa bukti. Bentuk fotonya diatur di sisi
+layanan Python lewat `FACE_PROOF_MAX_SIDE`, `FACE_PROOF_QUALITY`, dan
+`FACE_PROOF_MAX_KB`, jadi citra wajahnya tidak perlu diolah lagi oleh
+PHP yang tidak memuat pustaka gambar.
 
 ## Yang harus tersedia
 
@@ -333,6 +368,11 @@ Alur pemakaiannya:
 3. Petugas membuka `/absen-wajah` dari ponsel atau komputer berkamera, lalu
    jepretan dikirim ke layanan wajah dan kehadirannya tercatat.
 
+Sekalian dengan pengenalan wajah, layanan Python mengirim potret kecil yang
+versinya sudah dikecilkan. Aplikasi meminta potret itu dengan menambahkan
+`?with_photo=1` pada permintaan ke `/encode`, jadi mesin wajah versi lama yang
+belum mengenal permintaan itu tetap bisa dipakai, hanya fotonya yang kosong.
+
 Satu foto butuh sekitar 15 detik pada komputer tanpa GPU, karena
 itu upload masuk queue dan kemajuannya bisa dilihat di panel Proses
 pendaftaran wajah. Bila mesin wajah mati, foto tetap masuk queue dengan
@@ -342,19 +382,20 @@ supaya persen kemajuannya tidak terlalu cepat mentok di angka 100.
 
 ## Kalau ada masalah
 
-| Gejala                                                | Perbaikan                                                                                                        |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `could not find driver`                               | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                             |
-| `Unknown database 'absen_solat'`                      | Databasenya belum dibuat. Kerjakan langkah 4                                                                     |
-| `Access denied for user 'root'@'localhost'`           | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                           |
-| Halaman terbuka tanpa gaya dan tanpa warna            | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                 |
-| `Vite manifest not found`                             | Sama seperti di atas, file hasil build belum ada                                                                 |
-| Error 419 Page Expired                                | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`               |
-| Masuk berhasil lalu langsung kembali ke halaman masuk | Sesi tidak tersimpan. Pastikan `SESSION_DRIVER=database` dan migrasi sudah jalan, lalu periksa jam komputer      |
-| Halaman muncul tetapi semua daftar kosong             | `php artisan migrate --seed` belum dijalankan, atau hanya migrasinya saja                                        |
-| Unggah foto wajah gagal setelah menunggu lama         | Mesin wajah lambat atau mati. Periksa `FACE_SERVICE_URL`, lalu naikkan `FACE_SERVICE_TIMEOUT` bila memang lambat |
-| Pesan berhasil hilang sebelum sempat dibaca           | Halaman menyegarkan dirinya sendiri. Muat ulang halaman untuk melihat riwayatnya                                 |
-| Perubahan `.env` tidak terasa                         | Jalankan `php artisan config:clear`, sebab konfigurasi bisa tersimpan di cache                                   |
+| Gejala                                                | Perbaikan                                                                                                             |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `could not find driver`                               | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                                  |
+| `Unknown database 'absen_solat'`                      | Databasenya belum dibuat. Kerjakan langkah 4                                                                          |
+| `Access denied for user 'root'@'localhost'`           | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                                |
+| Halaman terbuka tanpa gaya dan tanpa warna            | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                      |
+| `Vite manifest not found`                             | Sama seperti di atas, file hasil build belum ada                                                                      |
+| Error 419 Page Expired                                | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`                    |
+| Masuk berhasil lalu langsung kembali ke halaman masuk | Sesi tidak tersimpan. Pastikan `SESSION_DRIVER=database` dan migrasi sudah jalan, lalu periksa jam komputer           |
+| Kolom Bukti menulis Tanpa bukti                       | Mesin wajah belum diperbarui atau `SOLAT_KEEP_PROOF_PHOTO=false`. Absen lama yang belum punya foto juga tampil begitu |
+| Halaman muncul tetapi semua daftar kosong             | `php artisan migrate --seed` belum dijalankan, atau hanya migrasinya saja                                             |
+| Unggah foto wajah gagal setelah menunggu lama         | Mesin wajah lambat atau mati. Periksa `FACE_SERVICE_URL`, lalu naikkan `FACE_SERVICE_TIMEOUT` bila memang lambat      |
+| Pesan berhasil hilang sebelum sempat dibaca           | Halaman menyegarkan dirinya sendiri. Muat ulang halaman untuk melihat riwayatnya                                      |
+| Perubahan `.env` tidak terasa                         | Jalankan `php artisan config:clear`, sebab konfigurasi bisa tersimpan di cache                                        |
 
 ## Pengujian
 
@@ -372,7 +413,7 @@ gaya penulisan kode PHP.
 ```
 app/
   Console/Commands/     perintah artisan: solat:sesi-harian, solat:sesi-otomatis,
-                        face:purge-uploads
+                        solat:bersihkan-bukti, face:purge-uploads
   Http/Controllers/     halaman web dan alamat API
   Http/Middleware/      pemeriksaan peran, petugas kamera, ganti password wajib
   Jobs/                 pekerjaan queue, misalnya pemrosesan foto wajah
@@ -389,8 +430,10 @@ resources/
   views/                layout, halaman, dan potongan tampilan
 routes/web.php          seluruh rute web dan API
 routes/console.php      jadwal penjadwal: sesi otomatis tiap menit, pembersihan harian
-config/solat.php        waktu solat bawaan, toleransi terlambat, daftar peran
+config/solat.php        waktu solat bawaan, toleransi terlambat, daftar peran,
+                        pengaturan foto bukti absen
 config/face.php         alamat, toleransi, dan batas layanan wajah
+storage/app/private/    berkas privat, termasuk foto bukti absen wajah
 ```
 
 ## File terkait

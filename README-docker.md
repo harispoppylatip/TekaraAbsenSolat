@@ -21,14 +21,15 @@ diperiksa dan diambil dari komputer lain memakai HeidiSQL, DBeaver, Navicat,
 | `.dockerignore`             | File yang tidak perlu masuk image                                               |
 | `.env` dan `.env.example`   | Tambahan blok Docker di bagian bawah                                            |
 
-Layanan `scheduler` menjalankan `php artisan schedule:work` dan memegang tiga
+Layanan `scheduler` menjalankan `php artisan schedule:work` dan memegang empat
 jadwal:
 
-| Perintah              | Waktu        | Kegunaan                                     |
-| --------------------- | ------------ | -------------------------------------------- |
-| `solat:sesi-harian`   | setiap hari  | Menyiapkan sesi hari ini dan hari berikutnya |
-| `solat:sesi-otomatis` | setiap menit | Membuka dan menutup sesi absen               |
-| `face:purge-uploads`  | setiap hari  | Membuang file foto sementara                 |
+| Perintah                | Waktu        | Kegunaan                                     |
+| ----------------------- | ------------ | -------------------------------------------- |
+| `solat:sesi-harian`     | setiap hari  | Menyiapkan sesi hari ini dan hari berikutnya |
+| `solat:sesi-otomatis`   | setiap menit | Membuka dan menutup sesi absen               |
+| `solat:bersihkan-bukti` | 03.00        | Membuang foto bukti absen yang sudah lama    |
+| `face:purge-uploads`    | setiap hari  | Membuang file foto sementara                 |
 
 Jam `solat:sesi-harian` diambil dari `SOLAT_SESSION_CREATE_TIME` dan jumlah hari
 sesudahnya dari `SOLAT_PREPARE_DAYS_AHEAD`. Biarkan layanan `scheduler` selalu
@@ -83,13 +84,21 @@ Kunci di bawah ini ditulis tanpa akhiran `_DOCKER` karena dipakai bersama oleh
 `env_file: .env`, kuncinya otomatis ikut masuk ke layanan `app`, `queue`, dan
 `scheduler`.
 
-| Kunci                       | Arti                                                                   | Bawaan         |
-| --------------------------- | ---------------------------------------------------------------------- | -------------- |
-| `SOLAT_LATE_MINUTES`        | Menit toleransi sebelum absen dicatat terlambat                        | `10`           |
-| `SOLAT_DEVICE_ID`           | Kode perangkat kamera absen bawaan                                     | `kamera-wajah` |
-| `SOLAT_EARLY_OPEN_MINUTES`  | Menit sebelum jam mulai saat sesi sudah boleh dibuka                   | `10`           |
-| `SOLAT_SESSION_CREATE_TIME` | Jam `solat:sesi-harian` menyiapkan sesi hari itu                       | `00:05`        |
-| `SOLAT_PREPARE_DAYS_AHEAD`  | Berapa hari sesudah hari ini ikut disiapkan, `0` berarti hari ini saja | `1`            |
+| Kunci                        | Arti                                                                   | Bawaan         |
+| ---------------------------- | ---------------------------------------------------------------------- | -------------- |
+| `SOLAT_LATE_MINUTES`         | Menit toleransi sebelum absen dicatat terlambat                        | `10`           |
+| `SOLAT_DEVICE_ID`            | Kode perangkat kamera absen bawaan                                     | `kamera-wajah` |
+| `SOLAT_EARLY_OPEN_MINUTES`   | Menit sebelum jam mulai saat sesi sudah boleh dibuka                   | `10`           |
+| `SOLAT_SESSION_CREATE_TIME`  | Jam `solat:sesi-harian` menyiapkan sesi hari itu                       | `00:05`        |
+| `SOLAT_PREPARE_DAYS_AHEAD`   | Berapa hari sesudah hari ini ikut disiapkan, `0` berarti hari ini saja | `1`            |
+| `SOLAT_KEEP_PROOF_PHOTO`     | Simpan foto bukti pada setiap absen wajah                              | `true`         |
+| `SOLAT_PROOF_MAX_BYTES`      | Batas ukuran satu foto bukti yang diterima, dalam bita                 | `262144`       |
+| `SOLAT_PROOF_RETENTION_DAYS` | Umur foto bukti sebelum dibuang, `0` berarti disimpan selamanya        | `90`           |
+
+Foto bukti absen wajah disimpan di dalam volume `absen-solat-storage` pada
+folder `bukti-absen`. Volume itu wajib dipertahankan: `docker compose down -v`
+menghapus seluruh foto bukti bersama datanya, sedangkan
+`docker compose down` saja tidak.
 
 Mengubah kuncinya cukup lewat `.env` lalu `docker compose up -d`; image tidak
 perlu dibangun ulang. Untuk menyiapkan sesi di luar jadwal, misalnya saat
@@ -284,6 +293,22 @@ Salah satu tandanya adalah panel queue di halaman Wajah berhenti di tengah
 jalan dan log container `queue` berisi pesan mesin wajah tidak bisa
 dihubungi.
 
+Layanan Python itu juga yang menyiapkan foto bukti absen. Aplikasi meminta
+potret kecil lewat permintaan `?with_photo=1`, lalu menyimpannya sendiri.
+Bentuk fotonya diatur di sisi Python:
+
+| Variabel lingkungan   | Arti                                                   | Bawaan |
+| --------------------- | ------------------------------------------------------ | ------ |
+| `FACE_PROOF_MAX_SIDE` | Sisi terpanjang foto bukti dalam piksel                | `480`  |
+| `FACE_PROOF_QUALITY`  | Mutu JPEG, angka pertama yang dicoba                   | `72`   |
+| `FACE_PROOF_MAX_KB`   | Ukuran terbesar yang diterima, sebelum dikecilkan lagi | `48`   |
+
+Karena potretnya dibuat di sisi Python, citra PHP di sini tidak perlu memuat
+pustaka gambar sama sekali. Bila mesin wajahnya dijalankan sendiri di luar
+compose, image atau salinan layanannya wajib diperbarui setelah file
+`face_service.py` berubah, sebab layanan lama menjawab tanpa potret dan
+kolom Bukti pada riwayat absen akan menulis Tanpa bukti.
+
 ## Memakai domain dan HTTPS
 
 Container `web` hanya melayani HTTP di dalam jaringan Docker. Sertifikat dan
@@ -363,19 +388,20 @@ domain dengan sertifikat.
 
 ## Perintah sehari-hari
 
-| Keperluan                                | Perintah                                             |
-| ---------------------------------------- | ---------------------------------------------------- |
-| Melihat log aplikasi                     | `docker compose logs -f app`                         |
-| Melihat log worker queue                 | `docker compose logs -f queue`                       |
-| Melihat log penjadwal                    | `docker compose logs -f scheduler`                   |
-| Melihat log web                          | `docker compose logs -f web`                         |
-| Masuk ke container aplikasi              | `docker compose exec app sh`                         |
-| Menjalankan perintah artisan             | `docker compose exec app php artisan migrate:status` |
-| Menyalakan ulang setelah mengubah kode   | `docker compose up -d --build`                       |
-| Menyalakan ulang setelah mengubah `.env` | `docker compose up -d --force-recreate`              |
-| Menghentikan tanpa menghapus data        | `docker compose stop`                                |
-| Mematikan dan menghapus container        | `docker compose down`                                |
-| Menghapus container beserta seluruh data | `docker compose down -v`                             |
+| Keperluan                                | Perintah                                                    |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| Melihat log aplikasi                     | `docker compose logs -f app`                                |
+| Melihat log worker queue                 | `docker compose logs -f queue`                              |
+| Melihat log penjadwal                    | `docker compose logs -f scheduler`                          |
+| Melihat log web                          | `docker compose logs -f web`                                |
+| Masuk ke container aplikasi              | `docker compose exec app sh`                                |
+| Menjalankan perintah artisan             | `docker compose exec app php artisan migrate:status`        |
+| Membuang foto bukti yang sudah lama      | `docker compose exec app php artisan solat:bersihkan-bukti` |
+| Menyalakan ulang setelah mengubah kode   | `docker compose up -d --build`                              |
+| Menyalakan ulang setelah mengubah `.env` | `docker compose up -d --force-recreate`                     |
+| Menghentikan tanpa menghapus data        | `docker compose stop`                                       |
+| Mematikan dan menghapus container        | `docker compose down`                                       |
+| Menghapus container beserta seluruh data | `docker compose down -v`                                    |
 
 Kode aplikasi menyatu di dalam image. Setelah mengubah file PHP, JavaScript,
 atau Blade, jalankan `docker compose up -d --build` supaya perubahannya ikut.
@@ -397,6 +423,7 @@ File yang sudah dikompilasi bisa dibersihkan dengan
 | Port sudah dipakai                                        | Ubah `APP_PORT` atau `DB_PUBLISH_PORT` di `.env`, lalu `docker compose up -d`                                                                                                                                                                                                                                                                                                                             |
 | Tombol kamera berbunyi `Sambungan ke server terputus.`    | Aplikasi di belakang proxy pemegang sertifikat, tetapi proxy belum mengirim header `X-Forwarded-Proto` atau alamatnya belum terdaftar sebagai proxy yang dipercaya. Ikuti bagian **Memakai domain dan HTTPS** di atas                                                                                                                                                                                     |
 | Koneksi ke MySQL lambat atau gagal berulang               | Pastikan volume database `absen-solat-dbdata` masih ada (`docker volume ls`) dan `docker compose logs db` tidak ada error                                                                                                                                                                                                                                                                                 |
+| Kolom Bukti pada riwayat menulis Tanpa bukti              | Layanan wajah yang berjalan belum memuat pembuat potret, atau `SOLAT_KEEP_PROOF_PHOTO=false`. Perbarui layanan Python lalu nyalakan ulang, dan absen lama yang belum punya foto memang tampil begitu                                                                                                                                                                                                      |
 | Build berhenti pada pemeriksaan versi PHP                 | Image PHP yang dipakai lebih tua dari 8.4.1. Jangan turunkan image; naikkan versinya                                                                                                                                                                                                                                                                                                                      |
 
 Perubahan besar pada `docker-compose.yml` atau `Dockerfile` bisa diperiksa
@@ -426,8 +453,9 @@ docker compose config --quiet
    bukan diingat sekali. Tanpa itu, setelah container `app` dibangun ulang nginx
    menembak alamat lama dan semua halaman menjadi 502.
 5. Folder `storage` disimpan sebagai volume karena foto wajah yang menunggu
-   diubah berada di `storage/app/private`. Tanpa volume, container web dan container
-   worker queue memakai folder berbeda dan upload hilang tanpa jejak.
+   diubah dan foto bukti absen berada di `storage/app/private`. Tanpa volume,
+   container web dan container worker queue memakai folder berbeda dan upload
+   hilang tanpa jejak, sementara foto bukti hilang setiap container dibuat ulang.
 6. Migrasi berjalan sendiri saat container `app` hidup, tetapi seeding tidak.
    Seeder menimpa waktu solat bawaan, jadi jalankan hanya pada database
    yang masih kosong.

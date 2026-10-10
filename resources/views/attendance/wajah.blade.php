@@ -89,20 +89,24 @@
                             @endphp
 
                             <div class="log-row">
-                                <div class="log-line">
-                                    <span class="log-name">{{ $log->user?->name ?? 'Anggota terhapus' }}</span>
-                                    <span class="log-time">{{ $log->scanned_at?->format('H:i:s') }}</span>
-                                </div>
+                                @include('partials.proof-photo', ['log' => $log])
 
-                                <div class="log-line log-line-meta">
-                                    <span class="log-sub">
-                                        <span>{{ $log->session?->prayerLabel() ?? 'Tanpa sesi' }}</span>
-                                        @if ($identity)
-                                            <span>{{ $identity }}</span>
-                                        @endif
-                                    </span>
-                                    <span
-                                        class="status {{ \App\Support\Status::log($log->status) }}">{{ $log->statusLabel() }}</span>
+                                <div class="log-body">
+                                    <div class="log-line">
+                                        <span class="log-name">{{ $log->user?->name ?? 'Anggota terhapus' }}</span>
+                                        <span class="log-time">{{ $log->scanned_at?->format('H:i:s') }}</span>
+                                    </div>
+
+                                    <div class="log-line log-line-meta">
+                                        <span class="log-sub">
+                                            <span>{{ $log->session?->prayerLabel() ?? 'Tanpa sesi' }}</span>
+                                            @if ($identity)
+                                                <span>{{ $identity }}</span>
+                                            @endif
+                                        </span>
+                                        <span
+                                            class="status {{ \App\Support\Status::log($log->status) }}">{{ $log->statusLabel() }}</span>
+                                    </div>
                                 </div>
                             </div>
                         @endforeach

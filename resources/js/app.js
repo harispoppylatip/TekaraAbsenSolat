@@ -329,7 +329,7 @@ function initCamera(root) {
         }
     }
 
-    function addLine(message, ok) {
+    function addLine(message, ok, photoUrl) {
         if (!report) {
             return;
         }
@@ -343,6 +343,31 @@ function initCamera(root) {
 
         line.className = `report-line ${ok ? "is-saved" : "is-failed"}`;
         line.textContent = `${time} ${message}`;
+
+        // Foto bukti yang baru tersimpan ditampilkan sekalian supaya petugas
+        // bisa langsung memastikan orang yang tercatat memang yang di depan
+        // kamera. Potretnya dibuka penuh di tab baru.
+        if (ok && photoUrl) {
+            const link = document.createElement("a");
+            link.className = "proof-link report-photo";
+            link.href = photoUrl;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.title = "Buka foto bukti absen";
+
+            const image = document.createElement("img");
+            image.className = "proof-thumb";
+            image.src = photoUrl;
+            image.alt = "Foto bukti absen";
+            image.width = 44;
+            image.height = 44;
+            image.loading = "lazy";
+            image.decoding = "async";
+
+            link.append(image);
+            line.classList.add("report-line-photo");
+            line.append(link);
+        }
 
         report.prepend(line);
 
@@ -551,7 +576,7 @@ function initCamera(root) {
             }
 
             lastMessage = ok ? "" : message;
-            addLine(message, ok);
+            addLine(message, ok, data.proof_url || "");
         } catch (error) {
             addLine("Sambungan ke server terputus.", false);
         } finally {

@@ -129,6 +129,7 @@
                                 <th>Waktu solat</th>
                                 <th>Pukul</th>
                                 <th>Keadaan</th>
+                                <th>Bukti</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -140,6 +141,10 @@
                                     <td><span
                                             class="status {{ \App\Support\Status::log($log->status) }}">{{ $log->statusLabel() }}</span>
                                     </td>
+                                    <td>@include('partials.proof-photo', [
+                                        'log' => $log,
+                                        'proofFallback' => 'Tanpa bukti',
+                                    ])</td>
                                 </tr>
                             @endforeach
                         </tbody>

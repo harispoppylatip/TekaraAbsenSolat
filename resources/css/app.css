@@ -635,6 +635,43 @@ select.select-field {
     color: var(--on-surface-variant);
 }
 
+/* ---------- Foto bukti absen ---------- */
+
+/* Foto bukti hanya bisa dibuka lewat rute berizin, jadi yang tampil di daftar
+   adalah potret kecilnya dan tautannya membuka ukuran penuh di tab baru. */
+.proof-link {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+}
+
+.proof-link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.proof-thumb {
+    display: block;
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--outline-variant);
+    background: var(--surface-variant);
+}
+
+.report-line-photo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.report-line-photo .proof-thumb {
+    width: 44px;
+    height: 44px;
+}
+
 .cell-actions {
     display: flex;
     flex-wrap: wrap;
@@ -1038,9 +1075,18 @@ select.select-field {
 
 .log-row {
     display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 11px 0;
+}
+
+.log-body {
+    flex: 1;
+    display: flex;
     flex-direction: column;
     gap: 5px;
-    padding: 11px 0;
+    min-width: 0;
 }
 
 .log-row + .log-row {
@@ -1396,5 +1442,11 @@ select.select-field {
 
     .data-table {
         min-width: 440px;
+    }
+
+    /* Di layar sempit potret buktinya dikecilkan supaya barisnya tetap rapat. */
+    .proof-thumb {
+        width: 44px;
+        height: 44px;
     }
 }

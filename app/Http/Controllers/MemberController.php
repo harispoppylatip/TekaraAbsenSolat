@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\MemberRequest;
 use App\Models\User;
 use App\Services\FaceEnrollmentService;
+use App\Services\SolatProofService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -162,6 +163,12 @@ class MemberController extends Controller
         }
 
         $name = $member->name;
+
+        // Catatan absennya ikut terhapus bersama anggotanya lewat kunci asing,
+        // jadi foto buktinya harus dibersihkan lebih dulu supaya tidak ada
+        // berkas yang tertinggal tanpa catatan.
+        app(SolatProofService::class)->forgetForUser($member);
+
         $member->delete();
 
         return redirect()

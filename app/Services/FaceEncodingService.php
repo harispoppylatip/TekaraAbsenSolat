@@ -37,21 +37,26 @@ class FaceEncodingService
      * Hitung angka pembanding wajah dari sebuah foto yang diunggah lewat
      * halaman.
      *
-     * @return array{status: string, encoding: array<int, float>|null, face_count: int, message: string}
+     * @return array{status: string, encoding: array<int, float>|null, face_count: int, message: string, photo: string|null}
      */
-    public function encode(UploadedFile $image): array
+    public function encode(UploadedFile $image, bool $withPhoto = false): array
     {
         $contents = @file_get_contents($image->getRealPath());
 
-        return $this->encodeContents(is_string($contents) ? $contents : '');
+        return $this->encodeContents(is_string($contents) ? $contents : '', $withPhoto);
     }
 
     /**
      * Hitung angka pembanding wajah dari isi sebuah berkas foto.
      *
-     * @return array{status: string, encoding: array<int, float>|null, face_count: int, message: string}
+     * Bila `$withPhoto` bernilai benar, mesin wajah juga diminta mengirim balik
+     * foto seluruh bingkai yang sudah diperkecil sebagai bukti absen. Foto itu
+     * hanya diambil bila bentuknya wajar dan memang diminta; apa pun yang
+     * mencurigakan diabaikan supaya absennya tidak ikut gagal.
+     *
+     * @return array{status: string, encoding: array<int, float>|null, face_count: int, message: string, photo: string|null}
      */
-    public function encodeContents(string $contents): array
+    public function encodeContents(string $contents, bool $withPhoto = false): array
     {
         if ($contents === '') {
             return $this->failure(self::StatusInvalid, 'Foto tidak terbaca. Ambil ulang fotonya.');
@@ -61,7 +66,7 @@ class FaceEncodingService
             $response = Http::timeout((int) config('face.timeout', 90))
                 ->acceptJson()
                 ->attach('image', $contents, 'scan.jpg')
-                ->post($this->serviceUrl().'/encode');
+                ->post($this->serviceUrl().'/encode'.($withPhoto ? '?with_photo=1' : ''));
         } catch (ConnectionException) {
             return $this->failure(self::StatusUnavailable, $this->unavailableMessage());
         }
@@ -91,6 +96,7 @@ class FaceEncodingService
             'encoding' => FaceEmbedding::normalizeEmbedding($encoding),
             'face_count' => (int) ($data['face_count'] ?? 1),
             'message' => 'Wajah terbaca.',
+            'photo' => $withPhoto ? $this->proofPhoto($data['photo'] ?? null) : null,
         ];
     }
 
@@ -118,10 +124,41 @@ class FaceEncodingService
     }
 
     /**
-     * @return array{status: string, encoding: null, face_count: int, message: string}
+     * Ambil foto bukti absen dari balasan mesin wajah.
+     *
+     * Balasannya berupa JPEG yang dikodekan base64. Yang diperiksa hanya tiga
+     * hal yang murah: bentuk teksnya, batas ukurannya, dan penanda awal berkas
+     * JPEG. Semua yang tidak lolos dianggap tidak ada foto, karena absen lebih
+     * penting daripada buktinya.
+     */
+    private function proofPhoto(mixed $value): ?string
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        $binary = base64_decode($value, true);
+
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        if (strlen($binary) > max(0, (int) config('solat.proof_max_bytes', 262144))) {
+            return null;
+        }
+
+        if (! str_starts_with($binary, "\xFF\xD8\xFF")) {
+            return null;
+        }
+
+        return $binary;
+    }
+
+    /**
+     * @return array{status: string, encoding: null, face_count: int, message: string, photo: null}
      */
     private function failure(string $status, string $message): array
     {
-        return ['status' => $status, 'encoding' => null, 'face_count' => 0, 'message' => $message];
+        return ['status' => $status, 'encoding' => null, 'face_count' => 0, 'message' => $message, 'photo' => null];
     }
 }
