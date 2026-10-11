@@ -371,11 +371,19 @@ function faceLabel(face) {
 function faceStatusLine(face, busy) {
     const status = String(face.status || "");
 
-    if (busy && status !== "recorded" && status !== "late" && status !== "duplicate") {
+    if (
+        busy &&
+        status !== "recorded" &&
+        status !== "late" &&
+        status !== "duplicate"
+    ) {
         return "Memverifikasi...";
     }
 
-    if (face.attendance && typeof face.attendance.display_message === "string") {
+    if (
+        face.attendance &&
+        typeof face.attendance.display_message === "string"
+    ) {
         return face.attendance.display_message;
     }
 
@@ -410,8 +418,10 @@ function toneColor(tone) {
  * daripada tidak ada kotak sama sekali.
  */
 function coverMapping(video, width, height, frame) {
-    const sumberLebar = frame && frame.width > 0 ? frame.width : video.videoWidth || 1;
-    const sumberTinggi = frame && frame.height > 0 ? frame.height : video.videoHeight || 1;
+    const sumberLebar =
+        frame && frame.width > 0 ? frame.width : video.videoWidth || 1;
+    const sumberTinggi =
+        frame && frame.height > 0 ? frame.height : video.videoHeight || 1;
     const isiLebar = video.videoWidth || sumberLebar;
     const isiTinggi = video.videoHeight || sumberTinggi;
 
@@ -438,7 +448,10 @@ function cameraMirrored(video) {
         return false;
     }
 
-    const bagian = transform.replace(/^matrix/, "").replace(/[()]/g, "").split(",");
+    const bagian = transform
+        .replace(/^matrix/, "")
+        .replace(/[()]/g, "")
+        .split(",");
 
     return bagian.length >= 1 && Number(bagian[0]) < 0;
 }
@@ -472,7 +485,8 @@ function drawFaceOverlay(root, faces, frame, busy) {
 
     const petakan = coverMapping(video, kotak.width, kotak.height, frame);
     const cermin = cameraMirrored(video);
-    const sumberLebar = frame && frame.width > 0 ? frame.width : video.videoWidth || 1;
+    const sumberLebar =
+        frame && frame.width > 0 ? frame.width : video.videoWidth || 1;
 
     faces.forEach((face) => {
         const box = face.box || {};
@@ -493,7 +507,10 @@ function drawFaceOverlay(root, faces, frame, busy) {
         const x = petakan.geserX + kiri * petakan.skalaX;
         const y = petakan.geserY + Number(box.top || 0) * petakan.skalaY;
         const lebar = Math.max(2, (kanan - kiri) * petakan.skalaX);
-        const tinggi = Math.max(2, (Number(box.bottom || 0) - Number(box.top || 0)) * petakan.skalaY);
+        const tinggi = Math.max(
+            2,
+            (Number(box.bottom || 0) - Number(box.top || 0)) * petakan.skalaY,
+        );
 
         const tone = faceTone(face, busy);
         const warna = toneColor(tone);
@@ -512,7 +529,10 @@ function drawFaceOverlay(root, faces, frame, busy) {
         gambar.font = "500 12px Inter, system-ui, sans-serif";
 
         const lebarKeadaan = gambar.measureText(keadaan).width;
-        const lebarLabel = Math.min(kotak.width, Math.max(lebarNama, lebarKeadaan) + 16);
+        const lebarLabel = Math.min(
+            kotak.width,
+            Math.max(lebarNama, lebarKeadaan) + 16,
+        );
         const tinggiLabel = 34;
 
         // Label dijepit ke dalam bingkai supaya wajah di tepi gambar tidak
@@ -841,7 +861,9 @@ function initCamera(root) {
                         const catatan =
                             (face.attendance && face.attendance.message) || "";
 
-                        return catatan !== "" ? catatan : `${faceLabel(face)} tercatat.`;
+                        return catatan !== ""
+                            ? catatan
+                            : `${faceLabel(face)} tercatat.`;
                     })
                     .join(" ");
 

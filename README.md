@@ -91,14 +91,14 @@ Catatan absen wajah menyimpan satu foto potret jamaah sebagai bukti. Fotonya
 datang bersama hasil pengenalan wajah dari layanan Python, ukurannya sudah
 dikecilkan di sana, dan aplikasi hanya menyimpannya.
 
-| Hal                | Keterangan                                                      |
-| ------------------ | --------------------------------------------------------------- |
-| Tempat penyimpanan | Folder privat `storage/app/private/bukti-absen/tahun/bulan`     |
-| Ukuran berkas      | Di bawah 50 KB, umumnya sekitar 13 KB pada potret 320 kali 480  |
-| Yang boleh membuka | Admin, petugas, dan pemilik catatannya sendiri                  |
-| Tempat melihat     | Riwayat absen murid, Sesi Absen, dan log di halaman Absen Wajah |
+| Hal                  | Keterangan                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| Tempat penyimpanan   | Folder privat `storage/app/private/bukti-absen/tahun/bulan`                                     |
+| Ukuran berkas        | Di bawah 50 KB, umumnya sekitar 13 KB pada potret 320 kali 480                                  |
+| Yang boleh membuka   | Admin, petugas, dan pemilik catatannya sendiri                                                  |
+| Tempat melihat       | Riwayat absen murid, Sesi Absen, dan log di halaman Absen Wajah                                 |
 | Bingkai banyak orang | Satu bingkai kamera memakai satu foto bukti bersama, berapa pun orang yang tercatat di dalamnya |
-| Pembersihan        | `solat:bersihkan-bukti` setiap hari pukul 03.00, bawaan 90 hari |
+| Pembersihan          | `solat:bersihkan-bukti` setiap hari pukul 03.00, bawaan 90 hari                                 |
 
 Pengaturan yang menaunginya ada di bagian `Bukti foto absen wajah` pada
 `.env`.
