@@ -350,6 +350,12 @@
                                     <p class="empty-state">Anggota ini belum punya foto wajah. Unggah fotonya lewat panel
                                         di atas.</p>
                                 @else
+                                    @if ($member->face_embeddings_count < $photosNeeded)
+                                        <p class="cell-note">Baru {{ $member->face_embeddings_count }} foto. Anggota
+                                            dengan {{ $photosNeeded }} foto atau lebih jauh lebih pasti dikenali,
+                                            jadi tambahkan foto dari arah dan cahaya yang berbeda.</p>
+                                    @endif
+
                                     <div class="table-wrap">
                                         <table class="data-table">
                                             <thead>
@@ -364,7 +370,16 @@
                                                 @foreach ($member->faceEmbeddings as $embedding)
                                                     <tr>
                                                         <td class="cell-strong">
-                                                            {{ $embedding->label ?: 'Tanpa keterangan' }}</td>
+                                                            {{ $embedding->label ?: 'Tanpa keterangan' }}
+                                                            @isset($outlierPhotos[$embedding->id])
+                                                                <span class="cell-note">Berbeda jauh dari foto lain anggota
+                                                                    ini, jaraknya
+                                                                    {{ number_format($outlierPhotos[$embedding->id], 2, ',', '.') }}.
+                                                                    Pastikan foto ini memang orang yang sama, atau ganti dengan
+                                                                    foto
+                                                                    yang lebih jelas.</span>
+                                                            @endisset
+                                                        </td>
                                                         <td>{{ $embedding->model }}</td>
                                                         <td>{{ $embedding->created_at?->translatedFormat('d F Y H:i') }}
                                                         </td>

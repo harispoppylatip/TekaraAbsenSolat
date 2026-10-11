@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\FaceEmbedding;
 use App\Models\User;
 use App\Services\FaceEncodingService;
+use App\Services\FaceMatcherService;
 use App\Services\FacePhotoQueueService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +18,7 @@ class FaceDataController extends Controller
     /** Jumlah anggota per halaman pada daftar wajah terdaftar. */
     public const PerPage = 10;
 
-    public function index(Request $request, FacePhotoQueueService $queue): View
+    public function index(Request $request, FacePhotoQueueService $queue, FaceMatcherService $matcher): View
     {
         $term = trim((string) $request->query('q', ''));
 
@@ -38,6 +40,7 @@ class FaceDataController extends Controller
                 'berwajah' => User::query()->has('faceEmbeddings')->count(),
                 'foto' => FaceEmbedding::query()->count(),
                 'batas' => (int) config('face.max_photos_per_user', 20),
+                'perlu' => $matcher->aggregatePhotos(),
             ],
             'operators' => User::query()
                 ->where('can_scan_face', true)
@@ -47,7 +50,40 @@ class FaceDataController extends Controller
             'maxSubmit' => (int) config('face.max_photos_per_submit', 10),
             'batches' => $queue->batches(),
             'expectedSeconds' => (int) config('face.expected_seconds', 15),
+            'outlierPhotos' => $this->outlierPhotos($members, $matcher),
+            'photosNeeded' => $matcher->aggregatePhotos(),
         ]);
+    }
+
+    /**
+     * Kumpulkan foto yang berbeda jauh dari foto lain milik anggota yang sama.
+     *
+     * Foto seperti itu biasanya wajahnya tidak terbaca jelas, hasil potret
+     * layar, atau bahkan orang yang salah. Kehadirannya berbahaya karena satu
+     * foto yang menyimpang membuat anggota tersebut mudah dikenali sebagai
+     * orang lain, jadi admin perlu melihatnya di halaman ini.
+     *
+     * @param  LengthAwarePaginator<int, User>  $members
+     * @return array<int, float> id foto => jarak terdekat ke foto saudaranya
+     */
+    private function outlierPhotos(LengthAwarePaginator $members, FaceMatcherService $matcher): array
+    {
+        $limit = $matcher->tolerance();
+        $outliers = [];
+
+        foreach ($members as $member) {
+            if ($member->faceEmbeddings->count() < 2) {
+                continue;
+            }
+
+            foreach ($matcher->siblingDistances($member->faceEmbeddings) as $id => $distance) {
+                if ($distance > $limit) {
+                    $outliers[$id] = $distance;
+                }
+            }
+        }
+
+        return $outliers;
     }
 
     /**

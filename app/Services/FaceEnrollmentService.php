@@ -28,6 +28,9 @@ class FaceEnrollmentService
     /** Wajah di foto lebih dari satu, jadi tidak boleh dipakai mendaftar. */
     public const StatusMultipleFaces = 'multiple_faces';
 
+    /** Wajah di foto terlalu kecil untuk dijadikan pembanding. */
+    public const StatusFaceTooSmall = 'face_too_small';
+
     /** Layanan wajah tidak bisa dihubungi. */
     public const StatusUnavailable = 'service_unavailable';
 
@@ -105,20 +108,18 @@ class FaceEnrollmentService
         $before = $this->photoCount($user);
         $max = (int) config('face.max_photos_per_user', 20);
 
+        // Foto berisi lebih dari satu orang tidak dipakai, karena orang yang
+        // tidak diniatkan bisa terdaftar dan ikut dikenali saat absen. Mesin
+        // wajah yang sudah memperbarui diri menolaknya sendiri; pemeriksaan ini
+        // tetap ada untuk mesin wajah versi lama.
+        if ($encoded['status'] === FaceEncodingService::StatusMultipleFaces || ($encoded['face_count'] ?? 1) > 1) {
+            return $this->multipleFaces($before);
+        }
+
         if ($encoded['status'] !== FaceEncodingService::StatusSuccess) {
             return [
                 'status' => $this->translateStatus($encoded['status']),
                 'message' => $encoded['message'],
-                'total' => $before,
-            ];
-        }
-
-        // Foto berisi lebih dari satu orang tidak dipakai, karena orang yang
-        // tidak diniatkan bisa terdaftar dan ikut dikenali saat absen.
-        if (($encoded['face_count'] ?? 1) > 1) {
-            return [
-                'status' => self::StatusMultipleFaces,
-                'message' => 'Foto ini memuat lebih dari satu wajah, jadi tidak dipakai. Pilih foto yang hanya berisi satu orang.',
                 'total' => $before,
             ];
         }
@@ -154,9 +155,25 @@ class FaceEnrollmentService
     {
         return match ($status) {
             FaceEncodingService::StatusNoFace => self::StatusNoFace,
+            FaceEncodingService::StatusMultipleFaces => self::StatusMultipleFaces,
+            FaceEncodingService::StatusFaceTooSmall => self::StatusFaceTooSmall,
             FaceEncodingService::StatusUnavailable => self::StatusUnavailable,
             default => self::StatusInvalid,
         };
+    }
+
+    /**
+     * Balasan untuk foto yang memuat lebih dari satu wajah.
+     *
+     * @return array{status: string, message: string, total: int}
+     */
+    private function multipleFaces(int $before): array
+    {
+        return [
+            'status' => self::StatusMultipleFaces,
+            'message' => 'Foto ini memuat lebih dari satu wajah, jadi tidak dipakai. Pilih foto yang hanya berisi satu orang.',
+            'total' => $before,
+        ];
     }
 
     private function readPhoto(UploadedFile $photo): string

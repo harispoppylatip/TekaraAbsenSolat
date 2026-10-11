@@ -91,6 +91,10 @@ abstract class TestCase extends BaseTestCase
      *
      * `$photo` berisi isi berkas bukti yang dikirim mesin wajah, sedangkan
      * `$withPhoto` mencatat apakah pemanggilnya memang meminta foto bukti.
+     * `$faceSize` dan `$model` dipakai menguji penolakan potret yang wajahnya
+     * terlalu kecil dan penolakan angka wajah dari model yang berbeda. `$status`
+     * bisa diisi langsung bila pengujian ingin balasan yang ditolak mesin wajah,
+     * misalnya `multiple_faces`.
      *
      * @param  array<int, float>|null  $encoding
      */
@@ -99,10 +103,13 @@ abstract class TestCase extends BaseTestCase
         int $faceCount = 1,
         bool $available = true,
         ?string $photo = null,
+        int $faceSize = 0,
+        ?string $model = null,
+        ?string $status = null,
     ): void {
         $embedding = $encoding ?? array_fill(0, FaceEmbedding::Dimensions, 0.01);
 
-        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available, $photo) extends FaceEncodingService
+        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available, $photo, $faceSize, $model, $status) extends FaceEncodingService
         {
             /** Apakah foto bukti diminta pada pemanggilan terakhir. */
             public bool $askedForPhoto = false;
@@ -115,6 +122,9 @@ abstract class TestCase extends BaseTestCase
                 private int $faceCount,
                 private bool $available,
                 private ?string $photo,
+                private int $faceSize,
+                private ?string $model,
+                private ?string $status,
             ) {}
 
             public function encode(UploadedFile $image, bool $withPhoto = false): array
@@ -131,7 +141,21 @@ abstract class TestCase extends BaseTestCase
                         'status' => self::StatusUnavailable,
                         'encoding' => null,
                         'face_count' => 0,
+                        'face_size' => 0,
+                        'model' => null,
                         'message' => $this->unavailableMessage(),
+                        'photo' => null,
+                    ];
+                }
+
+                if ($this->status !== null) {
+                    return [
+                        'status' => $this->status,
+                        'encoding' => null,
+                        'face_count' => $this->faceCount,
+                        'face_size' => $this->faceSize,
+                        'model' => $this->model,
+                        'message' => 'Balasan uji '.$this->status.'.',
                         'photo' => null,
                     ];
                 }
@@ -141,6 +165,8 @@ abstract class TestCase extends BaseTestCase
                         'status' => self::StatusNoFace,
                         'encoding' => null,
                         'face_count' => 0,
+                        'face_size' => 0,
+                        'model' => $this->model,
                         'message' => 'Wajah tidak terlihat. Dekatkan wajah ke kamera dan pastikan cahaya cukup.',
                         'photo' => null,
                     ];
@@ -150,6 +176,8 @@ abstract class TestCase extends BaseTestCase
                     'status' => self::StatusSuccess,
                     'encoding' => $this->embedding,
                     'face_count' => $this->faceCount,
+                    'face_size' => $this->faceSize,
+                    'model' => $this->model,
                     'message' => 'Wajah terbaca.',
                     'photo' => $this->photo,
                 ];

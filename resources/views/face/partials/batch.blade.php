@@ -16,6 +16,16 @@
         <p class="queue-value" data-batch-percent>{{ $batch['percent'] }}%</p>
     </div>
 
+    {{-- Ditaruh di atas daftar foto, bukan di bawahnya: kalau pekerja antrean
+         belum jalan, inilah satu-satunya hal yang perlu dibaca admin, dan
+         daftar sembilan foto bisa mendorongnya ke luar layar. --}}
+    @if ($batch['stalled'])
+        <p class="queue-note queue-alert" data-batch-alert>
+            Antrean belum dijalankan. Jalankan <code>php artisan queue:work</code> di server supaya foto
+            yang menunggu mulai diproses.
+        </p>
+    @endif
+
     <p class="queue-note" data-batch-note>{{ $batch['note'] }}</p>
 
     <div class="progress-track">
@@ -30,13 +40,6 @@
             </div>
         @endforeach
     </div>
-
-    @if ($batch['stalled'])
-        <p class="queue-note queue-alert" data-batch-alert>
-            Antrean belum dijalankan. Jalankan <code>php artisan queue:work</code> di server supaya foto
-            yang menunggu mulai diproses.
-        </p>
-    @endif
 
     @if ($batch['retryable'] > 0)
         <form method="POST" action="{{ route('face.queue.retry', $batch['id']) }}">

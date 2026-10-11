@@ -334,6 +334,39 @@ class FaceQueueTest extends TestCase
             ->assertJsonPath('batches.0.stalled', true);
     }
 
+    /**
+     * Peringatan antrean mati diletakkan di ATAS daftar foto. Kalau ditaruh di
+     * bawah, sembilan baris foto mendorongnya ke luar layar dan admin hanya
+     * melihat kemajuan 0% tanpa tahu sebabnya.
+     */
+    public function test_peringatan_antrean_mati_berada_di_atas_daftar_foto(): void
+    {
+        $admin = $this->admin();
+        $member = $this->makeUser(User::RoleMurid);
+
+        $row = $this->staged($member);
+        $row->forceFill(['created_at' => now()->subMinutes(5)])->save();
+
+        $halaman = $this->actingAs($admin)
+            ->get(route('face.index'))
+            ->assertOk()
+            ->getContent();
+
+        $peringatan = strpos($halaman, 'data-batch-alert');
+        $kepala = strpos($halaman, 'queue-head');
+        $catatan = strpos($halaman, 'data-batch-note');
+        $daftar = strpos($halaman, 'queue-rows');
+
+        $this->assertIsInt($peringatan);
+        $this->assertIsInt($kepala);
+        $this->assertIsInt($catatan);
+        $this->assertIsInt($daftar);
+
+        $this->assertGreaterThan($kepala, $peringatan, 'Peringatan harus sesudah kepala kartu.');
+        $this->assertLessThan($catatan, $peringatan, 'Peringatan harus mendahului catatan kemajuan.');
+        $this->assertLessThan($daftar, $peringatan, 'Peringatan harus mendahului daftar foto.');
+    }
+
     public function test_ulangi_mengembalikan_foto_yang_gagal_ke_antrean(): void
     {
         Queue::fake();

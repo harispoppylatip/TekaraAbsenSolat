@@ -54,22 +54,22 @@ Semua kunci yang khusus Docker memakai akhiran `_DOCKER` supaya `.env` yang
 sama tetap bisa dipakai untuk pengembangan di komputer dengan
 `php artisan serve`.
 
-| Kunci                     | Arti                                                 | Bawaan                             |
-| ------------------------- | ---------------------------------------------------- | ---------------------------------- |
-| `APP_PORT`                | Port web di komputer host                            | `8080`                             |
-| `APP_URL_DOCKER`          | Alamat aplikasi yang dilihat pengguna                | `http://localhost:8080`            |
-| `APP_ENV_DOCKER`          | Lingkungan aplikasi di dalam container               | `production`                       |
-| `APP_DEBUG_DOCKER`        | Tampilkan pesan error terperinci                     | `false`                            |
-| `LOG_CHANNEL_DOCKER`      | Log aplikasi masuk ke output container               | `stderr`                           |
-| `LOG_LEVEL_DOCKER`        | Tingkat detail log                                   | `warning`                          |
-| `DB_HOST_DOCKER`          | Nama host MySQL yang dilihat dari dalam container    | `db`                               |
-| `DB_USERNAME_DOCKER`      | User aplikasi di MySQL                               | `absen_solat`                      |
-| `DB_PASSWORD_DOCKER`      | Password user aplikasi, wajib diisi                  | `AbsenSolat2026`                   |
-| `DB_ROOT_PASSWORD`        | Password root MySQL bawaan compose, wajib diisi      | `RootAbsenSolat2026`               |
-| `DB_PUBLISH_HOST`         | Interface jaringan tempat port MySQL dibuka          | `0.0.0.0`                          |
-| `DB_PUBLISH_PORT`         | Port MySQL untuk klien luar container                | `3307`                             |
-| `RUN_MIGRATIONS`          | Jalankan migrasi saat container `app` hidup          | `true`                             |
-| `FACE_SERVICE_URL_DOCKER` | Alamat mesin wajah yang dilihat dari dalam container | `http://host.docker.internal:5005` |
+| Kunci                     | Arti                                                 | Bawaan                  |
+| ------------------------- | ---------------------------------------------------- | ----------------------- |
+| `APP_PORT`                | Port web di komputer host                            | `8080`                  |
+| `APP_URL_DOCKER`          | Alamat aplikasi yang dilihat pengguna                | `http://localhost:8080` |
+| `APP_ENV_DOCKER`          | Lingkungan aplikasi di dalam container               | `production`            |
+| `APP_DEBUG_DOCKER`        | Tampilkan pesan error terperinci                     | `false`                 |
+| `LOG_CHANNEL_DOCKER`      | Log aplikasi masuk ke output container               | `stderr`                |
+| `LOG_LEVEL_DOCKER`        | Tingkat detail log                                   | `warning`               |
+| `DB_HOST_DOCKER`          | Nama host MySQL yang dilihat dari dalam container    | `db`                    |
+| `DB_USERNAME_DOCKER`      | User aplikasi di MySQL                               | `absen_solat`           |
+| `DB_PASSWORD_DOCKER`      | Password user aplikasi, wajib diisi                  | `AbsenSolat2026`        |
+| `DB_ROOT_PASSWORD`        | Password root MySQL bawaan compose, wajib diisi      | `RootAbsenSolat2026`    |
+| `DB_PUBLISH_HOST`         | Interface jaringan tempat port MySQL dibuka          | `0.0.0.0`               |
+| `DB_PUBLISH_PORT`         | Port MySQL untuk klien luar container                | `3307`                  |
+| `RUN_MIGRATIONS`          | Jalankan migrasi saat container `app` hidup          | `true`                  |
+| `FACE_SERVICE_URL_DOCKER` | Alamat mesin wajah yang dilihat dari dalam container | `http://wajah:5005`     |
 
 Port web dipilih `8080` supaya tidak bentrok dengan `php artisan serve`
 (8000) dan dengan XAMPP atau Laragon (80). Bila aplikasinya dibuka dari
@@ -110,6 +110,28 @@ container.
 docker compose exec app php artisan solat:sesi-harian --days=2
 ```
 
+### Ambang pengenalan wajah
+
+Kunci berikut juga ditulis tanpa akhiran `_DOCKER` dan dipakai bersama oleh
+`php artisan serve` serta layanan `app` dan `queue`. Alasan setiap angkanya
+dijelaskan di `README.md` pada bagian Cara identitas diputuskan.
+
+| Kunci                         | Arti                                                                | Bawaan           |
+| ----------------------------- | ------------------------------------------------------------------- | ---------------- |
+| `FACE_TOLERANCE`              | Jarak terjauh yang masih diterima sebagai anggota yang sama         | `0.5`            |
+| `FACE_AGGREGATE_PHOTOS`       | Berapa jarak foto terdekat yang dirata-ratakan saat menilai anggota | `2`              |
+| `FACE_SINGLE_PHOTO_TOLERANCE` | Batas lebih ketat bagi anggota yang fotonya kurang dari `2`         | `0.45`           |
+| `FACE_MIN_MARGIN`             | Selisih minimal juara pertama dan kedua sebelum hasilnya ambigu     | `0.06`           |
+| `FACE_MIN_FACE_SIZE`          | Sisi wajah paling kecil dalam piksel, `0` mematikan pemeriksaannya  | `80`             |
+| `FACE_ENFORCE_MODEL`          | Lewati angka wajah yang dihitung oleh model lain                    | `true`           |
+| `FACE_MODEL`                  | Nama model wajah yang dipakai dan dicatat pada setiap angka         | `dlib-resnet-v1` |
+| `FACE_SERVICE_TIMEOUT`        | Batas tunggu satu foto ke mesin wajah, dalam detik                  | `90`             |
+
+Mesin wajah versi lama tetap bisa dipakai: permintaan `require_single=1` diabaikan
+oleh mesin yang belum mengenalnya, dan pemeriksaan jumlah wajah di foto tetap
+dikerjakan di sisi aplikasi. Yang tidak berjalan pada mesin wajah versi lama
+hanya pemeriksaan ukuran wajah, karena `face_size` belum dilaporkan.
+
 ### Mengganti port
 
 Port hanya diatur di `.env`, jadi image tidak perlu dibangun ulang
@@ -131,6 +153,17 @@ Ganti `DB_PASSWORD_DOCKER`, `DB_ROOT_PASSWORD`, dan password akun bawaan
 sebelum dipakai di jaringan sekolah.
 
 ## Langkah memasang
+
+Sekali saja, sebelum menjalankan Docker pertama kali, buat jaringan bersama
+yang dipakai aplikasi ini dan mesin wajah. Mesin wajah sudah masuk ke jaringan
+ini dengan nama `wajah`, jadi aplikasi cukup memanggil `http://wajah:5005`.
+
+```sh
+docker network create absen-jaringan
+```
+
+Jaringan itu sengaja dibuat di luar kedua berkas compose, sehingga
+`docker compose down` di salah satu proyek tidak pernah menghapusnya.
 
 ```sh
 docker compose up -d --build
@@ -274,25 +307,48 @@ aplikasi langsung terlihat di HeidiSQL atau Laragon. Sebaliknya, bila
 ## Mesin pengenal wajah
 
 Mesin wajah berjalan terpisah dari aplikasi ini (layanan Python). Alamat yang
-dipakai dari dalam container diatur lewat `FACE_SERVICE_URL_DOCKER` di `.env`.
+dipakai dari dalam container diatur lewat `FACE_SERVICE_URL_DOCKER` di `.env`,
+dan bawaannya sudah menunjuk mesin wajah sebagai container:
 
-Dua hal yang sering menjadi penyebab mesin wajah tidak bisa dihubungi:
+```env
+FACE_SERVICE_URL_DOCKER=http://wajah:5005
+```
 
-1. `127.0.0.1` di dalam container menunjuk container itu sendiri, bukan komputer
-   induk. Gunakan `http://host.docker.internal:5005` untuk mesin wajah di
-   komputer yang sama, atau alamat IP komputer tersebut.
-2. Mesin wajah yang berjalan di komputer host harus listen di semua
-   interface, bukan hanya `127.0.0.1`, sebab sambungan dari container datang dari
-   interface jaringan Docker. Jalankan dengan `FACE_HOST` diisi `0.0.0.0`:
+Alamat itu bekerja karena aplikasi ini dan mesin wajah berada di satu jaringan
+Docker bersama, `absen-jaringan`, dan mesin wajah masuk ke sana dengan nama
+`wajah`. Jaringan itu termasuk yang dibuat di langkah memasang di atas.
+Sambungannya langsung antar container, jadi port mesin wajah tidak perlu dibuka
+ke komputer induk dan tidak ada lalu lintas foto yang melewati jaringan sekolah.
+
+Karena itu layanan `app` dan `queue` disambungkan ke dua jaringan sekaligus:
+`absen-solat` untuk berbicara dengan `db` dan `web`, serta `absen-jaringan`
+untuk berbicara dengan mesin wajah.
+
+### Bila mesin wajah dijalankan langsung di komputer, bukan di Docker
+
+Jalankan mesin wajahnya dengan `FACE_HOST` diisi `0.0.0.0`, lalu ubah
+`FACE_SERVICE_URL_DOCKER` menjadi `http://host.docker.internal:5005` dan
+jalankan `docker compose up -d --force-recreate`.
 
 ```powershell
 $env:FACE_HOST = '0.0.0.0'
 .\.venv\Scripts\python.exe face_service.py
 ```
 
+Alasan `FACE_HOST` harus `0.0.0.0`, bukan `127.0.0.1`: sambungan dari container
+datang lewat alamat komputer induk, bukan lewat loopback komputer itu, sehingga
+proses yang hanya mendengar di `127.0.0.1` tidak akan tersambung. Ini juga
+sebabnya bawaan `FACE_HOST` di `face_service.py` sengaja `127.0.0.1`: layanan
+itu tidak punya kata sandi, jadi terbuka ke jaringan hanya atas keputusan
+sadar.
+
 Salah satu tandanya adalah panel queue di halaman Wajah berhenti di tengah
 jalan dan log container `queue` berisi pesan mesin wajah tidak bisa
-dihubungi.
+dihubungi. Periksa dari dalam container:
+
+```sh
+docker compose exec app wget -qO- http://wajah:5005/health
+```
 
 Layanan Python itu juga yang menyiapkan foto bukti absen. Aplikasi meminta
 potret kecil lewat permintaan `?with_photo=1`, lalu menyimpannya sendiri.
@@ -411,21 +467,23 @@ File yang sudah dikompilasi bisa dibersihkan dengan
 
 ## Kalau ada masalah
 
-| Gejala                                                    | Sebab dan penanganan                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Halaman putih atau error 500                              | Buka `docker compose logs app`. Isi `APP_DEBUG_DOCKER=true` di `.env` lalu jalankan ulang untuk melihat pesan terperinci, dan kembalikan ke `false` setelah selesai                                                                                                                                                                                                                                       |
-| Error 419 Page Expired                                    | Sesi gagal disimpan. Pastikan migrasi sudah jalan (`docker compose exec app php artisan migrate:status`) sehingga tabel `sessions` ada, dan `APP_KEY` di `.env` tidak berubah dari sebelumnya. Semua sesi lama juga batal bila `APP_KEY` diganti                                                                                                                                                          |
-| Masuk berhasil tetapi langsung kembali ke halaman masuk   | Sesi tidak tersimpan. Periksa log container `app` dan pastikan waktu di komputer server benar                                                                                                                                                                                                                                                                                                             |
-| Error 502 Bad Gateway                                     | Container `app` belum siap atau sedang dimulai. Lihat `docker compose ps` dan `docker compose logs app`                                                                                                                                                                                                                                                                                                   |
-| Error 504 atau halaman berhenti saat upload               | Batas waktu nginx dan batas ukuran upload. Nilai bawaannya sudah berjenjang: nginx 96 MB, `post_max_size` 64 MB, satu foto 5 MB                                                                                                                                                                                                                                                                           |
-| Kartu kemajuan upload wajah berhenti                      | Container `queue` mati atau mesin wajah tidak bisa dihubungi. Periksa `docker compose ps` dan `docker compose logs queue`                                                                                                                                                                                                                                                                                 |
-| Access denied for user                                    | Dua sebab. Bila `DB_HOST_DOCKER=db`: password di `DB_PASSWORD_DOCKER` tidak sama dengan password yang sudah tersimpan di volume MySQL, jadi kembalikan password lama atau hapus volume dengan `docker compose down -v` bila datanya boleh hilang. Bila memakai MySQL komputer host: akun `root@localhost` tidak cocok untuk sambungan dari alamat jaringan Docker sehingga perlu user `'absen_solat'@'%'` |
-| `required variable DB_PASSWORD_DOCKER is missing a value` | `DB_PASSWORD_DOCKER` atau `DB_ROOT_PASSWORD` masih kosong di `.env`. Compose menolak seluruh file walaupun layanan `db` tidak ikut dijalankan, jadi isi kedua kunci itu dengan password yang sah                                                                                                                                                                                                          |
-| Port sudah dipakai                                        | Ubah `APP_PORT` atau `DB_PUBLISH_PORT` di `.env`, lalu `docker compose up -d`                                                                                                                                                                                                                                                                                                                             |
-| Tombol kamera berbunyi `Sambungan ke server terputus.`    | Aplikasi di belakang proxy pemegang sertifikat, tetapi proxy belum mengirim header `X-Forwarded-Proto` atau alamatnya belum terdaftar sebagai proxy yang dipercaya. Ikuti bagian **Memakai domain dan HTTPS** di atas                                                                                                                                                                                     |
-| Koneksi ke MySQL lambat atau gagal berulang               | Pastikan volume database `absen-solat-dbdata` masih ada (`docker volume ls`) dan `docker compose logs db` tidak ada error                                                                                                                                                                                                                                                                                 |
-| Kolom Bukti pada riwayat menulis Tanpa bukti              | Layanan wajah yang berjalan belum memuat pembuat potret, atau `SOLAT_KEEP_PROOF_PHOTO=false`. Perbarui layanan Python lalu nyalakan ulang, dan absen lama yang belum punya foto memang tampil begitu                                                                                                                                                                                                      |
-| Build berhenti pada pemeriksaan versi PHP                 | Image PHP yang dipakai lebih tua dari 8.4.1. Jangan turunkan image; naikkan versinya                                                                                                                                                                                                                                                                                                                      |
+| Gejala                                                                | Sebab dan penanganan                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Halaman putih atau error 500                                          | Buka `docker compose logs app`. Isi `APP_DEBUG_DOCKER=true` di `.env` lalu jalankan ulang untuk melihat pesan terperinci, dan kembalikan ke `false` setelah selesai                                                                                                                                                                                                                                       |
+| Error 419 Page Expired                                                | Sesi gagal disimpan. Pastikan migrasi sudah jalan (`docker compose exec app php artisan migrate:status`) sehingga tabel `sessions` ada, dan `APP_KEY` di `.env` tidak berubah dari sebelumnya. Semua sesi lama juga batal bila `APP_KEY` diganti                                                                                                                                                          |
+| Masuk berhasil tetapi langsung kembali ke halaman masuk               | Sesi tidak tersimpan. Periksa log container `app` dan pastikan waktu di komputer server benar                                                                                                                                                                                                                                                                                                             |
+| Error 502 Bad Gateway                                                 | Container `app` belum siap atau sedang dimulai. Lihat `docker compose ps` dan `docker compose logs app`                                                                                                                                                                                                                                                                                                   |
+| Error 504 atau halaman berhenti saat upload                           | Batas waktu nginx dan batas ukuran upload. Nilai bawaannya sudah berjenjang: nginx 96 MB, `post_max_size` 64 MB, satu foto 5 MB                                                                                                                                                                                                                                                                           |
+| Kartu kemajuan upload wajah berhenti                                  | Container `queue` mati atau mesin wajah tidak bisa dihubungi. Periksa `docker compose ps` dan `docker compose logs queue`                                                                                                                                                                                                                                                                                 |
+| `network absen-jaringan declared as external, but could not be found` | Jaringan bersama belum dibuat, atau pernah terhapus. Jalankan `docker network create absen-jaringan`, lalu ulangi `docker compose up -d`                                                                                                                                                                                                                                                                  |
+| Halaman Wajah menulis layanan wajah belum aktif                       | Mesin wajahnya belum hidup atau belum ikut ke jaringan bersama. Jalankan `docker compose up -d` di folder mesin wajah, lalu periksa dengan `docker compose exec app wget -qO- http://wajah:5005/health`                                                                                                                                                                                                   |
+| Access denied for user                                                | Dua sebab. Bila `DB_HOST_DOCKER=db`: password di `DB_PASSWORD_DOCKER` tidak sama dengan password yang sudah tersimpan di volume MySQL, jadi kembalikan password lama atau hapus volume dengan `docker compose down -v` bila datanya boleh hilang. Bila memakai MySQL komputer host: akun `root@localhost` tidak cocok untuk sambungan dari alamat jaringan Docker sehingga perlu user `'absen_solat'@'%'` |
+| `required variable DB_PASSWORD_DOCKER is missing a value`             | `DB_PASSWORD_DOCKER` atau `DB_ROOT_PASSWORD` masih kosong di `.env`. Compose menolak seluruh file walaupun layanan `db` tidak ikut dijalankan, jadi isi kedua kunci itu dengan password yang sah                                                                                                                                                                                                          |
+| Port sudah dipakai                                                    | Ubah `APP_PORT` atau `DB_PUBLISH_PORT` di `.env`, lalu `docker compose up -d`                                                                                                                                                                                                                                                                                                                             |
+| Tombol kamera berbunyi `Sambungan ke server terputus.`                | Aplikasi di belakang proxy pemegang sertifikat, tetapi proxy belum mengirim header `X-Forwarded-Proto` atau alamatnya belum terdaftar sebagai proxy yang dipercaya. Ikuti bagian **Memakai domain dan HTTPS** di atas                                                                                                                                                                                     |
+| Koneksi ke MySQL lambat atau gagal berulang                           | Pastikan volume database `absen-solat-dbdata` masih ada (`docker volume ls`) dan `docker compose logs db` tidak ada error                                                                                                                                                                                                                                                                                 |
+| Kolom Bukti pada riwayat menulis Tanpa bukti                          | Layanan wajah yang berjalan belum memuat pembuat potret, atau `SOLAT_KEEP_PROOF_PHOTO=false`. Perbarui layanan Python lalu nyalakan ulang, dan absen lama yang belum punya foto memang tampil begitu                                                                                                                                                                                                      |
+| Build berhenti pada pemeriksaan versi PHP                             | Image PHP yang dipakai lebih tua dari 8.4.1. Jangan turunkan image; naikkan versinya                                                                                                                                                                                                                                                                                                                      |
 
 Perubahan besar pada `docker-compose.yml` atau `Dockerfile` bisa diperiksa
 tanpa menjalankan apa pun:

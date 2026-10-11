@@ -870,12 +870,14 @@ function updateBatchAlert(item, batch) {
 
     line.dataset.batchAlert = "1";
 
-    const form = item.querySelector("[data-batch-retry]");
+    // Ditaruh tepat di bawah kepala kartu, sama seperti versi Blade, supaya
+    // peringatan ini tidak tertimbun daftar foto yang panjang.
+    const head = item.querySelector(".queue-head");
 
-    if (form) {
-        form.before(line);
+    if (head) {
+        head.after(line);
     } else {
-        item.append(line);
+        item.prepend(line);
     }
 }
 

@@ -286,10 +286,11 @@ php artisan queue:work
 Queue wajib hidup supaya upload foto wajah diproses di latar belakang.
 Tanpa queue, foto tetap tersimpan tetapi berstatus menunggu.
 
-Jadwal yang berjalan di penjadwal ada tiga: penyiapan sesi absen harian sekali
-sehari, pembukaan dan penutupan sesi absen setiap menit, serta pembuangan file
-foto sementara setiap hari. Jalankan dengan `php artisan schedule:work`.
-Daftarnya bisa dilihat dengan `php artisan schedule:list`.
+Jadwal yang berjalan di penjadwal ada empat: penyiapan sesi absen harian sekali
+sehari, pembukaan dan penutupan sesi absen setiap menit, pembuangan foto bukti
+absen yang sudah lama, serta pembuangan file foto sementara. Jalankan dengan
+`php artisan schedule:work`. Daftarnya bisa dilihat dengan
+`php artisan schedule:list`.
 
 Tanpa penjadwal, sesi absen tidak akan disiapkan, dibuka, maupun ditutup
 sendiri. Absen masih bisa berjalan dengan menekan tombol Buka di halaman Sesi
@@ -381,7 +382,12 @@ jalan walaupun layanan ini mati.
 
 ```env
 FACE_SERVICE_URL=http://127.0.0.1:5005
-FACE_TOLERANCE=0.6
+FACE_TOLERANCE=0.5
+FACE_AGGREGATE_PHOTOS=2
+FACE_SINGLE_PHOTO_TOLERANCE=0.45
+FACE_MIN_MARGIN=0.06
+FACE_MIN_FACE_SIZE=80
+FACE_ENFORCE_MODEL=true
 FACE_SERVICE_TIMEOUT=90
 FACE_EXPECTED_SECONDS=15
 ```
@@ -400,6 +406,39 @@ Alur pemakaiannya:
 2. Tandai petugas kamera di halaman yang sama.
 3. Petugas membuka `/absen-wajah` dari ponsel atau komputer berkamera, lalu
    jepretan dikirim ke layanan wajah dan kehadirannya tercatat.
+
+### Cara identitas diputuskan
+
+Mesin wajah mengubah wajah menjadi 128 angka, dan angka itulah yang dibandingkan.
+Yang paling dekat belum tentu orang yang sama, jadi keputusannya diambil berlapis:
+
+| Lapis                       | Aturannya                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------------- |
+| Jarak per foto              | Jarak dihitung ke setiap foto anggota, lalu dikelompokkan per anggota                         |
+| Jarak satu anggota          | Rata-rata dua jarak terdekatnya (`FACE_AGGREGATE_PHOTOS`), supaya satu foto buruk tidak cukup |
+| Penerimaan                  | Jarak itu wajib di bawah `FACE_TOLERANCE`                                                     |
+| Anggota berfoto tunggal     | Batasnya lebih ketat, `FACE_SINGLE_PHOTO_TOLERANCE`, karena tidak ada foto pendukung          |
+| Dua anggota sama-sama dekat | Hasilnya dilaporkan ambigu bila selisihnya di bawah `FACE_MIN_MARGIN`                         |
+| Wajah terlalu kecil         | Ditolak bila sisi wajah kurang dari `FACE_MIN_FACE_SIZE` piksel                               |
+| Model berbeda               | Angka wajah dari model lain dilewati selama `FACE_ENFORCE_MODEL` menyala                      |
+
+Balasan absen karena itu bisa berupa `recorded`, `late`, atau `duplicate` yang
+artinya kehadiran tercatat, dan `unknown`, `ambiguous`, `no_face`,
+`face_too_small`, `crowded`, `unavailable`, atau `invalid` yang artinya tidak ada
+kehadiran yang tersimpan.
+
+Angka bawaan di atas berasal dari pengukuran foto sungguhan di satu mesin: wajah
+orang yang berbeda berjarak 0,53 sampai 0,71, sedangkan wajah orang yang sama pada
+potret yang layak berada di bawah 0,5. Angka itu wajib diukur ulang memakai foto
+dari sekolah sendiri sebelum dipakai untuk kehadiran yang dihitung, sebab
+ketajaman mesin wajah tidak bisa dipastikan dari contoh kecil.
+
+Dua sampai tiga foto per anggota sangat dianjurkan. Anggota berfoto tunggal
+diukur dengan batas yang lebih ketat, sehingga orang yang sebenarnya cocok bisa
+saja ditolak dan diminta memindai ulang pada cahaya yang lebih baik. Halaman
+`/wajah` ikut menjaga mutunya: foto yang berbeda jauh dari foto lain milik anggota
+yang sama ditandai supaya diganti, dan anggota yang fotonya masih sedikit diberi
+keterangan untuk ditambah.
 
 Sekalian dengan pengenalan wajah, layanan Python mengirim potret kecil yang
 versinya sudah dikecilkan. Aplikasi meminta potret itu dengan menambahkan

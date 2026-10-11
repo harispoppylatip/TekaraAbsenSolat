@@ -24,7 +24,22 @@
 #   SOLAT_SESSION_CREATE_TIME  jam penyiapan sesi harian (bawaan 00:05)
 #   SOLAT_PREPARE_DAYS_AHEAD   hari sesudah hari ini yang ikut disiapkan
 #                              sesinya (bawaan 1, isi 0 bila hanya hari ini)
+#
 #   FACE_SERVICE_URL           alamat mesin wajah
+#   FACE_TOLERANCE             jarak terjauh yang diterima sebagai anggota
+#                              yang sama (bawaan 0.5)
+#   FACE_AGGREGATE_PHOTOS      berapa jarak foto terdekat yang dirata-ratakan
+#                              saat menilai anggota (bawaan 2)
+#   FACE_SINGLE_PHOTO_TOLERANCE batas lebih ketat bagi anggota yang fotonya
+#                              kurang dari jumlah di atas (bawaan 0.45)
+#   FACE_MIN_MARGIN            selisih minimal juara pertama dan kedua, di
+#                              bawah angka ini hasilnya dinyatakan ambigu
+#   FACE_MIN_FACE_SIZE         sisi wajah paling kecil dalam piksel yang boleh
+#                              diputuskan (bawaan 80, isi 0 untuk mematikan)
+#   FACE_ENFORCE_MODEL         lewati angka wajah yang dihitung model lain
+#
+# Di dalam Docker alamat mesin wajah diambil dari FACE_SERVICE_URL_DOCKER, yang
+# bawaannya sudah menunjuk alias jaringan bersama: http://wajah:5005.
 #
 # Kunci khusus Docker:
 #   APP_PORT               port web di komputer induk (bawaan 8080)
@@ -43,6 +58,7 @@
 #   RUN_OPTIMIZE           bawaan false, hanya berpengaruh pada layanan app
 #
 # Perintah singkat:
+#   docker network create absen-jaringan                    (sekali saja, sebelum pertama)
 #   docker compose up -d --build
 #   docker compose exec app php artisan db:seed --force     (hanya DB baru)
 # ---------------------------------------------------------------------------
@@ -144,6 +160,7 @@ services:
             RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
         networks:
             - absen
+            - wajah
 
     # -------------------------------------------------------------------------
     # nginx: satu-satunya pintu masuk pengguna
@@ -202,17 +219,21 @@ services:
             timeout: 10s
             retries: 5
             start_period: 60s
+        # Pekerja antrean ikut disambungkan ke jaringan mesin wajah, sebab
+        # pengubahan foto menjadi angka wajah dikerjakan di sini.
         networks:
             - absen
+            - wajah
 
     # -------------------------------------------------------------------------
     # Penjadwal
     #
-    # Tiga jadwal berjalan di sini dan wajib hidup:
-    #   solat:sesi-harian     menyiapkan sesi absen hari ini dan besok,
-    #                         sekali sehari pada SOLAT_SESSION_CREATE_TIME
-    #   solat:sesi-otomatis   membuka dan menutup sesi setiap menit
-    #   face:purge-uploads    membuang foto wajah sementara setiap hari
+    # Empat jadwal berjalan di sini dan wajib hidup:
+    #   solat:sesi-harian      menyiapkan sesi absen hari ini dan besok,
+    #                          sekali sehari pada SOLAT_SESSION_CREATE_TIME
+    #   solat:sesi-otomatis    membuka dan menutup sesi setiap menit
+    #   solat:bersihkan-bukti  membuang foto bukti absen yang sudah lama
+    #   face:purge-uploads     membuang foto wajah sementara setiap hari
     # -------------------------------------------------------------------------
     scheduler:
         <<: *app-wadah
@@ -238,5 +259,19 @@ volumes:
         name: absen-solat-storage
 
 networks:
+    # Jaringan dalam proyek ini sendiri: web, app, queue, scheduler, db.
     absen:
         name: absen-solat
+
+    # Jaringan bersama dengan mesin wajah Python di folder "face absen".
+    # Mesin wajah masuk ke sini dengan alias "wajah", jadi alamatnya dari dalam
+    # wadah cukup http://wajah:5005 dan portnya tidak perlu dibuka ke komputer
+    # induk sama sekali.
+    #
+    # Sengaja external supaya berkas ini tidak pernah menghapus jaringan itu
+    # saat "docker compose down", sebab mesin wajah memakainya juga. Jaringan
+    # dibuat sekali dengan perintah:
+    #     docker network create absen-jaringan
+    wajah:
+        name: absen-jaringan
+        external: true

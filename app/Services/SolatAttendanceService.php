@@ -27,9 +27,15 @@ class SolatAttendanceService
 
     public const StatusUnknown = 'unknown';
 
+    /** Wajah mirip dengan lebih dari satu anggota sehingga tidak diputuskan. */
+    public const StatusAmbiguous = 'ambiguous';
+
     public const StatusNoSession = 'no_session';
 
     public const StatusNoFace = 'no_face';
+
+    /** Wajah ada, tetapi terlalu kecil di dalam bingkai foto. */
+    public const StatusFaceTooSmall = 'face_too_small';
 
     public const StatusCrowded = 'crowded';
 
@@ -84,6 +90,22 @@ class SolatAttendanceService
                     display: 'Wajah tak jelas',
                     session: $session,
                 ),
+                FaceEncodingService::StatusMultipleFaces => $this->reply(
+                    status: self::StatusCrowded,
+                    ok: false,
+                    label: 'Wajah lebih dari satu',
+                    message: $encoded['message'],
+                    display: 'Satu wajah saja',
+                    session: $session,
+                ),
+                FaceEncodingService::StatusFaceTooSmall => $this->reply(
+                    status: self::StatusFaceTooSmall,
+                    ok: false,
+                    label: 'Wajah terlalu kecil',
+                    message: $encoded['message'],
+                    display: 'Dekatkan wajah',
+                    session: $session,
+                ),
                 FaceEncodingService::StatusUnavailable => $this->reply(
                     status: self::StatusUnavailable,
                     ok: false,
@@ -114,14 +136,27 @@ class SolatAttendanceService
             );
         }
 
-        $match = $this->matcher->identify($encoded['encoding']);
+        $match = $this->matcher->match($encoded['encoding']);
 
-        if ($match === null) {
+        if ($match['status'] === FaceMatcherService::StatusAmbiguous) {
+            return $this->reply(
+                status: self::StatusAmbiguous,
+                ok: false,
+                label: 'Wajah ambigu',
+                message: 'Wajah ini mirip dengan lebih dari satu anggota sehingga belum bisa dipastikan. Ulangi pindainya dengan cahaya yang cukup, atau minta admin memeriksa data wajah anggota tersebut.',
+                display: 'Wajah ambigu',
+                session: $session,
+            );
+        }
+
+        if ($match['status'] !== FaceMatcherService::StatusMatched || $match['user'] === null) {
             return $this->reply(
                 status: self::StatusUnknown,
                 ok: false,
                 label: 'Wajah belum dikenali',
-                message: 'Wajah ini belum terdaftar. Minta admin mendaftarkan wajah lebih dulu di halaman Data Wajah.',
+                message: $match['reason'] === FaceMatcherService::ReasonNoReference
+                    ? 'Belum ada satu pun wajah anggota yang terdaftar. Minta admin mendaftarkan wajah lebih dulu di halaman Data Wajah.'
+                    : 'Wajah ini belum cocok dengan data wajah mana pun. Dekatkan wajah ke kamera, pastikan cahaya cukup, atau minta admin memeriksa data wajah.',
                 display: 'Belum terdaftar',
                 session: $session,
             );

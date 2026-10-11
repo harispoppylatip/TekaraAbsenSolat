@@ -367,7 +367,7 @@ class FaceUploadTest extends TestCase
                 'total' => 1,
             ]);
 
-        $this->assertEqualsWithDelta(0.6, $response->json('tolerance'), 0.0001);
+        $this->assertEqualsWithDelta((float) config('face.tolerance'), $response->json('tolerance'), 0.0001);
         $this->assertSame('2005221', $response->json('embeddings.0.identifier_number'));
         $this->assertCount(FaceEmbedding::Dimensions, $response->json('embeddings.0.embedding'));
     }

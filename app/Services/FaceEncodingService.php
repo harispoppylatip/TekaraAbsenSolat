@@ -6,6 +6,7 @@ use App\Models\FaceEmbedding;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Jembatan ke layanan wajah Python yang menghitung angka pembanding wajah.
@@ -27,6 +28,12 @@ class FaceEncodingService
     /** Foto terbaca, tetapi tidak ada wajah yang bisa dibaca. */
     public const StatusNoFace = 'no_face';
 
+    /** Foto memuat lebih dari satu wajah, sehingga tidak boleh dipakai. */
+    public const StatusMultipleFaces = 'multiple_faces';
+
+    /** Wajah terlalu kecil di dalam bingkai foto untuk dipercaya. */
+    public const StatusFaceTooSmall = 'face_too_small';
+
     /** Layanan wajah tidak bisa dihubungi atau tidak merespons. */
     public const StatusUnavailable = 'service_unavailable';
 
@@ -37,7 +44,7 @@ class FaceEncodingService
      * Hitung angka pembanding wajah dari sebuah foto yang diunggah lewat
      * halaman.
      *
-     * @return array{status: string, encoding: array<int, float>|null, face_count: int, message: string, photo: string|null}
+     * @return array{status: string, encoding: array<int, float>|null, face_count: int, face_size: int, model: string|null, message: string, photo: string|null}
      */
     public function encode(UploadedFile $image, bool $withPhoto = false): array
     {
@@ -54,7 +61,11 @@ class FaceEncodingService
      * hanya diambil bila bentuknya wajar dan memang diminta; apa pun yang
      * mencurigakan diabaikan supaya absennya tidak ikut gagal.
      *
-     * @return array{status: string, encoding: array<int, float>|null, face_count: int, message: string, photo: string|null}
+     * Foto yang memuat lebih dari satu wajah dan foto yang wajahnya terlalu
+     * kecil ditolak di sini, karena keduanya tetap menghasilkan angka yang
+     * terlihat wajar padahal tidak layak dipakai memutuskan identitas.
+     *
+     * @return array{status: string, encoding: array<int, float>|null, face_count: int, face_size: int, model: string|null, message: string, photo: string|null}
      */
     public function encodeContents(string $contents, bool $withPhoto = false): array
     {
@@ -66,7 +77,7 @@ class FaceEncodingService
             $response = Http::timeout((int) config('face.timeout', 90))
                 ->acceptJson()
                 ->attach('image', $contents, 'scan.jpg')
-                ->post($this->serviceUrl().'/encode'.($withPhoto ? '?with_photo=1' : ''));
+                ->post($this->serviceUrl().'/encode?'.$this->query($withPhoto));
         } catch (ConnectionException) {
             return $this->failure(self::StatusUnavailable, $this->unavailableMessage());
         }
@@ -81,20 +92,67 @@ class FaceEncodingService
             return $this->failure(self::StatusInvalid, 'Balasan layanan wajah tidak dikenali.');
         }
 
-        if (($data['status'] ?? null) === self::StatusNoFace) {
-            return $this->failure(self::StatusNoFace, 'Wajah tidak terlihat. Dekatkan wajah ke kamera dan pastikan cahaya cukup.');
+        $status = (string) ($data['status'] ?? '');
+        $faceCount = (int) ($data['face_count'] ?? 1);
+
+        if ($status === self::StatusNoFace) {
+            return $this->failure(
+                self::StatusNoFace,
+                'Wajah tidak terlihat. Dekatkan wajah ke kamera dan pastikan cahaya cukup.',
+                $faceCount,
+            );
+        }
+
+        if ($status === self::StatusMultipleFaces) {
+            return $this->failure(
+                self::StatusMultipleFaces,
+                'Ada lebih dari satu wajah di depan kamera. Absen satu orang saja supaya tidak salah catat.',
+                $faceCount,
+            );
+        }
+
+        $model = is_string($data['model'] ?? null) ? trim($data['model']) : '';
+        $expected = (string) config('face.model', FaceEmbedding::DefaultModel);
+
+        // Angka wajah dari model yang berbeda tidak bisa dibandingkan dengan
+        // angka wajah yang sudah tersimpan, jadi mesin yang versinya berbeda
+        // ditolak lebih dulu daripada diam-diam mencocokkan yang tidak setara.
+        if ($model !== '' && $model !== $expected) {
+            Log::warning('Mesin wajah memakai model yang berbeda dari data tersimpan.', [
+                'mesin' => $model,
+                'diharapkan' => $expected,
+            ]);
+
+            return $this->failure(
+                self::StatusInvalid,
+                'Versi mesin wajah berbeda dari data wajah yang tersimpan. Minta operator menyamakan versinya.',
+                $faceCount,
+            );
         }
 
         $encoding = $data['encoding'] ?? null;
 
         if (! is_array($encoding) || count($encoding) !== FaceEmbedding::Dimensions) {
-            return $this->failure(self::StatusInvalid, 'Wajah tidak terbaca dengan baik. Ambil ulang fotonya.');
+            return $this->failure(self::StatusInvalid, 'Wajah tidak terbaca dengan baik. Ambil ulang fotonya.', $faceCount);
+        }
+
+        $faceSize = (int) ($data['face_size'] ?? 0);
+        $minSize = (int) config('face.min_face_size', 80);
+
+        if ($faceSize > 0 && $minSize > 0 && $faceSize < $minSize) {
+            return $this->failure(
+                self::StatusFaceTooSmall,
+                'Wajah terlalu kecil di layar. Dekatkan wajah ke kamera, lalu coba lagi.',
+                $faceCount,
+            );
         }
 
         return [
             'status' => self::StatusSuccess,
             'encoding' => FaceEmbedding::normalizeEmbedding($encoding),
-            'face_count' => (int) ($data['face_count'] ?? 1),
+            'face_count' => $faceCount,
+            'face_size' => $faceSize,
+            'model' => $model === '' ? null : $model,
             'message' => 'Wajah terbaca.',
             'photo' => $withPhoto ? $this->proofPhoto($data['photo'] ?? null) : null,
         ];
@@ -121,6 +179,25 @@ class FaceEncodingService
     private function serviceUrl(): string
     {
         return rtrim((string) config('face.service_url', 'http://127.0.0.1:5005'), '/');
+    }
+
+    /**
+     * Rumusan alamat pengambilan angka wajah.
+     *
+     * `require_single=1` meminta mesin wajah menolak sendiri foto yang memuat
+     * lebih dari satu orang, bukan diam-diam memakai wajah terbesar. Mesin wajah
+     * versi lama mengabaikan permintaan ini, dan dalam hal itu pemeriksaan
+     * jumlah wajah tetap dikerjakan di sisi aplikasi.
+     */
+    private function query(bool $withPhoto): string
+    {
+        $query = ['require_single' => 1];
+
+        if ($withPhoto) {
+            $query['with_photo'] = 1;
+        }
+
+        return http_build_query($query);
     }
 
     /**
@@ -155,10 +232,18 @@ class FaceEncodingService
     }
 
     /**
-     * @return array{status: string, encoding: null, face_count: int, message: string, photo: null}
+     * @return array{status: string, encoding: null, face_count: int, face_size: int, model: null, message: string, photo: null}
      */
-    private function failure(string $status, string $message): array
+    private function failure(string $status, string $message, int $faceCount = 0): array
     {
-        return ['status' => $status, 'encoding' => null, 'face_count' => 0, 'message' => $message, 'photo' => null];
+        return [
+            'status' => $status,
+            'encoding' => null,
+            'face_count' => $faceCount,
+            'face_size' => 0,
+            'model' => null,
+            'message' => $message,
+            'photo' => null,
+        ];
     }
 }
