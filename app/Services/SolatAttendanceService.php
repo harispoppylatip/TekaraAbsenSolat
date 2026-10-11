@@ -43,12 +43,294 @@ class SolatAttendanceService
 
     public const StatusInvalid = 'invalid';
 
+    /** Balasan bingkai berhasil dibaca; tiap wajah diperiksa sendiri sendiri. */
+    public const StatusSuccessMulti = 'success';
+
+    /**
+     * Label untuk wajah yang belum berhasil dipastikan identitasnya.
+     *
+     * Ditulis dari sisi server supaya setiap pemanggil menampilkan teks yang
+     * sama, tanpa perlu menyusun sendiri kalimat penggantinya.
+     */
+    public const LabelUnknown = 'Tidak dikenal';
+
+    /**
+     * Penyedia foto bukti bersama, dipakai selama satu bingkai diproses.
+     *
+     * @var (\Closure(): ?string)|null
+     */
+    private ?\Closure $sharedProof = null;
+
     public function __construct(
         private FaceEncodingService $encoder,
         private FaceMatcherService $matcher,
         private SolatSessionService $sessions,
         private SolatProofService $proofs,
     ) {}
+
+    /**
+     * Catat kehadiran SELURUH wajah yang terlihat di satu bingkai kamera.
+     *
+     * Setiap wajah diputuskan sendiri sendiri: satu wajah yang tidak dikenal,
+     * terlalu kecil, atau gagal diproses tidak pernah menghentikan wajah lain.
+     * Identitas datang dari angka wajah masing masing, BUKAN dari urutan wajah
+     * di dalam bingkai, jadi orang yang bergeser posisinya tetap tercatat
+     * sebagai dirinya sendiri.
+     *
+     * Satu yang perlu ditegaskan: nama yang dikirim peramban tidak pernah
+     * dipercaya. Yang menentukan identitas hanyalah hasil pencocokan angka
+     * wajah di sini.
+     *
+     * @return array<string, mixed> balasan berisi `faces` dengan satu entri per wajah
+     */
+    public function recordFacesFromImage(
+        string $contents,
+        ?string $deviceId = null,
+        ?CarbonInterface $at = null,
+        bool $allowTestSession = false,
+    ): array {
+        $session = $this->resolveSession($allowTestSession);
+
+        if ($session === null) {
+            return [
+                'ok' => false,
+                'status' => self::StatusNoSession,
+                'message' => 'Belum ada sesi absen yang dibuka. Minta petugas membuka sesi waktu solat lebih dulu.',
+                'session' => null,
+                'faces' => [],
+            ];
+        }
+
+        $detected = $this->encoder->detectContents($contents, (bool) config('solat.keep_proof_photo', true));
+
+        if ($detected['status'] !== FaceEncodingService::StatusSuccess) {
+            return [
+                'ok' => false,
+                'status' => $detected['status'],
+                'message' => $detected['message'],
+                'session' => $this->sessionPayload($session),
+                'width' => $detected['width'],
+                'height' => $detected['height'],
+                'faces' => [],
+            ];
+        }
+
+        // Berkas bukti disimpan SEKALI untuk seluruh bingkai, lalu dipakai
+        // bersama oleh catatan absen yang lahir dari bingkai ini. Penyimpanannya
+        // ditunda sampai ada catatan yang benar benar lahir: kalau tidak ada satu
+        // pun wajah yang lolos, tidak boleh ada berkas yang tertinggal tanpa
+        // catatan.
+        $this->sharedProof = $this->sharedProofProvider($detected['photo'], $session, $at);
+        $faces = [];
+
+        try {
+            foreach ($detected['faces'] as $face) {
+                $faces[] = $this->judgeFace(
+                    face: $face,
+                    minFaceSize: (int) config('face.min_face_size', 80),
+                    session: $session,
+                    deviceId: $deviceId,
+                    at: $at,
+                );
+            }
+        } finally {
+            $this->sharedProof = null;
+        }
+
+        $recorded = count(array_filter($faces, static fn (array $face): bool => $face['attendance']['recorded'] === true));
+
+        // Foto bukti bingkai ini ditampilkan di halaman supaya petugas bisa
+        // langsung memastikan orang yang tercatat memang yang di depan kamera.
+        // Alamatnya dibuat dari catatan absen pertama yang lahir dari bingkai ini.
+        $proofLogId = null;
+
+        foreach ($faces as $face) {
+            if ($face['log_id'] !== null) {
+                $proofLogId = (int) $face['log_id'];
+                break;
+            }
+        }
+
+        return [
+            'ok' => $recorded > 0,
+            'status' => self::StatusSuccessMulti,
+            'message' => $recorded === 0
+                ? 'Tidak ada kehadiran yang tercatat dari bingkai ini.'
+                : $recorded.' kehadiran tercatat dari '.count($faces).' wajah.',
+            'session' => $this->sessionPayload($session),
+            'width' => $detected['width'],
+            'height' => $detected['height'],
+            'proof_url' => $proofLogId === null ? null : route('attendance.proof', $proofLogId),
+            'faces' => $faces,
+        ];
+    }
+
+    /**
+     * Putuskan satu wajah: dicatat, sudah tercatat, atau ditolak beserta alasannya.
+     *
+     * @param  array<string, mixed>  $face
+     * @return array<string, mixed>
+     */
+    private function judgeFace(
+        array $face,
+        int $minFaceSize,
+        SolatSession $session,
+        ?string $deviceId,
+        ?CarbonInterface $at,
+    ): array {
+        $box = [
+            'top' => (int) $face['top'],
+            'right' => (int) $face['right'],
+            'bottom' => (int) $face['bottom'],
+            'left' => (int) $face['left'],
+        ];
+
+        // Wajah yang angkanya gagal dihitung tidak bisa diputuskan, tetapi
+        // kotaknya tetap dikirim supaya peramban bisa menggambarnya dan
+        // menandainya belum dikenal.
+        if (($face['encoding'] ?? null) === null) {
+            return $this->faceReport(
+                box: $box,
+                label: self::LabelUnknown,
+                status: self::StatusNoFace,
+                display: 'Wajah tak jelas',
+                detail: 'Belum terdaftar',
+                distance: null,
+            );
+        }
+
+        if ($minFaceSize > 0 && (int) $face['face_size'] > 0 && (int) $face['face_size'] < $minFaceSize) {
+            return $this->faceReport(
+                box: $box,
+                label: self::LabelUnknown,
+                status: self::StatusFaceTooSmall,
+                display: 'Dekatkan wajah',
+                detail: 'Dekatkan wajah',
+                distance: null,
+            );
+        }
+
+        $match = $this->matcher->match($face['encoding']);
+
+        // Dua anggota sama sama mirip: belum bisa diputuskan, jadi tidak ada
+        // identitas yang dipilih dan tidak ada kehadiran yang dicatat.
+        if ($match['status'] === FaceMatcherService::StatusAmbiguous) {
+            return $this->faceReport(
+                box: $box,
+                label: self::LabelUnknown,
+                status: self::StatusAmbiguous,
+                display: 'Belum pasti',
+                detail: 'Ulangi pindai',
+                distance: $match['distance'],
+            );
+        }
+
+        if ($match['status'] !== FaceMatcherService::StatusMatched || $match['user'] === null) {
+            return $this->faceReport(
+                box: $box,
+                label: self::LabelUnknown,
+                status: self::StatusUnknown,
+                display: 'Belum terdaftar',
+                detail: 'Belum terdaftar',
+                distance: $match['distance'],
+            );
+        }
+
+        /** @var User $user */
+        $user = $match['user'];
+
+        $result = $this->record($user, $session, $match['distance'], $deviceId, $at);
+
+        if ($result['ok']) {
+            return $this->faceReport(
+                box: $box,
+                label: $user->name,
+                status: (string) $result['status'],
+                display: (string) $result['display_message'],
+                detail: (string) $user->identifier_number,
+                distance: $match['distance'],
+                user: $user,
+                recorded: true,
+                logId: $result['log'] === null ? null : (int) $result['log']->getKey(),
+                message: (string) $result['message'],
+            );
+        }
+
+        // Sudah tercatat sebelumnya, atau percobaan yang masih dalam jeda. Kedua
+        // keadaan itu bukan kegagalan, jadi tetap ditampilkan sebagai nama orang
+        // tersebut supaya petugas tahu siapa yang sedang berdiri di depan kamera.
+        return $this->faceReport(
+            box: $box,
+            label: $user->name,
+            status: (string) $result['status'],
+            display: (string) $result['display_message'],
+            detail: (string) $user->identifier_number,
+            distance: $match['distance'],
+            user: $user,
+            logId: $result['log'] === null ? null : (int) $result['log']->getKey(),
+            message: (string) $result['message'],
+        );
+    }
+
+    /**
+     * Bentuk satu entri wajah pada balasan halaman kamera.
+     *
+     * Isinya sengaja pipih (tanpa bersarang) supaya peramban tidak perlu
+     * menelusuri banyak lapisan saat menggambar kotak dan label.
+     *
+     * @param  array{top: int, right: int, bottom: int, left: int}  $box
+     * @return array<string, mixed>
+     */
+    private function faceReport(
+        array $box,
+        ?string $label,
+        string $status,
+        string $display,
+        string $detail,
+        ?float $distance,
+        ?User $user = null,
+        bool $recorded = false,
+        ?int $logId = null,
+        string $message = '',
+    ): array {
+        return [
+            'box' => $box,
+            'label' => $label,
+            'status' => $status,
+            'display_message' => $display,
+            'display_detail' => $detail,
+            'member' => $user === null ? null : [
+                'id' => $user->getKey(),
+                'name' => $user->name,
+                'identifier_number' => $user->identifier_number,
+                'class_name' => $user->class_name,
+            ],
+            'distance' => $distance,
+            'log_id' => $logId,
+            'attendance' => [
+                'recorded' => $recorded,
+                'status' => $status,
+                'display_message' => $display,
+                'message' => $message === '' ? $display : $message,
+            ],
+        ];
+    }
+
+    /**
+     * Ringkas keadaan sesi untuk balasan.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function sessionPayload(SolatSession $session): array
+    {
+        return [
+            'id' => $session->getKey(),
+            'prayer_name' => $session->prayer_name,
+            'label' => $session->prayerLabel(),
+            'is_test' => $session->isTest(),
+            'total' => $session->logs()->count(),
+        ];
+    }
 
     /**
      * Catat kehadiran dari sebuah foto wajah.
@@ -190,8 +472,11 @@ class SolatAttendanceService
      * Catat kehadiran seorang anggota pada sesi tertentu.
      *
      * `$photo` berisi isi berkas JPEG foto bukti, bila mesin wajah mengirimnya.
-     * Bukti foto hanya pelengkap: bila penyimpanannya gagal, absennya tetap
-     * tercatat dan kegagalannya hanya muncul di catatan galat aplikasi.
+     * `$proofPath` dipakai bila foto buktinya sudah tersimpan lebih dulu, yaitu
+     * pada absen banyak wajah sekaligus: satu foto bingkai dipakai bersama oleh
+     * seluruh catatan yang lahir dari bingkai itu. Bukti foto hanya pelengkap:
+     * bila penyimpanannya gagal, absennya tetap tercatat dan kegagalannya hanya
+     * muncul di catatan galat aplikasi.
      *
      * @return array<string, mixed>
      */
@@ -202,6 +487,7 @@ class SolatAttendanceService
         ?string $deviceId = null,
         ?CarbonInterface $at = null,
         ?string $photo = null,
+        ?string $proofPath = null,
     ): array {
         $moment = $at !== null ? Carbon::parse($at) : Carbon::now();
 
@@ -229,7 +515,7 @@ class SolatAttendanceService
                     );
                 }
 
-                return $this->refresh($existing, $user, $session, $distance, $deviceId, $moment, $photo);
+                return $this->refresh($existing, $user, $session, $distance, $deviceId, $moment, $photo, $proofPath);
             }
 
             return $this->reply(
@@ -256,7 +542,7 @@ class SolatAttendanceService
             'status' => $status,
             'match_distance' => $distance,
             'device_id' => $deviceId,
-            'proof_photo_path' => $this->keepProof($photo, $session, $moment),
+            'proof_photo_path' => $proofPath ?? $this->keepProof($photo, $session, $moment),
         ]);
 
         return $this->reply(
@@ -292,18 +578,26 @@ class SolatAttendanceService
         ?string $deviceId,
         CarbonInterface $moment,
         ?string $photo,
+        ?string $proofPath = null,
     ): array {
         $status = $this->statusFor($session, $moment);
         $late = $status === SolatAttendanceLog::StatusTerlambat;
 
-        $this->proofs->forget($log->proof_photo_path);
+        // Foto bukti lama dibuang supaya tidak ada berkas tanpa catatan, TETAPI
+        // hanya bila tidak ada catatan lain yang memakainya: pada absen banyak
+        // wajah, satu foto bingkai dipakai bersama beberapa catatan.
+        $lama = $this->proofs->path($log);
+
+        if ($lama !== null) {
+            $this->proofs->forgetWhenOrphaned($lama, (int) $log->getKey());
+        }
 
         $log->forceFill([
             'scanned_at' => $moment,
             'status' => $status,
             'match_distance' => $distance,
             'device_id' => $deviceId,
-            'proof_photo_path' => $this->keepProof($photo, $session, $moment),
+            'proof_photo_path' => $proofPath ?? $this->keepProof($photo, $session, $moment),
         ])->save();
 
         return $this->reply(
@@ -363,15 +657,67 @@ class SolatAttendanceService
      *
      * Kegagalan penyimpanan tidak pernah dilempar ke pemanggil. Bukti foto
      * berguna untuk menelusuri absen, sedangkan absennya sendiri yang utama.
+     *
+     * Saat satu bingkai memuat beberapa wajah, penyimpanannya hanya sekali dan
+     * seluruh catatan dari bingkai itu memakai berkas yang sama.
      */
-    private function keepProof(?string $photo, SolatSession $session, CarbonInterface $moment): ?string
+    private function keepProof(?string $photo, SolatSession $session, ?CarbonInterface $at = null): ?string
     {
+        if ($this->sharedProof !== null) {
+            return ($this->sharedProof)();
+        }
+
         if ($photo === null || $photo === '' || ! config('solat.keep_proof_photo', true)) {
             return null;
         }
 
         try {
-            return $this->proofs->store($photo, $session, $moment);
+            return $this->proofs->store($photo, $session, $at ?? Carbon::now());
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
+    }
+
+    /**
+     * Sediakan foto bukti bersama untuk satu bingkai.
+     *
+     * Penyimpanannya ditunda sampai benar benar diminta, lalu hasilnya diingat
+     * supaya seluruh wajah pada bingkai itu memakai satu berkas yang sama.
+     *
+     * @return \Closure(): ?string
+     */
+    private function sharedProofProvider(?string $photo, SolatSession $session, ?CarbonInterface $at): \Closure
+    {
+        $tersimpan = false;
+        $path = null;
+
+        return function () use (&$tersimpan, &$path, $photo, $session, $at): ?string {
+            if (! $tersimpan) {
+                $path = $this->keepProofTanpaBersama($photo, $session, $at);
+                $tersimpan = true;
+            }
+
+            return $path;
+        };
+    }
+
+    /**
+     * Simpan satu berkas bukti tanpa memakai penyedia bersama.
+     */
+    private function keepProofTanpaBersama(?string $photo, SolatSession $session, ?CarbonInterface $at): ?string
+    {
+        if (! config('solat.keep_proof_photo', true)) {
+            return null;
+        }
+
+        if ($photo === null || $photo === '') {
+            return null;
+        }
+
+        try {
+            return $this->proofs->store($photo, $session, $at ?? Carbon::now());
         } catch (\Throwable $exception) {
             report($exception);
 

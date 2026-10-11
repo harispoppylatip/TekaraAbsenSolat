@@ -122,7 +122,9 @@ class AttendanceProofTest extends TestCase
 
         $this->scanFromPage()
             ->assertOk()
-            ->assertJson(['ok' => true, 'status' => SolatAttendanceService::StatusRecorded])
+            ->assertJson(['ok' => true, 'status' => SolatAttendanceService::StatusSuccessMulti])
+            ->assertJsonPath('faces.0.status', SolatAttendanceService::StatusRecorded)
+            ->assertJsonPath('faces.0.attendance.recorded', true)
             ->assertJsonPath('proof_url', fn (mixed $url): bool => is_string($url) && $url !== '');
 
         $log = SolatAttendanceLog::query()->firstOrFail();
@@ -159,7 +161,10 @@ class AttendanceProofTest extends TestCase
 
         $layanan = app(FaceEncodingService::class);
 
-        $this->scanFromPage()->assertOk()->assertJson(['status' => SolatAttendanceService::StatusRecorded]);
+        $this->scanFromPage()
+            ->assertOk()
+            ->assertJsonPath('faces.0.status', SolatAttendanceService::StatusRecorded)
+            ->assertJsonPath('faces.0.attendance.recorded', true);
 
         $this->assertFalse($layanan->askedForPhoto);
 
@@ -184,7 +189,8 @@ class AttendanceProofTest extends TestCase
 
         $this->scanFromPage()
             ->assertOk()
-            ->assertJson(['status' => SolatAttendanceService::StatusDuplicate]);
+            ->assertJsonPath('faces.0.status', SolatAttendanceService::StatusDuplicate)
+            ->assertJsonPath('faces.0.attendance.recorded', false);
 
         $this->assertSame(1, SolatAttendanceLog::query()->count());
         $this->assertSame($path, SolatAttendanceLog::query()->firstOrFail()->proof_photo_path);
@@ -200,7 +206,9 @@ class AttendanceProofTest extends TestCase
 
         $this->scanFromPage()
             ->assertOk()
-            ->assertJson(['ok' => false, 'status' => SolatAttendanceService::StatusUnknown]);
+            ->assertJson(['ok' => false, 'status' => SolatAttendanceService::StatusSuccessMulti])
+            ->assertJsonPath('faces.0.status', SolatAttendanceService::StatusUnknown)
+            ->assertJsonPath('faces.0.attendance.recorded', false);
 
         $this->assertSame(0, SolatAttendanceLog::query()->count());
         $this->assertSame([], $this->disk()->allFiles());

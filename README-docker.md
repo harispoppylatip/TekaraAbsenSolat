@@ -127,10 +127,17 @@ dijelaskan di `README.md` pada bagian Cara identitas diputuskan.
 | `FACE_MODEL`                  | Nama model wajah yang dipakai dan dicatat pada setiap angka         | `dlib-resnet-v1` |
 | `FACE_SERVICE_TIMEOUT`        | Batas tunggu satu foto ke mesin wajah, dalam detik                  | `90`             |
 
-Mesin wajah versi lama tetap bisa dipakai: permintaan `require_single=1` diabaikan
-oleh mesin yang belum mengenalnya, dan pemeriksaan jumlah wajah di foto tetap
-dikerjakan di sisi aplikasi. Yang tidak berjalan pada mesin wajah versi lama
-hanya pemeriksaan ukuran wajah, karena `face_size` belum dilaporkan.
+Mesin wajah yang dipasang wajib mendukung `POST /detect`, karena halaman Absen
+Wajah mengirim satu bingkai kamera ke sana dan mengharapkan daftar wajah
+beserta kotaknya. Mesin versi lama yang hanya punya `/encode` masih bisa dipakai
+untuk pendaftaran wajah dan perangkat sensor gerbang, tetapi kamera absen wajah
+tidak jalan. Pemeriksaan jumlah wajah pada pendaftaran tetap dikerjakan di sisi
+aplikasi, jadi mesin lama pun tetap menolak foto yang memuat lebih dari satu
+orang.
+
+Batas pekerjaan pada satu bingkai diatur di sisi mesin wajah, bukan di berkas
+ini: `FACE_DETECT_MAX_SIDE` (bawaan `1024`) dan `FACE_MAX_FACES` (bawaan `8`)
+ditulis di `.env` folder mesin wajah dan diteruskan oleh compose di sana.
 
 ### Mengganti port
 

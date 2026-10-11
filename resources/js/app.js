@@ -326,6 +326,212 @@ function buildCameraChoices(picker, cameras, preferred) {
     return picker.value;
 }
 
+/* ---------- Kotak dan nama wajah di atas gambar kamera ---------- */
+
+// Warna kotak mengikuti keadaan wajah, bukan sekadar hiasan: hijau berarti
+// kehadirannya tercatat, kuning berarti belum bisa diputuskan, dan abu-abu
+// berarti masih diperiksa. Yang menentukan boleh tidaknya dicatat tetap
+// jawaban server, bukan warnanya.
+const FACE_TONES = {
+    recorded: "saved",
+    late: "saved",
+    duplicate: "saved",
+    unknown: "unknown",
+    face_too_small: "unknown",
+    ambiguous: "unknown",
+    no_face: "unknown",
+    invalid: "unknown",
+    unavailable: "unknown",
+};
+
+function faceTone(face, busy) {
+    const status = String(face.status || "");
+
+    if (status === "recorded" || status === "late" || status === "duplicate") {
+        return FACE_TONES[status];
+    }
+
+    // Selagi permintaan masih berjalan, wajah yang belum tercatat ditandai
+    // sedang diperiksa supaya tidak dikira sudah selesai.
+    return busy ? "checking" : FACE_TONES[status] || "unknown";
+}
+
+function faceLabel(face) {
+    if (typeof face.label === "string" && face.label !== "") {
+        return face.label;
+    }
+
+    if (face.member && face.member.name) {
+        return face.member.name;
+    }
+
+    return "Tidak dikenal";
+}
+
+function faceStatusLine(face, busy) {
+    const status = String(face.status || "");
+
+    if (busy && status !== "recorded" && status !== "late" && status !== "duplicate") {
+        return "Memverifikasi...";
+    }
+
+    if (face.attendance && typeof face.attendance.display_message === "string") {
+        return face.attendance.display_message;
+    }
+
+    return "Belum tercatat";
+}
+
+function toneColor(tone) {
+    const styles = getComputedStyle(document.documentElement);
+    const pick = (name, fallback) => {
+        const value = styles.getPropertyValue(name).trim();
+
+        return value === "" ? fallback : value;
+    };
+
+    if (tone === "saved") {
+        return pick("--success", "#1b6b3a");
+    }
+
+    if (tone === "unknown") {
+        return pick("--warning", "#8a5300");
+    }
+
+    return pick("--on-surface-variant", "#5c6470");
+}
+
+/**
+ * Perbandingan koordinat gambar asli dengan gambar yang benar benar terlihat.
+ *
+ * Video ditampilkan dengan `object-fit: cover`, jadi gambarnya terpotong di
+ * sisi yang lebih panjang. Tanpa perhitungan ini kotak wajah akan bergeser
+ * setiap kali bentuk layar berubah, sedangkan kotak yang meleset lebih buruk
+ * daripada tidak ada kotak sama sekali.
+ */
+function coverMapping(video, width, height, frame) {
+    const sumberLebar = frame && frame.width > 0 ? frame.width : video.videoWidth || 1;
+    const sumberTinggi = frame && frame.height > 0 ? frame.height : video.videoHeight || 1;
+    const isiLebar = video.videoWidth || sumberLebar;
+    const isiTinggi = video.videoHeight || sumberTinggi;
+
+    const skala = Math.max(width / isiLebar, height / isiTinggi);
+
+    return {
+        geserX: (width - isiLebar * skala) / 2,
+        geserY: (height - isiTinggi * skala) / 2,
+        skalaX: (isiLebar / sumberLebar) * skala,
+        skalaY: (isiTinggi / sumberTinggi) * skala,
+    };
+}
+
+/**
+ * Apakah gambar kamera ditampilkan tercermin.
+ *
+ * Beberapa peramban ponsel mencerminkan gambar kamera depan. Bila itu terjadi,
+ * posisi kotaknya juga harus dicerminkan supaya tetap menempel pada wajahnya.
+ */
+function cameraMirrored(video) {
+    const transform = getComputedStyle(video).transform;
+
+    if (typeof transform !== "string" || transform === "none") {
+        return false;
+    }
+
+    const bagian = transform.replace(/^matrix/, "").replace(/[()]/g, "").split(",");
+
+    return bagian.length >= 1 && Number(bagian[0]) < 0;
+}
+
+function drawFaceOverlay(root, faces, frame, busy) {
+    const overlay = root.querySelector("[data-camera-overlay]");
+    const video = root.querySelector("[data-camera-video]");
+
+    if (!overlay || !video) {
+        return;
+    }
+
+    const kotak = overlay.getBoundingClientRect();
+    const rasio = window.devicePixelRatio || 1;
+
+    if (kotak.width === 0 || kotak.height === 0) {
+        return;
+    }
+
+    overlay.width = Math.round(kotak.width * rasio);
+    overlay.height = Math.round(kotak.height * rasio);
+
+    const gambar = overlay.getContext("2d");
+
+    gambar.setTransform(rasio, 0, 0, rasio, 0, 0);
+    gambar.clearRect(0, 0, kotak.width, kotak.height);
+
+    if (!faces || faces.length === 0) {
+        return;
+    }
+
+    const petakan = coverMapping(video, kotak.width, kotak.height, frame);
+    const cermin = cameraMirrored(video);
+    const sumberLebar = frame && frame.width > 0 ? frame.width : video.videoWidth || 1;
+
+    faces.forEach((face) => {
+        const box = face.box || {};
+
+        // Pencerminan dikerjakan pada koordinat gambar asli dulu, baru
+        // diskalakan. Mencerminkannya setelah diskalakan membuat kotaknya
+        // meleset jauh karena satuannya sudah berubah.
+        let kiri = Number(box.left || 0);
+        let kanan = Number(box.right || 0);
+
+        if (cermin) {
+            const kiriAsli = kiri;
+
+            kiri = sumberLebar - kanan;
+            kanan = sumberLebar - kiriAsli;
+        }
+
+        const x = petakan.geserX + kiri * petakan.skalaX;
+        const y = petakan.geserY + Number(box.top || 0) * petakan.skalaY;
+        const lebar = Math.max(2, (kanan - kiri) * petakan.skalaX);
+        const tinggi = Math.max(2, (Number(box.bottom || 0) - Number(box.top || 0)) * petakan.skalaY);
+
+        const tone = faceTone(face, busy);
+        const warna = toneColor(tone);
+
+        gambar.lineWidth = 2.5;
+        gambar.strokeStyle = warna;
+        gambar.strokeRect(x, y, lebar, tinggi);
+
+        const nama = faceLabel(face);
+        const keadaan = faceStatusLine(face, busy);
+
+        gambar.font = "600 14px Inter, system-ui, sans-serif";
+
+        const lebarNama = gambar.measureText(nama).width;
+
+        gambar.font = "500 12px Inter, system-ui, sans-serif";
+
+        const lebarKeadaan = gambar.measureText(keadaan).width;
+        const lebarLabel = Math.min(kotak.width, Math.max(lebarNama, lebarKeadaan) + 16);
+        const tinggiLabel = 34;
+
+        // Label dijepit ke dalam bingkai supaya wajah di tepi gambar tidak
+        // membuat namanya terpotong.
+        const xLabel = Math.max(0, Math.min(kotak.width - lebarLabel, x));
+        const yLabel = y - tinggiLabel < 0 ? y : y - tinggiLabel;
+
+        gambar.fillStyle = warna;
+        gambar.fillRect(xLabel, yLabel, lebarLabel, tinggiLabel);
+
+        gambar.fillStyle = "#ffffff";
+        gambar.font = "600 14px Inter, system-ui, sans-serif";
+        gambar.fillText(nama, xLabel + 8, yLabel + 15, lebarLabel - 16);
+
+        gambar.font = "500 12px Inter, system-ui, sans-serif";
+        gambar.fillText(keadaan, xLabel + 8, yLabel + 29, lebarLabel - 16);
+    });
+}
+
 function initCamera(root) {
     const video = root.querySelector("[data-camera-video]");
     const canvas = root.querySelector("[data-camera-canvas]");
@@ -345,6 +551,11 @@ function initCamera(root) {
     let facing =
         picker && picker.value ? picker.value : CAMERA_FACING_OPTIONS[0][0];
     let starting = false;
+
+    // Wajah dari balasan terakhir, beserta ukuran gambar yang dipakai server.
+    // Dipakai menggambar ulang kotaknya saat ukuran tampilan berubah.
+    let faces = [];
+    let frame = null;
 
     // Nomor urut percobaan menyalakan kamera. Izin kamera bisa lama diminta
     // peramban, jadi hasil percobaan lama tidak boleh lagi mengubah tombol,
@@ -535,6 +746,12 @@ function initCamera(root) {
         if (placeholder) {
             placeholder.hidden = false;
         }
+
+        // Kotak dan nama ikut dihapus saat kamera dimatikan. Kalau tidak, nama
+        // orang terakhir tertinggal di layar seolah masih ada yang terdeteksi.
+        faces = [];
+        frame = null;
+        drawFaceOverlay(root, faces, frame, false);
     }
 
     function stop() {
@@ -557,6 +774,10 @@ function initCamera(root) {
         }
 
         busy = true;
+
+        // Wajah yang belum tercatat ditandai sedang diperiksa selagi permintaan
+        // berjalan, supaya petugas tahu pemeriksaannya masih berjalan.
+        drawFaceOverlay(root, faces, frame, true);
 
         try {
             const width = video.videoWidth || 480;
@@ -595,16 +816,69 @@ function initCamera(root) {
                 return;
             }
 
-            const message =
-                data.message || data.display_message || "Tidak ada keterangan.";
-            const ok = data.ok === true;
+            // Kotak wajah digambar dari jawaban server setiap putaran, jadi
+            // posisinya selalu berasal dari deteksi nyata, bukan perkiraan.
+            // Bila tidak ada wajah lagi, daftarnya kosong dan kotak lama hilang.
+            faces = Array.isArray(data.faces) ? data.faces : [];
+            frame = {
+                width: Number(data.width || width),
+                height: Number(data.height || height),
+            };
 
-            if (!ok && message === lastMessage) {
+            drawFaceOverlay(root, faces, frame, false);
+
+            const berhasil = faces.filter(
+                (face) => face.attendance && face.attendance.recorded,
+            );
+
+            // Setiap orang dilaporkan pada barisnya sendiri supaya kehadiran
+            // satu orang tidak menutupi kabar orang lain. Pesannya diambil dari
+            // server, jadi keterangan seperti "data ini tidak dihitung pada
+            // rekap" pada mode uji coba ikut terbaca.
+            if (berhasil.length > 0) {
+                const pesan = berhasil
+                    .map((face) => {
+                        const catatan =
+                            (face.attendance && face.attendance.message) || "";
+
+                        return catatan !== "" ? catatan : `${faceLabel(face)} tercatat.`;
+                    })
+                    .join(" ");
+
+                addLine(pesan, true, data.proof_url || "");
+                lastMessage = "";
+
                 return;
             }
 
-            lastMessage = ok ? "" : message;
-            addLine(message, ok, data.proof_url || "");
+            const message =
+                data.message || data.display_message || "Tidak ada keterangan.";
+
+            if (message === lastMessage) {
+                return;
+            }
+
+            if (faces.length === 0) {
+                lastMessage = "";
+
+                return;
+            }
+
+            // Rincian penolakan per wajah, masing masing satu baris, supaya
+            // petugas tahu siapa yang bermasalah dan kenapa.
+            const rincian = faces
+                .map((face) => {
+                    const catatan =
+                        (face.attendance && face.attendance.message) || "";
+
+                    return catatan !== ""
+                        ? catatan
+                        : `${faceLabel(face)}: ${faceStatusLine(face, false)}`;
+                })
+                .join(" ");
+
+            lastMessage = message;
+            addLine(rincian, false);
         } catch (error) {
             addLine("Sambungan ke server terputus.", false);
         } finally {
@@ -621,6 +895,12 @@ function initCamera(root) {
         stopButton.disabled = true;
         stopButton.addEventListener("click", stop);
     }
+
+    // Ukuran tampilan berubah, misalnya karena layar diputar atau jendela
+    // diubah ukurannya. Kotaknya digambar ulang dengan ukuran yang baru.
+    window.addEventListener("resize", () => {
+        drawFaceOverlay(root, faces, frame, busy);
+    });
 
     // Berganti kamera saat siaran berjalan, atau saat izinnya sedang diminta,
     // berarti membuka ulang perangkatnya.

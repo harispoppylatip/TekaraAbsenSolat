@@ -196,9 +196,11 @@ class SolatAttendanceTest extends TestCase
             ->assertOk()
             ->assertJson([
                 'ok' => true,
-                'status' => SolatAttendanceService::StatusRecorded,
-                'display_message' => 'Absen tersimpan',
-            ]);
+                'status' => SolatAttendanceService::StatusSuccessMulti,
+            ])
+            ->assertJsonPath('faces.0.status', SolatAttendanceService::StatusRecorded)
+            ->assertJsonPath('faces.0.attendance.display_message', 'Absen tersimpan')
+            ->assertJsonPath('faces.0.member.id', $member->id);
 
         $this->assertSame($member->id, SolatAttendanceLog::query()->firstOrFail()->user_id);
     }

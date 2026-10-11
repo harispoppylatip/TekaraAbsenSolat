@@ -61,7 +61,9 @@
                 <div>
                     <h2 class="section-title">Kamera absen</h2>
                     <p class="section-note">
-                        Kamera menangkap gambar setiap dua detik. Satu wajah dicatat satu kali pada setiap sesi.
+                        Kamera menangkap gambar setiap dua detik dan memeriksa seluruh wajah yang terlihat. Setiap
+                        orang punya kotak dan namanya sendiri, dan satu orang hanya dicatat satu kali pada setiap
+                        sesi.
                     </p>
                 </div>
             </div>
@@ -69,7 +71,10 @@
             <div data-camera data-endpoint="{{ route('attendance.wajah.scan') }}" data-interval="2000">
                 <div class="camera-frame">
                     <video data-camera-video playsinline muted hidden></video>
+                    {{-- Kamvas gambar biasa dipakai untuk memotret; kanvas lapisan dipakai
+                         menggambar kotak dan nama setiap wajah di atas gambarnya. --}}
                     <canvas data-camera-canvas></canvas>
+                    <canvas class="camera-overlay" data-camera-overlay aria-hidden="true"></canvas>
                     <p class="camera-placeholder" data-camera-placeholder>
                         Kamera belum menyala. Tekan tombol Nyalakan kamera di bawah.
                     </p>

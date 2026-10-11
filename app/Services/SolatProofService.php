@@ -6,6 +6,7 @@ use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -51,6 +52,46 @@ class SolatProofService
     }
 
     /**
+     * Berapa catatan absen yang memakai berkas bukti ini.
+     *
+     * Satu foto frame bisa dipakai bersama oleh beberapa anggota yang absen
+     * pada saat yang sama, jadi berkasnya TIDAK boleh dihapus selama masih ada
+     * catatan yang menunjuk ke sana.
+     *
+     * `$exceptLogId` dipakai saat berkas akan dipakai ulang oleh satu catatan
+     * tertentu, sebab catatan itu sendiri masih menunjuk ke berkasnya pada
+     * saat pemeriksaan.
+     */
+    public function references(string $path, ?int $exceptLogId = null): int
+    {
+        if ($path === '') {
+            return 0;
+        }
+
+        $query = SolatAttendanceLog::query()->where('proof_photo_path', $path);
+
+        if ($exceptLogId !== null) {
+            $query->whereKeyNot($exceptLogId);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Buang satu berkas bukti hanya bila tidak ada catatan lain yang memakainya.
+     *
+     * @return bool true bila berkasnya benar benar dihapus
+     */
+    public function forgetWhenOrphaned(string $path, ?int $exceptLogId = null): bool
+    {
+        if ($path === '' || $this->references($path, $exceptLogId) > 0) {
+            return false;
+        }
+
+        return $this->forget($path);
+    }
+
+    /**
      * Alamat halaman untuk membuka bukti foto sebuah catatan absen.
      */
     public function url(?SolatAttendanceLog $log): ?string
@@ -78,10 +119,15 @@ class SolatProofService
      */
     public function forgetForUser(User $user): int
     {
-        return $this->deleteFiles(SolatAttendanceLog::query()
-            ->where('user_id', $user->getKey())
-            ->whereNotNull('proof_photo_path')
-            ->pluck('proof_photo_path'));
+        return $this->deleteFiles(
+            SolatAttendanceLog::query()
+                ->where('user_id', $user->getKey())
+                ->whereNotNull('proof_photo_path')
+                ->pluck('proof_photo_path'),
+            // Catatan milik anggota ini sedang menuju ikut terhapus, jadi
+            // acuannya tidak dihitung lagi.
+            static fn (Builder $query) => $query->where('user_id', $user->getKey()),
+        );
     }
 
     /**
@@ -98,10 +144,14 @@ class SolatProofService
             return 0;
         }
 
-        return $this->deleteFiles(SolatAttendanceLog::query()
-            ->whereIn('solat_session_id', $sessionIds)
-            ->whereNotNull('proof_photo_path')
-            ->pluck('proof_photo_path'));
+        return $this->deleteFiles(
+            SolatAttendanceLog::query()
+                ->whereIn('solat_session_id', $sessionIds)
+                ->whereNotNull('proof_photo_path')
+                ->pluck('proof_photo_path'),
+            // Catatan milik sesi sesi ini sedang menuju ikut terhapus.
+            static fn (Builder $query) => $query->whereIn('solat_session_id', $sessionIds),
+        );
     }
 
     /**
@@ -117,18 +167,70 @@ class SolatProofService
 
     /**
      * @param  iterable<int, mixed>  $paths
+     * @param  (callable(Builder<SolatAttendanceLog>): void)|null  $disappearing  menandai catatan yang sedang menuju hilang
      */
-    private function deleteFiles(iterable $paths): int
+    private function deleteFiles(iterable $paths, ?callable $disappearing = null): int
     {
-        $deleted = 0;
+        $daftar = [];
 
         foreach ($paths as $path) {
-            if (is_string($path) && Storage::disk(self::Disk)->delete($path)) {
+            if (is_string($path) && $path !== '') {
+                $daftar[$path] = true;
+            }
+        }
+
+        if ($daftar === []) {
+            return 0;
+        }
+
+        // Berkas yang masih dipakai catatan LAIN tidak boleh dihapus. Catatan
+        // yang sedang menuju hilang (misalnya karena anggotanya atau sesinya
+        // dihapus) tidak dihitung lagi, sebab acuannya akan lenyap bersamaan.
+        // Seluruh berkas diperiksa sekaligus supaya jumlah permintaan ke basis
+        // data tetap satu.
+        $semua = $this->referencedPaths(array_keys($daftar));
+        $akanHilang = $disappearing === null ? [] : $this->referencedPaths(array_keys($daftar), $disappearing);
+
+        $deleted = 0;
+
+        foreach (array_keys($daftar) as $path) {
+            if (($semua[$path] ?? 0) - ($akanHilang[$path] ?? 0) > 0) {
+                continue;
+            }
+
+            if (Storage::disk(self::Disk)->delete($path)) {
                 $deleted++;
             }
         }
 
         return $deleted;
+    }
+
+    /**
+     * Jumlah catatan absen yang menunjuk setiap berkas pada daftar.
+     *
+     * @param  array<int, string>  $paths
+     * @param  (callable(Builder<SolatAttendanceLog>): void)|null  $only  menyaring catatan yang dihitung
+     * @return array<string, int> lokasi berkas => jumlah catatan yang memakainya
+     */
+    private function referencedPaths(array $paths, ?callable $only = null): array
+    {
+        if ($paths === []) {
+            return [];
+        }
+
+        $query = SolatAttendanceLog::query()->whereIn('proof_photo_path', $paths);
+
+        if ($only !== null) {
+            $only($query);
+        }
+
+        return $query
+            ->selectRaw('proof_photo_path, COUNT(*) as jumlah')
+            ->groupBy('proof_photo_path')
+            ->pluck('jumlah', 'proof_photo_path')
+            ->map(fn ($jumlah): int => (int) $jumlah)
+            ->all();
     }
 
     /**
@@ -146,23 +248,37 @@ class SolatProofService
 
         $files = 0;
         $logs = 0;
+        $dikumpulkan = [];
 
+        // Lokasi berkasnya dikosongkan lebih dulu, baru berkasnya diperiksa.
+        // Satu berkas bisa dipakai bersama beberapa catatan absen, jadi baru
+        // boleh dihapus setelah tidak ada satu pun catatan yang menunjuknya.
         SolatAttendanceLog::query()
             ->whereNotNull('proof_photo_path')
             ->where('scanned_at', '<', $cutoff)
             ->orderBy('id')
-            ->chunkById(200, function ($rows) use (&$files, &$logs): void {
+            ->chunkById(200, function ($rows) use (&$dikumpulkan, &$logs): void {
                 foreach ($rows as $row) {
                     $path = $row->proof_photo_path;
 
-                    if (is_string($path) && Storage::disk(self::Disk)->delete($path)) {
-                        $files++;
+                    if (is_string($path) && $path !== '') {
+                        $dikumpulkan[$path] = true;
                     }
 
                     $row->forceFill(['proof_photo_path' => null])->save();
                     $logs++;
                 }
             });
+
+        foreach (array_keys($dikumpulkan) as $path) {
+            if ($this->references($path) > 0) {
+                continue;
+            }
+
+            if (Storage::disk(self::Disk)->delete($path)) {
+                $files++;
+            }
+        }
 
         foreach ($this->expiredMonthFolders($cutoff) as $folder) {
             $files += count(Storage::disk(self::Disk)->allFiles($folder));

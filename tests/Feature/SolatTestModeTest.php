@@ -169,10 +169,11 @@ class SolatTestModeTest extends TestCase
             ->assertOk()
             ->assertJson([
                 'ok' => true,
-                'status' => SolatAttendanceService::StatusRecorded,
-                'display_message' => 'Absen tersimpan',
+                'status' => SolatAttendanceService::StatusSuccessMulti,
             ])
-            ->assertJsonPath('message', fn (mixed $message): bool => is_string($message)
+            ->assertJsonPath('faces.0.status', SolatAttendanceService::StatusRecorded)
+            ->assertJsonPath('faces.0.attendance.display_message', 'Absen tersimpan')
+            ->assertJsonPath('faces.0.attendance.message', fn (mixed $message): bool => is_string($message)
                 && str_contains($message, 'tidak dihitung pada rekap'));
 
         $log = SolatAttendanceLog::query()->firstOrFail();

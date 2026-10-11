@@ -96,7 +96,14 @@ abstract class TestCase extends BaseTestCase
      * bisa diisi langsung bila pengujian ingin balasan yang ditolak mesin wajah,
      * misalnya `multiple_faces`.
      *
+     * `$faces` dipakai jalur absen banyak wajah: satu entri per wajah, dengan
+     * kunci `encoding` (null berarti angkanya gagal dibaca), `box`, dan
+     * `face_size`. Bila `$faces` kosong, jawabannya disusun dari `$encoding`
+     * dan `$faceCount` seperti sebelumnya, sehingga pengujian lama tidak perlu
+     * diubah.
+     *
      * @param  array<int, float>|null  $encoding
+     * @param  array<int, array<string, mixed>>  $faces
      */
     protected function fakeFaceService(
         ?array $encoding = null,
@@ -106,16 +113,23 @@ abstract class TestCase extends BaseTestCase
         int $faceSize = 0,
         ?string $model = null,
         ?string $status = null,
+        array $faces = [],
+        int $frameWidth = 640,
+        int $frameHeight = 480,
     ): void {
         $embedding = $encoding ?? array_fill(0, FaceEmbedding::Dimensions, 0.01);
 
-        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available, $photo, $faceSize, $model, $status) extends FaceEncodingService
+        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available, $photo, $faceSize, $model, $status, $faces, $frameWidth, $frameHeight) extends FaceEncodingService
         {
             /** Apakah foto bukti diminta pada pemanggilan terakhir. */
             public bool $askedForPhoto = false;
 
+            /** Berapa kali jalur deteksi banyak wajah dipanggil. */
+            public int $detectCalls = 0;
+
             /**
              * @param  array<int, float>  $embedding
+             * @param  array<int, array<string, mixed>>  $faces
              */
             public function __construct(
                 private array $embedding,
@@ -125,6 +139,9 @@ abstract class TestCase extends BaseTestCase
                 private int $faceSize,
                 private ?string $model,
                 private ?string $status,
+                private array $faces,
+                private int $frameWidth,
+                private int $frameHeight,
             ) {}
 
             public function encode(UploadedFile $image, bool $withPhoto = false): array
@@ -181,6 +198,91 @@ abstract class TestCase extends BaseTestCase
                     'message' => 'Wajah terbaca.',
                     'photo' => $this->photo,
                 ];
+            }
+
+            /**
+             * Balasan jalur deteksi banyak wajah.
+             *
+             * Kotaknya sengaja dibuat berjarak jauh satu sama lain supaya
+             * pengujian dapat memastikan kotak mana milik wajah yang mana.
+             */
+            public function detectContents(string $contents, bool $withPhoto = false): array
+            {
+                $this->detectCalls++;
+                $this->askedForPhoto = $withPhoto;
+
+                $kosong = [
+                    'status' => self::StatusInvalid,
+                    'message' => '',
+                    'width' => $this->frameWidth,
+                    'height' => $this->frameHeight,
+                    'photo' => null,
+                    'faces' => [],
+                ];
+
+                if (! $this->available) {
+                    return array_merge($kosong, [
+                        'status' => self::StatusUnavailable,
+                        'message' => $this->unavailableMessage(),
+                    ]);
+                }
+
+                if ($this->status !== null) {
+                    return array_merge($kosong, [
+                        'status' => $this->status,
+                        'message' => 'Balasan uji '.$this->status.'.',
+                    ]);
+                }
+
+                if ($this->faces !== []) {
+                    $daftar = [];
+
+                    foreach ($this->faces as $index => $wajah) {
+                        $daftar[] = [
+                            'index' => $index,
+                            'top' => (int) ($wajah['box']['top'] ?? 100 + $index * 10),
+                            'right' => (int) ($wajah['box']['right'] ?? 200 + $index * 200),
+                            'bottom' => (int) ($wajah['box']['bottom'] ?? 250 + $index * 10),
+                            'left' => (int) ($wajah['box']['left'] ?? 50 + $index * 200),
+                            'face_size' => (int) ($wajah['face_size'] ?? 150),
+                            'encoding' => $wajah['encoding'] ?? null,
+                            'error' => ($wajah['encoding'] ?? null) === null ? 'encoding_failed' : null,
+                        ];
+                    }
+
+                    return array_merge($kosong, [
+                        'status' => self::StatusSuccess,
+                        'message' => count($daftar).' wajah terbaca.',
+                        'photo' => $withPhoto ? $this->photo : null,
+                        'faces' => $daftar,
+                    ]);
+                }
+
+                if ($this->faceCount < 1) {
+                    return array_merge($kosong, ['status' => self::StatusNoFace, 'message' => 'Wajah tidak terlihat.']);
+                }
+
+                $daftar = [];
+
+                for ($index = 0; $index < $this->faceCount; $index++) {
+                    $daftar[] = [
+                        'index' => $index,
+                        'top' => 100 + $index * 10,
+                        'right' => 200 + $index * 200,
+                        'bottom' => 250 + $index * 10,
+                        'left' => 50 + $index * 200,
+                        'face_size' => $this->faceSize > 0 ? $this->faceSize : 150,
+                        'encoding' => $this->embedding,
+                        'error' => null,
+                    ];
+                }
+
+                return array_merge($kosong, [
+                    'status' => self::StatusSuccess,
+                    'message' => count($daftar).' wajah terbaca.',
+                    'photo' => $withPhoto ? $this->photo : null,
+                    'faces' => $daftar,
+                ]);
             }
 
             public function isAvailable(): bool

@@ -40,7 +40,16 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Terima satu potret dari kamera petugas.
+     * Terima satu potret dari kamera petugas, lalu periksa SELURUH wajah yang
+     * terlihat di dalamnya.
+     *
+     * Satu bingkai bisa memuat beberapa orang sekaligus. Setiap wajah diputuskan
+     * sendiri sendiri, jadi kehadiran satu orang tidak bergantung pada apakah
+     * wajah orang lain berhasil dikenali.
+     *
+     * Halaman ini juga satu-satunya jalan yang memakai bentuk balasan berisi
+     * daftar wajah; balasan untuk perangkat sensor tetap bentuk yang lama supaya
+     * alat yang sudah terpasang tidak perlu diubah.
      */
     public function scan(Request $request, SolatAttendanceService $attendance): JsonResponse
     {
@@ -63,14 +72,8 @@ class AttendanceController extends Controller
 
         // Kamera petugas boleh memakai sesi uji coba supaya admin bisa melihat
         // log absen masuk tanpa membuka sesi waktu solat yang sungguhan.
-        $result = $attendance->recordFromImage($contents, config('face.device_id'), now(), allowTestSession: true);
+        $result = $attendance->recordFacesFromImage($contents, config('face.device_id'), now(), allowTestSession: true);
 
-        // Halaman kamera petugas ikut menampilkan foto bukti yang baru
-        // tersimpan. Kunci ini hanya ada di jalur peramban, jadi bentuk balasan
-        // untuk sensor perangkat tidak berubah.
-        $payload = SensorReply::fromResult($result);
-        $payload['proof_url'] = $result['proof_url'] ?? null;
-
-        return response()->json($payload);
+        return response()->json($result);
     }
 }

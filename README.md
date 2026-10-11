@@ -4,7 +4,8 @@ Aplikasi web pencatat kehadiran solat di sekolah. Ada dua cara mencatat
 kehadiran dan keduanya bisa dipakai bersamaan:
 
 - Absen wajah, jamaah menghadap kamera dan wajahnya dicocokkan dengan foto
-  yang sudah didaftarkan.
+  yang sudah didaftarkan. Satu bingkai kamera boleh memuat beberapa orang
+  sekaligus, dan kehadiran tiap orang dicatat sendiri sendiri.
 - Absen sensor, perangkat di gerbang mengirim data ke alamat API aplikasi.
 
 Aplikasi memakai Laravel 13, database MySQL, dan tampilan Tailwind yang
@@ -14,7 +15,8 @@ pemrosesan foto wajah.
 
 Setiap absen wajah menyimpan satu foto potret jamaah sebagai bukti. Fotonya
 dikecilkan oleh layanan Python sebelum dikirim, lalu disimpan aplikasi dan
-bisa dilihat di riwayat absen.
+bisa dilihat di riwayat absen. Satu bingkai yang memuat beberapa orang memakai
+satu foto bukti bersama, karena kamera memang memotret satu ruangan sekaligus.
 
 Panduan di bawah ditulis berurutan supaya aplikasi benar-benar jalan di
 komputer baru. Ada dua cara menjalankannya: langsung di komputer sendiri,
@@ -95,6 +97,7 @@ dikecilkan di sana, dan aplikasi hanya menyimpannya.
 | Ukuran berkas      | Di bawah 50 KB, umumnya sekitar 13 KB pada potret 320 kali 480  |
 | Yang boleh membuka | Admin, petugas, dan pemilik catatannya sendiri                  |
 | Tempat melihat     | Riwayat absen murid, Sesi Absen, dan log di halaman Absen Wajah |
+| Bingkai banyak orang | Satu bingkai kamera memakai satu foto bukti bersama, berapa pun orang yang tercatat di dalamnya |
 | Pembersihan        | `solat:bersihkan-bukti` setiap hari pukul 03.00, bawaan 90 hari |
 
 Pengaturan yang menaunginya ada di bagian `Bukti foto absen wajah` pada
@@ -407,6 +410,39 @@ Alur pemakaiannya:
 3. Petugas membuka `/absen-wajah` dari ponsel atau komputer berkamera, lalu
    jepretan dikirim ke layanan wajah dan kehadirannya tercatat.
 
+### Absen beberapa orang sekaligus
+
+Kamera tidak mengharuskan jamaah mengantre satu per satu. Setiap jepretan
+diperiksa seluruhnya, lalu setiap wajah yang terlihat diputuskan sendiri
+sendiri:
+
+- Wajah yang dikenali diberi kotak beserta namanya di atas gambar kamera,
+  hijau bila kehadirannya tercatat dan kuning bila belum bisa diputuskan.
+- Wajah yang belum terdaftar tetap diberi kotak, tetapi namanya Tidak dikenal
+  dan tidak ada kehadiran yang dicatat.
+- Wajah yang angkanya gagal dibaca oleh mesin wajah, wajah yang terlalu kecil,
+  dan wajah yang hasilnya ambigu hanya menolak dirinya sendiri. Orang di
+  sebelahnya tetap tercatat seperti biasa.
+
+Jepretan dikirim tiap dua detik, jadi wajah yang sama akan terlihat berkali
+kali. Kehadirannya tetap satu: pengiriman ulang oleh orang yang sudah tercatat
+dibalas `duplicate` dan tidak menambah baris baru. Penjaga terakhirnya adalah
+indeks unik gabungan sesi dan anggota di database, sehingga dua permintaan yang
+nyaris bersamaan pun tidak bisa membuat absen ganda.
+
+Layanan wajah memakai `POST /detect` untuk keperluan ini, sedangkan perangkat
+sensor gerbang tetap memakai jalur satu wajah yang lama. Batas pekerjaan pada
+satu bingkai diatur di sisi layanan Python lewat `FACE_DETECT_MAX_SIDE` dan
+`FACE_MAX_FACES`, bukan di `.env` aplikasi ini.
+
+Kotak dan nama di atas gambar kamera hanya petunjuk bagi petugas. Yang
+menentukan kehadiran seseorang tetap catatan absen di aplikasi, bukan apa yang
+terlihat di layar.
+
+Layanan ini membandingkan angka wajah saja. Ia belum bisa membedakan wajah
+asli dari foto wajah yang ditunjukkan ke kamera, dan belum memeriksa kedipan
+mata, jadi pemeriksaan seperti itu belum tersedia.
+
 ### Cara identitas diputuskan
 
 Mesin wajah mengubah wajah menjadi 128 angka, dan angka itulah yang dibandingkan.
@@ -442,8 +478,14 @@ keterangan untuk ditambah.
 
 Sekalian dengan pengenalan wajah, layanan Python mengirim potret kecil yang
 versinya sudah dikecilkan. Aplikasi meminta potret itu dengan menambahkan
-`?with_photo=1` pada permintaan ke `/encode`, jadi mesin wajah versi lama yang
-belum mengenal permintaan itu tetap bisa dipakai, hanya fotonya yang kosong.
+`?with_photo=1` pada permintaan ke `/detect`, dan pendaftaran wajah memakai
+`/encode` dengan cara yang sama. Potret yang gagal dibuat tidak menggagalkan
+absennya, hanya catatannya yang tersimpan tanpa bukti.
+
+Mesin wajah yang dipasang wajib sudah mendukung `POST /detect`. Mesin versi
+lama yang hanya punya `/encode` membuat halaman Absen Wajah menerima jawaban
+tak dikenal, sedangkan pendaftaran wajah dan perangkat sensor gerbang tetap
+berjalan seperti biasa.
 
 Satu foto butuh sekitar 15 detik pada komputer tanpa GPU, karena
 itu upload masuk queue dan kemajuannya bisa dilihat di panel Proses

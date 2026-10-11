@@ -159,6 +159,115 @@ class FaceEncodingService
     }
 
     /**
+     * Hitung angka pembanding SELURUH wajah yang terlihat di satu foto.
+     *
+     * Dipakai kamera absen yang bisa memuat beberapa orang sekaligus. Setiap
+     * wajah dihitung dan dilaporkan sendiri sendiri beserta kotaknya, sehingga
+     * aplikasi bisa mencatat kehadiran tiap orang tanpa menunggu yang lain
+     * keluar dari bingkai.
+     *
+     * Satu wajah yang angka wajahnya gagal dihitung tidak menggagalkan wajah
+     * lain: entri itu tetap dilaporkan dengan `encoding` bernilai null supaya
+     * halaman tetap bisa menggambar kotaknya dan menandainya belum dikenal.
+     *
+     * @return array{status: string, message: string, width: int, height: int, photo: string|null, faces: array<int, array{index: int, top: int, right: int, bottom: int, left: int, face_size: int, encoding: array<int, float>|null, error: string|null}>}
+     */
+    public function detectContents(string $contents, bool $withPhoto = false): array
+    {
+        $empty = ['status' => self::StatusInvalid, 'message' => '', 'width' => 0, 'height' => 0, 'photo' => null, 'faces' => []];
+
+        if ($contents === '') {
+            return array_merge($empty, ['message' => 'Foto tidak terbaca. Ambil ulang fotonya.']);
+        }
+
+        try {
+            $response = Http::timeout((int) config('face.timeout', 90))
+                ->acceptJson()
+                ->attach('image', $contents, 'scan.jpg')
+                ->post($this->serviceUrl().'/detect?'.$this->query($withPhoto));
+        } catch (ConnectionException) {
+            return array_merge($empty, ['status' => self::StatusUnavailable, 'message' => $this->unavailableMessage()]);
+        }
+
+        if (! $response->successful()) {
+            return array_merge($empty, ['message' => 'Layanan wajah menolak foto ini. Ambil ulang fotonya.']);
+        }
+
+        $data = $response->json();
+
+        if (! is_array($data)) {
+            return array_merge($empty, ['message' => 'Balasan layanan wajah tidak dikenali.']);
+        }
+
+        $status = (string) ($data['status'] ?? '');
+
+        if ($status === 'error') {
+            return array_merge($empty, ['message' => 'Layanan wajah menolak foto ini. Ambil ulang fotonya.']);
+        }
+
+        if ($status === self::StatusNoFace || $status === 'no_face') {
+            return array_merge($empty, ['status' => self::StatusNoFace, 'message' => 'Wajah tidak terlihat.']);
+        }
+
+        $model = is_string($data['model'] ?? null) ? trim($data['model']) : '';
+        $expected = (string) config('face.model', FaceEmbedding::DefaultModel);
+
+        // Angka wajah dari model yang berbeda tidak bisa dibandingkan dengan
+        // angka wajah yang sudah tersimpan.
+        if ($model !== '' && $model !== $expected) {
+            Log::warning('Mesin wajah memakai model yang berbeda dari data tersimpan.', [
+                'mesin' => $model,
+                'diharapkan' => $expected,
+            ]);
+
+            return array_merge($empty, [
+                'message' => 'Versi mesin wajah berbeda dari data wajah yang tersimpan. Minta operator menyamakan versinya.',
+            ]);
+        }
+
+        $faces = [];
+
+        foreach ((array) ($data['faces'] ?? []) as $face) {
+            if (! is_array($face)) {
+                continue;
+            }
+
+            $box = is_array($face['bbox'] ?? null) ? $face['bbox'] : [];
+
+            if ($box === []) {
+                continue;
+            }
+
+            $encoding = $face['encoding'] ?? null;
+            $valid = is_array($encoding) && count($encoding) === FaceEmbedding::Dimensions;
+
+            $faces[] = [
+                'index' => count($faces),
+                'top' => (int) ($box['top'] ?? 0),
+                'right' => (int) ($box['right'] ?? 0),
+                'bottom' => (int) ($box['bottom'] ?? 0),
+                'left' => (int) ($box['left'] ?? 0),
+                'face_size' => (int) ($face['face_size'] ?? 0),
+                'encoding' => $valid ? FaceEmbedding::normalizeEmbedding($encoding) : null,
+                'error' => $valid ? null : (is_string($face['error'] ?? null) ? $face['error'] : 'encoding_failed'),
+            ];
+        }
+
+        if ($faces === []) {
+            return array_merge($empty, ['status' => self::StatusNoFace, 'message' => 'Wajah tidak terlihat.']);
+        }
+
+        return [
+            'status' => self::StatusSuccess,
+            'message' => count($faces) === 1 ? 'Wajah terbaca.' : count($faces).' wajah terbaca.',
+            'width' => (int) ($data['width'] ?? 0),
+            'height' => (int) ($data['height'] ?? 0),
+            'photo' => $withPhoto ? $this->proofPhoto($data['photo'] ?? null) : null,
+            'faces' => $faces,
+        ];
+    }
+
+    /**
      * Layanan wajah hidup atau tidak. Dipakai halaman wajah untuk memberi tahu
      * operator kalau mesin wajahnya belum dinyalakan.
      */
