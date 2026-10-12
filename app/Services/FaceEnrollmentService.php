@@ -48,6 +48,12 @@ class FaceEnrollmentService
      * transaksi supaya data lama tidak sempat terhapus kalau penyimpanan barunya
      * gagal.
      *
+     * `replace` di sini hanya untuk satu foto, misalnya kiriman alat kamera yang
+     * memang mengganti wajah anggota dengan satu potret baru. Penggantian
+     * BANYAK foto tidak boleh memakai cara ini, sebab setiap foto baru akan
+     * menghapus foto baru sebelumnya dan hanya satu yang tersisa; kelompok
+     * unggahan memakai `replaceAllExcept()` setelah seluruh fotonya selesai.
+     *
      * @param  array<int, mixed>  $embedding
      */
     public function store(User $user, array $embedding, ?string $label = null, bool $replace = false): FaceEmbedding
@@ -141,6 +147,42 @@ class FaceEnrollmentService
     public function photoCount(User $user): int
     {
         return $user->faceEmbeddings()->count();
+    }
+
+    /**
+     * Buang seluruh sidik wajah anggota kecuali baris yang diminta dipertahankan.
+     *
+     * Dipakai penggantian kumpulan foto. Baris yang dipertahankan dikirim dari
+     * luar karena hanya pemanggil yang tahu foto mana saja yang benar benar
+     * berhasil disimpan dari kelompok unggahan itu.
+     *
+     * Bila daftar yang dipertahankan kosong, tidak ada yang dihapus. Penggantian
+     * yang tidak menghasilkan satu pun foto baru bukan alasan untuk membuang
+     * data lama, jadi keadaan itu harus ditolak lebih dulu oleh pemanggil.
+     *
+     * @param  array<int, int|string|null>  $keepIds
+     * @return int jumlah baris yang dibuang
+     */
+    public function replaceAllExcept(User $user, array $keepIds): int
+    {
+        $keep = [];
+
+        foreach ($keepIds as $id) {
+            $clean = (int) $id;
+
+            if ($clean > 0) {
+                $keep[] = $clean;
+            }
+        }
+
+        if ($keep === []) {
+            return 0;
+        }
+
+        return FaceEmbedding::query()
+            ->forUser((int) $user->getKey())
+            ->whereKeyNot($keep)
+            ->delete();
     }
 
     /**

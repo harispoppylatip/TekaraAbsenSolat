@@ -1,8 +1,7 @@
 /* =========================================================
    Absen Solat SMKIM4
    Menangani menu samping, penyegaran wilayah halaman, kamera
-   absen, unggah berkas wajah, kemajuan pemrosesan wajah, dan
-   tombol cetak.
+   absen, kemajuan pemrosesan wajah, dan tombol cetak.
    ========================================================= */
 
 const LIVE_INTERVAL = 5000;
@@ -11,21 +10,6 @@ function csrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
 
     return meta ? meta.getAttribute("content") : "";
-}
-
-// Penanda satu kali impor supaya seluruh berkas dalam satu kiriman
-// menghuni kelompok kemajuan yang sama.
-function newBatchId() {
-    if (window.crypto && typeof window.crypto.randomUUID === "function") {
-        return window.crypto.randomUUID();
-    }
-
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (letter) => {
-        const value = Math.floor(Math.random() * 16);
-        const digit = letter === "x" ? value : (value & 0x3) | 0x8;
-
-        return digit.toString(16);
-    });
 }
 
 /* ---------- Menu samping ---------- */
@@ -177,7 +161,6 @@ async function refreshLiveRegions() {
         restoreDetailState(region, state);
         restoreCheckedState(region, checks);
         setupCameras(region);
-        setupBulkUpload(region);
     });
 }
 
@@ -951,178 +934,6 @@ function initCamera(root) {
     window.addEventListener("pagehide", stop);
 }
 
-/* ---------- Unggah banyak berkas wajah ---------- */
-
-function setupBulkUpload(scope = document) {
-    scope.querySelectorAll("[data-bulk-upload]").forEach((root) => {
-        if (root.dataset.bulkReady === "1") {
-            return;
-        }
-
-        root.dataset.bulkReady = "1";
-
-        const input = root.querySelector("[data-bulk-input]");
-        const button = root.querySelector("[data-bulk-start]");
-        const stopButton = root.querySelector("[data-bulk-stop]");
-        const report = root.querySelector("[data-bulk-report]");
-        const summary = root.querySelector("[data-bulk-summary]");
-        const endpoint = root.dataset.endpoint;
-        const field = root.dataset.field || "folder";
-        const ownerField = root.querySelector("[data-bulk-owner]");
-
-        let running = false;
-        let batchId = "";
-        const tally = { queued: 0, skipped: 0 };
-
-        function writeReport(text, ok) {
-            if (!report) {
-                return;
-            }
-
-            const line = document.createElement("p");
-
-            line.className = `report-line ${ok ? "is-saved" : "is-failed"}`;
-            line.textContent = text;
-            report.prepend(line);
-
-            while (report.children.length > 30) {
-                report.removeChild(report.lastElementChild);
-            }
-        }
-
-        function writeSummary() {
-            if (summary) {
-                summary.textContent = `${tally.queued} foto masuk antrean pemrosesan, ${tally.skipped} foto dilewati.`;
-            }
-        }
-
-        async function send(file) {
-            const body = new FormData();
-            body.append("photo", file, file.name);
-
-            if (batchId) {
-                body.append("batch_id", batchId);
-            }
-
-            if (field === "folder") {
-                const parts = (file.webkitRelativePath || "").split("/");
-                body.append("folder", parts.length > 1 ? parts[0] : "");
-            } else if (ownerField) {
-                body.append("identifier_number", ownerField.value);
-            }
-
-            const response = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    "X-CSRF-TOKEN": csrfToken(),
-                    Accept: "application/json",
-                },
-                credentials: "same-origin",
-                body,
-            });
-
-            return response.json().catch(() => null);
-        }
-
-        async function run() {
-            if (running || !input) {
-                return;
-            }
-
-            const files = Array.from(input.files || []);
-
-            if (files.length === 0) {
-                writeReport("Belum ada berkas yang dipilih.", false);
-
-                return;
-            }
-
-            running = true;
-            batchId = newBatchId();
-
-            if (button) {
-                button.disabled = true;
-            }
-
-            if (stopButton) {
-                stopButton.disabled = false;
-            }
-
-            tally.queued = 0;
-            tally.skipped = 0;
-
-            for (const file of files) {
-                if (!running) {
-                    writeReport("Pengunggahan dihentikan.", false);
-                    break;
-                }
-
-                try {
-                    const data = await send(file);
-
-                    if (data && data.queued) {
-                        tally.queued += 1;
-                        writeReport(
-                            `${file.name}: ${data.message || "masuk antrean pemrosesan"}`,
-                            true,
-                        );
-                        refreshFaceProgress();
-                    } else {
-                        tally.skipped += 1;
-                        writeReport(
-                            `${file.name}: ${(data && data.message) || "dilewati"}`,
-                            false,
-                        );
-                    }
-                } catch (error) {
-                    tally.skipped += 1;
-                    writeReport(`${file.name}: sambungan terputus`, false);
-                }
-
-                writeSummary();
-            }
-
-            running = false;
-
-            if (button) {
-                button.disabled = false;
-            }
-
-            if (stopButton) {
-                stopButton.disabled = true;
-            }
-
-            writeSummary();
-        }
-
-        if (button) {
-            button.disabled = true;
-            button.addEventListener("click", run);
-        }
-
-        if (stopButton) {
-            stopButton.disabled = true;
-            stopButton.addEventListener("click", () => {
-                running = false;
-            });
-        }
-
-        if (input) {
-            input.addEventListener("change", () => {
-                const count = (input.files || []).length;
-
-                if (button) {
-                    button.disabled = count === 0;
-                }
-
-                if (summary) {
-                    summary.textContent = `${count} berkas dipilih.`;
-                }
-            });
-        }
-    });
-}
-
 /* ---------- Kemajuan pendaftaran wajah ---------- */
 
 let faceProgressTick = null;
@@ -1439,7 +1250,6 @@ function boot() {
     setupConfirms();
     setupAutoSubmit();
     setupCameras();
-    setupBulkUpload();
     setupFaceProgress();
 }
 

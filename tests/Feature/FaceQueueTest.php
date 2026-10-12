@@ -63,7 +63,10 @@ class FaceQueueTest extends TestCase
 
     private function work(FacePhotoUpload $row): void
     {
-        (new EncodeFacePhoto((int) $row->getKey()))->handle(app(FaceEnrollmentService::class));
+        (new EncodeFacePhoto((int) $row->getKey()))->handle(
+            app(FaceEnrollmentService::class),
+            app(FacePhotoQueueService::class),
+        );
     }
 
     public function test_unggahan_dijawab_seketika_dan_pekerjaannya_masuk_antrean(): void
@@ -419,29 +422,6 @@ class FaceQueueTest extends TestCase
             ->assertSessionHas('error', 'Tidak ada foto yang bisa diulang. Foto yang gagal karena isinya tidak terbaca harus diunggah ulang.');
 
         Queue::assertNothingPushed();
-    }
-
-    public function test_impor_berkas_menggabungkan_satu_kiriman_ke_satu_kelompok(): void
-    {
-        Queue::fake();
-
-        $admin = $this->admin();
-        $member = $this->makeUser(User::RoleMurid, ['identifier_number' => '2005221']);
-        $batch = (string) Str::uuid();
-
-        $this->actingAs($admin)
-            ->postJson(route('face.photos.upload'), ['photo' => $this->photo(), 'folder' => '2005221', 'batch_id' => $batch])
-            ->assertOk()
-            ->assertJson(['queued' => true]);
-
-        $this->actingAs($admin)
-            ->postJson(route('face.photos.upload'), ['photo' => $this->photo('kedua.jpg'), 'folder' => '2005221', 'batch_id' => $batch])
-            ->assertOk()
-            ->assertJson(['queued' => true]);
-
-        $this->assertSame(2, FacePhotoUpload::query()->where('batch_id', $batch)->count());
-
-        Queue::assertPushed(EncodeFacePhoto::class, 2);
     }
 
     public function test_pembersihan_membuang_catatan_lama_dan_menyisakan_yang_sedang_diproses(): void

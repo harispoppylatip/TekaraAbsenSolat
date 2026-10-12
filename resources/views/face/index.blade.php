@@ -3,8 +3,6 @@
 @section('title', 'Data Wajah')
 @section('note', 'Pendaftaran dan pemeliharaan data wajah jamaah')
 
-@php($assignable = $candidates->where('role', '!=', \App\Models\User::RoleMurid))
-
 @section('content')
     {{-- Kemajuan pemrosesan wajah. Isinya diperbarui sendiri oleh peramban
          selama masih ada foto yang sedang diubah menjadi angka wajah. --}}
@@ -62,10 +60,11 @@
     <section class="card">
         <div class="section-head">
             <div>
-                <h2 class="section-title">Tambah dan impor foto wajah</h2>
+                <h2 class="section-title">Tambah foto wajah</h2>
                 <p class="section-note">
-                    Buka salah satu cara di bawah ini. Foto yang dikirim langsung diterima, sedangkan
-                    pengubahannya menjadi angka wajah berjalan di latar belakang sehingga tidak perlu ditunggu.
+                    Buka panel di bawah ini, pilih anggota beserta foto wajahnya. Foto yang dikirim langsung
+                    diterima, sedangkan pengubahannya menjadi angka wajah berjalan di latar belakang sehingga
+                    tidak perlu ditunggu.
                 </p>
             </div>
         </div>
@@ -106,8 +105,8 @@
                                 <label class="field-label" for="photos">Foto wajah</label>
                                 <input class="input-field" type="file" id="photos" name="photos[]" accept="image/*"
                                     multiple required>
-                                <p class="field-hint">Pilih beberapa foto sekaligus dari satu anggota. Impor
-                                    banyak berkas sekaligus memakai panel Impor dari folder.</p>
+                                <p class="field-hint">Pilih beberapa foto sekaligus dari satu anggota, paling
+                                    banyak {{ $maxSubmit }} foto sekali kirim.</p>
                                 @error('photos')
                                     <p class="field-error">{{ $message }}</p>
                                 @enderror
@@ -119,87 +118,14 @@
 
                         <div class="check-row">
                             <input type="checkbox" id="replace" name="replace" value="1">
-                            <label for="replace">Ganti foto wajah anggota ini: foto lama dihapus setelah satu
-                                foto barunya berhasil disimpan</label>
+                            <label for="replace">Ganti foto wajah anggota ini: seluruh foto lama dihapus setelah
+                                ada foto barunya yang berhasil disimpan</label>
                         </div>
 
                         <div class="form-actions">
                             <button class="btn btn-primary" type="submit">Unggah foto wajah</button>
                         </div>
                     </form>
-                </div>
-            </details>
-
-            <details class="tool-panel" data-record="tool-folder">
-                <summary>
-                    <span class="tool-name">Impor dari folder</span>
-                    <span class="tool-note">Sekaligus banyak anggota. Nama folder harus sama dengan nomor induk
-                        anggotanya.</span>
-                    <span class="tool-hint">
-                        <span class="tool-hint-open">Buka</span>
-                        <span class="tool-hint-close">Tutup</span>
-                    </span>
-                </summary>
-
-                <div class="tool-body">
-                    <div data-bulk-upload data-endpoint="{{ route('face.photos.upload') }}" data-field="folder">
-                        <div class="field">
-                            <label class="field-label" for="folder-input">Pilih folder foto</label>
-                            <input class="input-field" type="file" id="folder-input" data-bulk-input webkitdirectory
-                                multiple accept="image/*">
-                            <p class="field-hint">Contoh: folder 2005221 berisi foto wajah anggota bernomor induk
-                                2005221. Berkas dikirim satu per satu supaya tidak memberatkan server.</p>
-                        </div>
-
-                        <div class="form-actions">
-                            <button class="btn btn-small btn-primary" type="button" data-bulk-start>Mulai
-                                impor</button>
-                            <button class="btn btn-small btn-secondary" type="button" data-bulk-stop
-                                disabled>Berhenti</button>
-                        </div>
-
-                        <p class="camera-status" data-bulk-summary>Belum ada berkas yang dikirim.</p>
-                        <div class="camera-report" data-bulk-report></div>
-                    </div>
-                </div>
-            </details>
-
-            <details class="tool-panel" data-record="tool-satu">
-                <summary>
-                    <span class="tool-name">Impor satu anggota</span>
-                    <span class="tool-note">Pilih beberapa foto, lalu isi nomor induk anggotanya.</span>
-                    <span class="tool-hint">
-                        <span class="tool-hint-open">Buka</span>
-                        <span class="tool-hint-close">Tutup</span>
-                    </span>
-                </summary>
-
-                <div class="tool-body">
-                    <div data-bulk-upload data-endpoint="{{ route('face.photos.upload') }}" data-field="identifier_number">
-                        <div class="form-grid">
-                            <div class="field">
-                                <label class="field-label" for="owner-input">Nomor induk anggota</label>
-                                <input class="input-field" type="text" id="owner-input" data-bulk-owner
-                                    placeholder="2005221">
-                            </div>
-
-                            <div class="field">
-                                <label class="field-label" for="owner-files">Foto wajah</label>
-                                <input class="input-field" type="file" id="owner-files" data-bulk-input multiple
-                                    accept="image/*">
-                            </div>
-                        </div>
-
-                        <div class="form-actions">
-                            <button class="btn btn-small btn-primary" type="button" data-bulk-start>Mulai
-                                impor</button>
-                            <button class="btn btn-small btn-secondary" type="button" data-bulk-stop
-                                disabled>Berhenti</button>
-                        </div>
-
-                        <p class="camera-status" data-bulk-summary>Belum ada berkas yang dikirim.</p>
-                        <div class="camera-report" data-bulk-report></div>
-                    </div>
                 </div>
             </details>
         </div>
@@ -218,8 +144,8 @@
             <div class="filter-bar">
                 <div class="field">
                     <label class="field-label" for="q">Nama, nomor induk, atau surel</label>
-                    <input class="input-field" type="search" id="q" name="q"
-                        value="{{ $term }}" placeholder="Contoh: Ahmad atau 2005221">
+                    <input class="input-field" type="search" id="q" name="q" value="{{ $term }}"
+                        placeholder="Contoh: Ahmad atau 2005221">
                 </div>
 
                 <div class="filter-actions">
@@ -262,7 +188,11 @@
                 <div>
                     <h2 class="section-title">Petugas kamera absen</h2>
                     <p class="section-note">
-                        Anggota berperan murid tidak bisa ditugaskan. Admin selalu boleh memakai halaman absen wajah.
+                        Keadaan tugas di bawah ini dibaca dari data yang sama dengan yang dipakai penjaga hak
+                        akses halaman, jadi apa yang tertulis selalu sama dengan apa yang boleh masuk. Akun
+                        berperan murid tidak bisa ditugaskan dari sini, tetapi akun yang sudah memegang tugas
+                        tetap terdaftar supaya tugasnya bisa dicabut. Admin selalu boleh memakai halaman absen
+                        wajah.
                     </p>
                 </div>
             </div>
@@ -282,14 +212,14 @@
                         </thead>
                         <tbody>
                             @foreach ($assignable as $candidate)
-                                <tr>
+                                <tr data-member="{{ $candidate->id }}">
                                     <td class="cell-strong">{{ $candidate->name }}</td>
                                     <td>{{ $candidate->roleLabel() }}</td>
                                     <td>
                                         @if ($candidate->can_scan_face)
-                                            <span class="status status-open">Bertugas</span>
+                                            <span class="status status-open" data-operator-status>Sedang bertugas</span>
                                         @else
-                                            <span class="status status-closed">Tidak bertugas</span>
+                                            <span class="status status-closed" data-operator-status>Tidak bertugas</span>
                                         @endif
                                     </td>
                                     <td>
@@ -301,7 +231,7 @@
                                                 <input type="hidden" name="assigned"
                                                     value="{{ $candidate->can_scan_face ? 0 : 1 }}">
                                                 <button class="btn btn-small btn-outline" type="submit">
-                                                    {{ $candidate->can_scan_face ? 'Tarik tugas' : 'Tugaskan' }}
+                                                    {{ $candidate->can_scan_face ? 'Cabut tugas' : 'Tugaskan' }}
                                                 </button>
                                             </form>
                                         </div>

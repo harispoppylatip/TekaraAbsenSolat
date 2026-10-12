@@ -443,6 +443,47 @@ Layanan ini membandingkan angka wajah saja. Ia belum bisa membedakan wajah
 asli dari foto wajah yang ditunjukkan ke kamera, dan belum memeriksa kedipan
 mata, jadi pemeriksaan seperti itu belum tersedia.
 
+### Aturan penyimpanan foto wajah
+
+Setiap foto dinilai sendiri sendiri oleh mesin wajah, dan hanya foto yang
+menghasilkan angka wajah sah yang benar benar disimpan. Foto yang tidak terbaca,
+tidak ada wajahnya, wajahnya terlalu kecil, atau ditolak mesin wajah tidak
+meninggalkan data wajah sama sekali, tidak ikut terdaftar sebagai pembanding,
+dan berkas sementaranya langsung dibuang. Ringkasan di panel kemajuan selalu
+menyebut berapa foto yang tersimpan dan berapa yang gagal.
+
+Kotak centang Ganti foto wajah berlaku untuk SELURUH kelompok unggahan, bukan
+per foto:
+
+| Keadaan                                      | Hasil akhir                                                          |
+| -------------------------------------------- | -------------------------------------------------------------------- |
+| Tidak dicentang                              | Foto lama dipertahankan, seluruh foto baru yang berhasil ditambahkan |
+| Dicentang, 4 dari 6 foto baru berhasil       | Fotonya menjadi 4 foto baru itu, foto lama dibuang                   |
+| Dicentang, tidak ada foto baru yang berhasil | Foto lama tetap dipakai, penggantian dibatalkan                      |
+
+Urutan pengerjaannya sengaja begitu: seluruh foto baru disimpan lebih dulu dan
+baru kumpulan lama dibuang setelah kelompok unggahan itu selesai diproses. Foto
+lama karena itu tidak pernah hilang hanya karena foto barunya gagal, dan
+penggantian tidak pernah menghapus foto baru yang belum lama masuk. Angka di
+atas berlaku untuk foto yang benar benar tersimpan, bukan jumlah berkas yang
+dipilih.
+
+Berkas foto sementara dihapus begitu angkanya tersimpan. Kekecualiannya hanya
+bila mesin wajah sedang mati, sebab foto seperti itu isinya tidak salah dan
+masih bisa diulang. Baris antrean yang pekerjaannya mati di tengah jalan ikut
+dibersihkan bersama berkasnya oleh `face:purge-uploads` yang berjalan harian.
+
+### Keadaan tugas petugas kamera
+
+Satu-satunya sumber kebenaran penugasan adalah kolom `can_scan_face` pada data
+pengguna, dan kolom itu pula yang dibaca penjaga hak akses halaman kamera.
+Halaman `/wajah` karena itu menampilkan keadaan tugas dari kolom yang sama,
+sehingga apa yang tertulis selalu sama dengan apa yang boleh masuk, baik sebelum
+maupun sesudah penugasan dicabut. Peran Petugas tidak dengan sendirinya berarti
+sedang bertugas; penugasan juga bisa diberikan dari halaman Anggota, dan akun
+yang sudah memegang tugas tetap terdaftar di halaman Wajah supaya tugasnya bisa
+dicabut.
+
 ### Cara identitas diputuskan
 
 Mesin wajah mengubah wajah menjadi 128 angka, dan angka itulah yang dibandingkan.

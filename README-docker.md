@@ -110,6 +110,32 @@ container.
 docker compose exec app php artisan solat:sesi-harian --days=2
 ```
 
+### Penyimpanan foto wajah di dalam container
+
+Aturan penyimpanannya dijelaskan di `README.md` bagian Aturan penyimpanan foto
+wajah. Yang perlu diingat saat memakai Docker:
+
+- Layanan `queue` wajib hidup. Foto diunggah ke volume `absen-solat-storage`
+  lalu diubah menjadi angka wajah oleh pekerja di layanan itu. Penggantian
+  kumpulan foto juga diselesaikan di sana, jadi tanpa pekerja antrean foto lama
+  memang tidak dibuang.
+- Selama kelompok unggahan belum selesai diproses, foto lama sengaja masih
+  dipertahankan. Keadaan itu aman, bukan kesalahan: selesaikan antreannya, lalu
+  penggantiannya menyusul sendiri.
+- Layanan `scheduler` menjalankan `face:purge-uploads`. Perintah itu membuang
+  baris antrean lama beserta berkas fotonya, termasuk pekerjaan yang mati di
+  tengah jalan, sehingga volume `absen-solat-storage` tidak menumpuk.
+- Berkas foto sementara ada di dalam volume yang sama, di folder
+  `antrean-wajah`. Menghapus folder itu satu kali hanya membuang foto yang
+  sedang menunggu, dan yang sudah tersimpan tetap aman.
+
+Perubahan sesi ini hanya berkas PHP, tanpa kunci `.env` baru dan tanpa migrasi
+baru, jadi cukup dibangun ulang dengan perintah biasa:
+
+```sh
+docker compose up -d --build app web queue scheduler
+```
+
 ### Ambang pengenalan wajah
 
 Kunci berikut juga ditulis tanpa akhiran `_DOCKER` dan dipakai bersama oleh
@@ -490,6 +516,8 @@ File yang sudah dikompilasi bisa dibersihkan dengan
 | Tombol kamera berbunyi `Sambungan ke server terputus.`                | Aplikasi di belakang proxy pemegang sertifikat, tetapi proxy belum mengirim header `X-Forwarded-Proto` atau alamatnya belum terdaftar sebagai proxy yang dipercaya. Ikuti bagian **Memakai domain dan HTTPS** di atas                                                                                                                                                                                     |
 | Koneksi ke MySQL lambat atau gagal berulang                           | Pastikan volume database `absen-solat-dbdata` masih ada (`docker volume ls`) dan `docker compose logs db` tidak ada error                                                                                                                                                                                                                                                                                 |
 | Kolom Bukti pada riwayat menulis Tanpa bukti                          | Layanan wajah yang berjalan belum memuat pembuat potret, atau `SOLAT_KEEP_PROOF_PHOTO=false`. Perbarui layanan Python lalu nyalakan ulang, dan absen lama yang belum punya foto memang tampil begitu                                                                                                                                                                                                      |
+| Foto lama tidak ikut terbuang saat mencentang Ganti foto wajah        | Layanan `queue` belum menyelesaikan seluruh foto kelompok unggahan itu. Penggantian memang menunggu sampai semuanya selesai, supaya foto lama tidak hilang karena foto baru yang gagal. Periksa `docker compose logs queue`                                                                                                                                                                               |
+| Foto gagal menumpuk di volume `antrean-wajah`                         | Layanan `scheduler` mati sehingga `face:purge-uploads` tidak pernah jalan. Nyalakan layanannya, atau jalankan sekali dengan `docker compose exec app php artisan face:purge-uploads`                                                                                                                                                                                                                      |
 | Build berhenti pada pemeriksaan versi PHP                             | Image PHP yang dipakai lebih tua dari 8.4.1. Jangan turunkan image; naikkan versinya                                                                                                                                                                                                                                                                                                                      |
 
 Perubahan besar pada `docker-compose.yml` atau `Dockerfile` bisa diperiksa

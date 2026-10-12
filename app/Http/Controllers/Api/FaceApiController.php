@@ -34,12 +34,14 @@ class FaceApiController extends Controller
             'identifier_number' => ['required', 'string', 'max:40'],
             'photo' => ['required_without:encoding', 'file', 'image', 'max:5120'],
             'encoding' => ['required_without:photo', 'array', 'size:'.FaceEmbedding::Dimensions],
+            'encoding.*' => ['numeric'],
             'replace' => ['nullable', 'boolean'],
         ], [
             'identifier_number.required' => 'Nomor induk wajib dikirim alat.',
             'photo.required_without' => 'Foto wajah tidak diterima.',
             'encoding.required_without' => 'Angka wajah tidak diterima.',
             'encoding.size' => 'Angka wajah harus berjumlah '.FaceEmbedding::Dimensions.'.',
+            'encoding.*.numeric' => 'Angka wajah harus berupa angka.',
         ]);
 
         $member = User::query()->where('identifier_number', $data['identifier_number'])->first();
@@ -54,11 +56,12 @@ class FaceApiController extends Controller
         $replace = $request->boolean('replace');
 
         if ($request->hasFile('photo')) {
-            if ($replace) {
-                $member->faceEmbeddings()->delete();
-            }
-
-            $result = $faces->enrollFromUpload($member, $request->file('photo'), $label);
+            // Wajah lama TIDAK dihapus lebih dulu. Penggantian dikerjakan di
+            // dalam penyimpanan angkanya, sesudah angka wajah yang baru berhasil
+            // dibaca dan tersimpan; jadi foto yang gagal tidak akan mengubah
+            // apa pun, dan anggota tidak pernah kehilangan wajahnya karena satu
+            // kiriman alat yang gagal.
+            $result = $faces->enrollFromUpload($member, $request->file('photo'), $label, $replace);
 
             if ($result['status'] !== FaceEnrollmentService::StatusSaved) {
                 $reply = SensorReply::refusal($result['status'], 'Wajah tak jelas', 422);

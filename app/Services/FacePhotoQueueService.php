@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Pintu tunggal unggahan foto wajah yang dikerjakan di latar belakang.
@@ -74,20 +75,87 @@ class FacePhotoQueueService
         ?string $label = null,
         bool $replace = false,
     ): FacePhotoUpload {
-        $row = FacePhotoUpload::create([
-            'batch_id' => $batch ?? (string) Str::uuid(),
-            'user_id' => $member->getKey(),
-            'uploaded_by' => $uploader?->getKey(),
-            'original_name' => Str::limit($photo->getClientOriginalName(), 120, ''),
-            'path' => (string) $photo->store(self::Folder, 'local'),
-            'label' => $label ?? $photo->getClientOriginalName(),
-            'replace' => $replace,
-            'status' => FacePhotoUpload::StatusMenunggu,
-        ]);
+        $path = (string) $photo->store(self::Folder, 'local');
+
+        try {
+            $row = FacePhotoUpload::create([
+                'batch_id' => $batch ?? (string) Str::uuid(),
+                'user_id' => $member->getKey(),
+                'uploaded_by' => $uploader?->getKey(),
+                'original_name' => Str::limit($photo->getClientOriginalName(), 120, ''),
+                'path' => $path,
+                'label' => $label ?? $photo->getClientOriginalName(),
+                'replace' => $replace,
+                'status' => FacePhotoUpload::StatusMenunggu,
+            ]);
+        } catch (Throwable $error) {
+            // Berkas yang sudah dipindahkan tidak boleh tertinggal tanpa baris
+            // kemajuan, sebab tidak ada lagi yang tahu berkas itu milik siapa
+            // dan tidak ada yang akan membersihkannya.
+            Storage::disk('local')->delete($path);
+
+            throw $error;
+        }
 
         EncodeFacePhoto::dispatch((int) $row->getKey());
 
         return $row;
+    }
+
+    /**
+     * Selesaikan penggantian foto satu kelompok unggahan.
+     *
+     * Dipanggil setiap satu foto kelompok itu selesai diproses, tetapi baru
+     * benar benar mengubah data setelah SELURUH fotonya selesai. Urutannya
+     * sengaja begitu: seluruh foto baru disimpan lebih dulu, baru kumpulan lama
+     * dibuang sekali. Kalau penggantian dikerjakan per foto, setiap foto baru
+     * menghapus foto baru sebelumnya sehingga hanya satu yang tersisa, dan foto
+     * lama bisa hilang walaupun foto barunya gagal.
+     *
+     * Aman dipanggil berulang kali: penghapusannya idempoten, dan kelompok yang
+     * tidak meminta penggantian tidak disentuh sama sekali.
+     *
+     * @return array{done: bool, kept: int, removed: int}
+     */
+    public function finaliseReplacement(FacePhotoUpload $finished, FaceEnrollmentService $faces): array
+    {
+        $nothing = ['done' => false, 'kept' => 0, 'removed' => 0];
+
+        if (! $finished->replace) {
+            return $nothing;
+        }
+
+        $rows = $this->rowsOfBatch((string) $finished->batch_id);
+
+        // Masih ada foto kelompok ini yang belum selesai: tunggu. Menghapus
+        // lebih awal berarti membuang data lama padahal foto barunya belum
+        // tentu berhasil.
+        if ($rows->contains(fn (FacePhotoUpload $row): bool => ! $row->isFinished())) {
+            return $nothing;
+        }
+
+        /** @var User|null $member */
+        $member = $finished->user ?? User::query()->find($finished->user_id);
+
+        if ($member === null) {
+            return $nothing;
+        }
+
+        $kept = $rows
+            ->filter(fn (FacePhotoUpload $row): bool => $row->face_embedding_id !== null)
+            ->pluck('face_embedding_id')
+            ->all();
+
+        // Seluruh foto baru gagal: kumpulan lama dipertahankan apa adanya.
+        if ($kept === []) {
+            return $nothing;
+        }
+
+        return [
+            'done' => true,
+            'kept' => count($kept),
+            'removed' => $faces->replaceAllExcept($member, $kept),
+        ];
     }
 
     /**
@@ -212,19 +280,38 @@ class FacePhotoQueueService
      * Buang berkas dan catatan antrean yang sudah lama supaya foto sementara
      * tidak menumpuk di server.
      *
+     * Dua jenis baris dibersihkan: baris yang sudah selesai dan lewat masa
+     * simpan, serta baris yang masih tertulis sedang diproses padahal pekerja
+     * antreannya sudah lama mati. Baris jenis kedua tidak punya akhir riwayat
+     * sama sekali, jadi tanpa pembersihan ini berkas fotonya akan tersimpan
+     * selamanya.
+     *
      * @return array{rows: int, files: int}
      */
     public function purge(int $days = 7): array
     {
         $cutoff = now()->subDays(max(1, $days));
 
-        $rows = FacePhotoUpload::query()
+        $settled = FacePhotoUpload::query()
             ->where('status', '!=', FacePhotoUpload::StatusDiproses)
             ->where(function ($query) use ($cutoff): void {
                 $query->where('finished_at', '<=', $cutoff)
                     ->orWhere(fn ($inner) => $inner->whereNull('finished_at')->where('created_at', '<=', $cutoff));
             })
+            ->pluck('id');
+
+        $abandoned = FacePhotoUpload::query()
+            ->where('status', FacePhotoUpload::StatusDiproses)
+            ->where('started_at', '<=', $cutoff)
+            ->pluck('id');
+
+        $rows = FacePhotoUpload::query()
+            ->whereKey($settled->merge($abandoned)->all())
             ->get();
+
+        if ($rows->isEmpty()) {
+            return ['rows' => 0, 'files' => 0];
+        }
 
         $files = 0;
 
@@ -293,7 +380,9 @@ class FacePhotoQueueService
             'stalled' => $stalled && $finished < $total,
             'retryable' => $retryable,
             'remove_at' => $this->removalMoment($rows)?->toIso8601String(),
-            'note' => $this->batchNote($total, $finished, $saved, $failed, $waiting, $processing),
+            'replacement' => $this->replacementState($rows, $finished >= $total, $saved),
+            'note' => $this->batchNote($total, $finished, $saved, $failed, $waiting, $processing)
+                .$this->replacementNote($rows, $finished >= $total, $saved),
             'rows' => $rows
                 ->map(fn (FacePhotoUpload $row): array => $this->rowSummary($row, $expected))
                 ->values()
@@ -318,6 +407,43 @@ class FacePhotoQueueService
         }
 
         return implode(', ', $parts).'.';
+    }
+
+    /**
+     * Keadaan penggantian kumpulan foto satu kelompok unggahan.
+     *
+     * `pending` berarti masih ada fotonya yang diproses, `replaced` berarti
+     * kumpulan lama sudah dibuang dan diganti seluruh foto baru yang berhasil,
+     * `skipped` berarti tidak ada satu pun foto baru yang berhasil sehingga foto
+     * lama sengaja dipertahankan, dan `none` berarti penggantian tidak diminta.
+     *
+     * @param  Collection<int, FacePhotoUpload>  $rows
+     */
+    private function replacementState(Collection $rows, bool $finished, int $saved): string
+    {
+        if (! $rows->contains(fn (FacePhotoUpload $row): bool => $row->replace)) {
+            return 'none';
+        }
+
+        if (! $finished) {
+            return 'pending';
+        }
+
+        return $saved > 0 ? 'replaced' : 'skipped';
+    }
+
+    /**
+     * Keterangan penggantian untuk dibaca admin di panel kemajuan.
+     *
+     * @param  Collection<int, FacePhotoUpload>  $rows
+     */
+    private function replacementNote(Collection $rows, bool $finished, int $saved): string
+    {
+        return match ($this->replacementState($rows, $finished, $saved)) {
+            'replaced' => ' Foto lama anggota ini diganti dengan seluruh foto baru yang berhasil.',
+            'skipped' => ' Penggantian tidak dilakukan karena tidak ada foto baru yang berhasil, foto lama tetap dipakai.',
+            default => '',
+        };
     }
 
     /**

@@ -10,7 +10,6 @@ use App\Services\FaceEnrollmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class FaceUploadTest extends TestCase
@@ -165,44 +164,6 @@ class FaceUploadTest extends TestCase
         $this->assertStringContainsString('Layanan wajah di server belum aktif', (string) $row->message);
         $this->assertTrue($row->canRetry(), 'Foto yang gagal karena layanan mati harus bisa diulang.');
         $this->assertTrue(Storage::disk('local')->exists($row->path));
-    }
-
-    public function test_impor_berkas_menolak_nomor_induk_yang_tidak_dikenal(): void
-    {
-        $admin = $this->admin();
-        $this->fakeFaceService();
-
-        $this->actingAs($admin)
-            ->postJson(route('face.photos.upload'), ['photo' => $this->photo(), 'folder' => '9999999'])
-            ->assertOk()
-            ->assertJson([
-                'queued' => false,
-                'message' => 'Tidak ada anggota bernomor induk 9999999.',
-            ]);
-    }
-
-    public function test_impor_berkas_memakai_nama_folder_sebagai_nomor_induk(): void
-    {
-        $admin = $this->admin();
-        $member = $this->makeUser(User::RoleMurid, ['identifier_number' => '2005221']);
-        $this->fakeFaceService();
-        $batch = (string) Str::uuid();
-
-        $this->actingAs($admin)
-            ->postJson(route('face.photos.upload'), [
-                'photo' => $this->photo(),
-                'folder' => '2005221',
-                'batch_id' => $batch,
-            ])
-            ->assertOk()
-            ->assertJson(['queued' => true, 'total' => 1]);
-
-        $this->assertSame(1, $member->faceEmbeddings()->count());
-
-        $row = FacePhotoUpload::query()->firstOrFail();
-
-        $this->assertSame($batch, $row->batch_id);
-        $this->assertSame(FacePhotoUpload::StatusBerhasil, $row->status);
     }
 
     public function test_batas_dua_puluh_foto_membuang_yang_paling_lama(): void
@@ -481,16 +442,14 @@ class FaceUploadTest extends TestCase
 
         $region = substr($html, (int) $start);
 
-        $this->assertStringContainsString('data-bulk-upload', $html);
-        $this->assertStringNotContainsString('data-bulk-upload', $region);
         $this->assertStringNotContainsString('name="photos[]"', $region);
     }
 
     /**
-     * Tiga cara menambah foto wajah terbuka sesuai pilihan admin, bukan
-     * berjajar penuh sejak halaman dibuka.
+     * Panel alat terbuka sesuai pilihan admin, bukan terurai penuh sejak
+     * halaman dibuka.
      */
-    public function test_tiga_panel_alat_tampil_tertutup(): void
+    public function test_panel_alat_tampil_tertutup(): void
     {
         $admin = $this->admin();
 
@@ -499,7 +458,7 @@ class FaceUploadTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        foreach (['tool-unggah', 'tool-folder', 'tool-satu'] as $record) {
+        foreach (['tool-unggah'] as $record) {
             $tag = $this->panelTag($html, $record);
 
             $this->assertNotSame('', $tag, 'Panel '.$record.' tidak ditemukan.');

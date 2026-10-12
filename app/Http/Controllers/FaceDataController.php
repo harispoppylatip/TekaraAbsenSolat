@@ -47,6 +47,23 @@ class FaceDataController extends Controller
                 ->orderBy('name')
                 ->get(),
             'candidates' => User::query()->orderBy('name')->get(['id', 'name', 'identifier_number', 'role']),
+            // Daftar yang boleh ditugaskan memegang kamera, beserta kolom
+            // penanda tugasnya. Kolom `can_scan_face` WAJIB ikut dipilih: keadaan
+            // tugas di halaman ini dibaca dari kolom yang sama dengan yang
+            // dipakai penjaga hak akses, sehingga tabel dan hak aksesnya tidak
+            // pernah berbeda cerita.
+            //
+            // Akun yang sudah benar benar bertugas ikut ditampilkan walau
+            // perannya murid, sebab penugasan juga bisa diberikan dari halaman
+            // Anggota. Tanpa itu akan ada akun yang bisa membuka kamera absen
+            // tetapi tidak muncul di sini, sehingga tugasnya tidak bisa dicabut
+            // dan keadaannya tidak pernah terbaca admin.
+            'assignable' => User::query()
+                ->where(fn ($query) => $query
+                    ->where('role', '!=', User::RoleMurid)
+                    ->orWhere('can_scan_face', true))
+                ->orderBy('name')
+                ->get(['id', 'name', 'identifier_number', 'role', 'can_scan_face']),
             'maxSubmit' => (int) config('face.max_photos_per_submit', 10),
             'batches' => $queue->batches(),
             'expectedSeconds' => (int) config('face.expected_seconds', 15),
@@ -143,54 +160,6 @@ class FaceDataController extends Controller
         }
 
         return back()->with('status', $retried.' foto dimasukkan kembali ke antrean pemrosesan.');
-    }
-
-    /**
-     * Impor satu berkas, dipakai pengunggah berkala dari peramban.
-     */
-    public function upload(Request $request, FacePhotoQueueService $queue): JsonResponse
-    {
-        $data = $request->validate([
-            'photo' => ['required', 'image', 'max:5120'],
-            'folder' => ['nullable', 'string', 'max:60'],
-            'identifier_number' => ['nullable', 'string', 'max:40'],
-            'batch_id' => ['nullable', 'uuid'],
-        ], [
-            'photo.required' => 'Berkas foto tidak diterima.',
-            'photo.image' => 'Berkas yang dikirim bukan gambar.',
-        ]);
-
-        $identifier = trim((string) ($data['folder'] ?? ''));
-
-        if ($identifier === '') {
-            $identifier = trim((string) ($data['identifier_number'] ?? ''));
-        }
-
-        $member = User::query()->where('identifier_number', $identifier)->first();
-
-        if ($member === null) {
-            return response()->json([
-                'queued' => false,
-                'message' => $identifier === ''
-                    ? 'Nomor induk tidak terbaca. Nama folder harus sama dengan nomor induk anggota.'
-                    : 'Tidak ada anggota bernomor induk '.$identifier.'.',
-            ]);
-        }
-
-        $queue->enqueueOne(
-            $member,
-            $request->file('photo'),
-            $data['batch_id'] ?? null,
-            $request->user(),
-            'Impor folder',
-        );
-
-        return response()->json([
-            'queued' => true,
-            'message' => $member->name.': foto diunggah dan masuk antrean pemrosesan.',
-            'member' => ['id' => $member->id, 'name' => $member->name],
-            'total' => $member->faceEmbeddings()->count(),
-        ]);
     }
 
     public function destroyPhoto(FaceEmbedding $faceEmbedding): RedirectResponse

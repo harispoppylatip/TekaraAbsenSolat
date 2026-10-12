@@ -71,7 +71,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/wajah/proses', [FaceDataController::class, 'progress'])->name('face.progress');
         Route::post('/wajah/proses/{batch}/ulang', [FaceDataController::class, 'retry'])->name('face.queue.retry');
         Route::post('/wajah/unggah', [FaceDataController::class, 'store'])->name('face.photos.store');
-        Route::post('/wajah/unggah-berkas', [FaceDataController::class, 'upload'])->name('face.photos.upload');
         Route::delete('/wajah/foto/{faceEmbedding}', [FaceDataController::class, 'destroyPhoto'])->name('face.photos.destroy');
         Route::delete('/wajah/anggota/{member}', [FaceDataController::class, 'destroyMember'])->name('face.member.destroy');
         Route::put('/wajah/petugas/{member}', [FaceDataController::class, 'updateOperator'])->name('face.operator.update');
