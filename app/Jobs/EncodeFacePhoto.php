@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /**
- * Ubah satu foto wajah menjadi 128 angka wajah di luar permintaan web.
+ * Ubah satu foto wajah menjadi 512 angka wajah di luar permintaan web.
  *
  * Satu foto memakan waktu belasan detik di mesin tanpa kartu grafis, jadi
  * pekerjaan ini tidak boleh menahan halaman admin. Halaman Wajah hanya

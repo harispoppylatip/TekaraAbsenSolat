@@ -18,24 +18,30 @@ use Tests\TestCase;
  * Siapa yang boleh dicatat sebagai hadir dan siapa yang harus ditolak.
  *
  * Angka wajah di berkas ini dibuat sendiri, bukan dari foto sungguhan: seluruh
- * 128 angka diisi satu nilai yang sama sehingga jaraknya bisa ditentukan persis.
+ * 512 angka diisi satu nilai yang sama sehingga jaraknya bisa ditentukan persis.
  * Cara ini menguji ATURAN KEPUTUSANNYA, bukan ketajaman mesin wajah. Seberapa
  * akurat mesin wajah di sekolah hanya bisa diketahui dengan foto sungguhan yang
  * diukur terpisah, dan itu tidak dibuktikan oleh berkas ini.
  *
- * Ambang bawaan yang dipakai pengujian: penerimaan 0,5; anggota berfoto tunggal
- * 0,45; selisih minimal juara pertama dan kedua 0,06.
+ * Ambang bawaan yang dipakai pengujian: penerimaan 1,15; anggota berfoto
+ * tunggal 1,04; selisih minimal juara pertama dan kedua 0,14. Seluruh jarak di
+ * berkas ini memakai skala model InsightFace, tempat pengukuran atas 34 foto
+ * milik 5 orang menaruh orang berbeda pada jarak 1,1650 sampai 1,5032 dan orang
+ * sama pada jarak di bawah 1,1427.
  */
 class FaceMatchingTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * Jarak yang terukur di mesin sekolah antara dua orang yang berbeda wajahnya
-     * (foto Haris berbanding foto anggota lain). Dengan ambang lama 0,6 orang
-     * lain itu tercatat sebagai anggota yang paling dekat.
+     * Jarak yang terukur antara dua orang yang berbeda wajahnya pada model
+     * InsightFace. Pengukuran atas 34 foto milik 5 orang menghasilkan jarak
+     * orang berbeda 1,1650 sampai 1,5032, jadi angka ini berada di tengahnya
+     * dan tetap di bawah ambang penerimaan 1,15 milik anggota berfoto banyak.
+     * Pada model dlib sebelumnya, orang lain hanya berjarak 0,575 dengan ambang
+     * 0,5, dan itulah sebabnya orang lain pernah tercatat sebagai anggota.
      */
-    private const JarakOrangLain = 0.575;
+    private const JarakOrangLain = 1.3225;
 
     private function matcher(): FaceMatcherService
     {
@@ -106,13 +112,13 @@ class FaceMatchingTest extends TestCase
     public function test_anggota_dengan_beberapa_foto_diterima_saat_semua_fotonya_dekat(): void
     {
         $member = $this->makeUser(User::RoleMurid);
-        $this->attach($member, [0.30, 0.40]);
+        $this->attach($member, [0.69, 0.92]);
 
         $match = $this->matcher()->match($this->probe());
 
         $this->assertSame(FaceMatcherService::StatusMatched, $match['status']);
         $this->assertSame($member->id, $match['user']?->id);
-        $this->assertEqualsWithDelta(0.35, $match['distance'], 0.001);
+        $this->assertEqualsWithDelta(0.805, $match['distance'], 0.001);
         $this->assertSame(2, $match['photos']);
     }
 
@@ -121,21 +127,21 @@ class FaceMatchingTest extends TestCase
         $member = $this->makeUser(User::RoleMurid);
 
         // Satu foto dekat, satu foto jauh. Kalau yang dipakai hanya jarak
-        // terdekat, anggota ini lolos dengan 0,30.
-        $this->attach($member, [0.30, 0.95]);
+        // terdekat, anggota ini lolos dengan 0,69.
+        $this->attach($member, [0.69, 2.185]);
 
         $match = $this->matcher()->match($this->probe());
 
         $this->assertSame(FaceMatcherService::StatusUnknown, $match['status']);
         $this->assertSame(FaceMatcherService::ReasonAboveTolerance, $match['reason']);
         $this->assertNull($match['user']);
-        $this->assertEqualsWithDelta(0.30, $match['closest'], 0.001);
+        $this->assertEqualsWithDelta(0.69, $match['closest'], 0.001);
     }
 
     public function test_anggota_berfoto_tunggal_harus_sangat_dekat(): void
     {
         $member = $this->makeUser(User::RoleMurid);
-        $this->attach($member, [0.47]);
+        $this->attach($member, [1.081]);
 
         $sempit = $this->matcher()->match($this->probe());
 
@@ -146,7 +152,7 @@ class FaceMatchingTest extends TestCase
     public function test_anggota_berfoto_tunggal_diterima_bila_jaraknya_dekat(): void
     {
         $member = $this->makeUser(User::RoleMurid);
-        $this->attach($member, [0.40]);
+        $this->attach($member, [0.92]);
 
         $match = $this->matcher()->match($this->probe());
 
@@ -156,8 +162,8 @@ class FaceMatchingTest extends TestCase
 
     public function test_dua_anggota_yang_sama_sama_dekat_dilaporkan_ambigu(): void
     {
-        $this->attach($this->makeUser(User::RoleMurid), [0.30, 0.30]);
-        $this->attach($this->makeUser(User::RoleMurid), [0.32, 0.32]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.69, 0.69]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.736, 0.736]);
 
         $match = $this->matcher()->match($this->probe());
 
@@ -165,27 +171,30 @@ class FaceMatchingTest extends TestCase
         $this->assertSame(FaceMatcherService::ReasonTooCloseToAnother, $match['reason']);
         $this->assertNull($match['user']);
         $this->assertNotNull($match['runner_up']);
-        $this->assertEqualsWithDelta(0.02, $match['margin'], 0.001);
+        $this->assertEqualsWithDelta(0.046, $match['margin'], 0.001);
     }
 
     public function test_anggota_kedua_yang_jauh_tidak_membuat_hasil_ambigu(): void
     {
         $dekat = $this->makeUser(User::RoleMurid);
-        $this->attach($dekat, [0.30, 0.30]);
-        $this->attach($this->makeUser(User::RoleMurid), [0.80, 0.80]);
+        $this->attach($dekat, [0.69, 0.69]);
+        $this->attach($this->makeUser(User::RoleMurid), [1.84, 1.84]);
 
         $match = $this->matcher()->match($this->probe());
 
         $this->assertSame(FaceMatcherService::StatusMatched, $match['status']);
         $this->assertSame($dekat->id, $match['user']?->id);
-        $this->assertEqualsWithDelta(0.50, $match['margin'], 0.001);
+        $this->assertEqualsWithDelta(1.15, $match['margin'], 0.001);
     }
 
     public function test_angka_wajah_yang_dimensinya_salah_ditolak(): void
     {
-        $this->attach($this->makeUser(User::RoleMurid), [0.10, 0.10]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.23, 0.23]);
 
-        $match = $this->matcher()->match(array_fill(0, 100, 0.0));
+        // Angka 128 ini adalah panjang angka model dlib yang dipakai sebelum
+        // pindah ke InsightFace. Setelah pindah, angka seperti ini wajib ditolak
+        // supaya sidik wajah lama tidak dibandingkan dengan yang baru.
+        $match = $this->matcher()->match(array_fill(0, 128, 0.0));
 
         $this->assertSame(FaceMatcherService::StatusInvalid, $match['status']);
         $this->assertSame(FaceMatcherService::ReasonWrongDimensions, $match['reason']);
@@ -202,9 +211,9 @@ class FaceMatchingTest extends TestCase
     public function test_baris_yang_rusak_dan_bermodel_lain_dilewati(): void
     {
         $member = $this->makeUser(User::RoleMurid);
-        $this->attach($member, [0.20, 0.20]);
+        $this->attach($member, [0.46, 0.46]);
 
-        // Angka wajah yang jumlahnya bukan 128 dan angka wajah dari model lain
+        // Angka wajah yang jumlahnya bukan 512 dan angka wajah dari model lain
         // tidak boleh ikut dihitung, sebab keduanya tidak setara.
         FaceEmbedding::create([
             'user_id' => $member->getKey(),
@@ -228,7 +237,7 @@ class FaceMatchingTest extends TestCase
         config(['face.enforce_model' => false]);
 
         $lain = $this->makeUser(User::RoleMurid);
-        $this->attach($lain, [0.10, 0.10], model: 'mesin-lama');
+        $this->attach($lain, [0.23, 0.23], model: 'mesin-lama');
 
         $match = $this->matcher()->match($this->probe());
 
@@ -239,12 +248,12 @@ class FaceMatchingTest extends TestCase
     public function test_bentuk_lama_pencarian_anggota_masih_bekerja(): void
     {
         $member = $this->makeUser(User::RoleMurid);
-        $this->attach($member, [0.20, 0.20]);
+        $this->attach($member, [0.46, 0.46]);
 
         $lama = $this->matcher()->identify($this->probe());
 
         $this->assertSame($member->id, $lama['user']->id);
-        $this->assertEqualsWithDelta(0.20, $lama['distance'], 0.001);
+        $this->assertEqualsWithDelta(0.46, $lama['distance'], 0.001);
 
         $this->assertNull($this->matcher()->identify(array_fill(0, FaceEmbedding::Dimensions, 9.0)));
     }
@@ -252,14 +261,14 @@ class FaceMatchingTest extends TestCase
     public function test_foto_yang_menyimpang_dari_foto_lain_ditandai(): void
     {
         $member = $this->makeUser(User::RoleMurid);
-        $this->attach($member, [0.0, 0.0, 0.9]);
+        $this->attach($member, [0.0, 0.0, 2.07]);
 
         $member->load('faceEmbeddings');
 
         $jarak = $this->matcher()->siblingDistances($member->faceEmbeddings);
 
         $this->assertCount(3, $jarak);
-        $this->assertEqualsWithDelta(0.90, max($jarak), 0.001);
+        $this->assertEqualsWithDelta(2.07, max($jarak), 0.001);
         $this->assertSame(1, count(array_filter($jarak, fn (float $nilai): bool => $nilai > $this->matcher()->tolerance())));
     }
 
@@ -274,7 +283,7 @@ class FaceMatchingTest extends TestCase
         $this->seedPrayerTimes();
 
         $haris = $this->makeUser(User::RoleMurid, ['name' => 'Haris']);
-        $this->attach($haris, [self::JarakOrangLain, self::JarakOrangLain + 0.01]);
+        $this->attach($haris, [self::JarakOrangLain, self::JarakOrangLain + 0.023]);
 
         $this->openZuhur();
 
@@ -295,7 +304,7 @@ class FaceMatchingTest extends TestCase
         $this->seedPrayerTimes();
 
         $haris = $this->makeUser(User::RoleMurid, ['name' => 'Haris']);
-        $this->attach($haris, [0.40, 0.42]);
+        $this->attach($haris, [0.92, 0.966]);
 
         $this->openZuhur();
         $this->fakeFaceService($this->probe());
@@ -308,15 +317,15 @@ class FaceMatchingTest extends TestCase
         $log = SolatAttendanceLog::query()->firstOrFail();
 
         $this->assertSame($haris->id, $log->user_id);
-        $this->assertEqualsWithDelta(0.41, $log->match_distance, 0.001);
+        $this->assertEqualsWithDelta(0.943, $log->match_distance, 0.001);
     }
 
     public function test_absen_tidak_tersimpan_saat_hasil_pencocokan_ambigu(): void
     {
         $this->seedPrayerTimes();
 
-        $this->attach($this->makeUser(User::RoleMurid), [0.30, 0.30]);
-        $this->attach($this->makeUser(User::RoleMurid), [0.31, 0.31]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.69, 0.69]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.713, 0.713]);
 
         $this->openZuhur();
         $this->fakeFaceService($this->probe());
@@ -334,7 +343,7 @@ class FaceMatchingTest extends TestCase
         $this->seedPrayerTimes();
 
         $member = $this->makeUser(User::RoleMurid);
-        $this->attach($member, [0.05, 0.05], model: 'mesin-lama');
+        $this->attach($member, [0.115, 0.115], model: 'mesin-lama');
 
         $this->openZuhur();
         $this->fakeFaceService($this->probe());
@@ -350,7 +359,7 @@ class FaceMatchingTest extends TestCase
     {
         $this->seedPrayerTimes();
 
-        $this->attach($this->makeUser(User::RoleMurid), [0.10, 0.10]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.23, 0.23]);
         $this->openZuhur();
 
         $this->fakeFaceService(status: FaceEncodingService::StatusMultipleFaces, faceCount: 2);
@@ -367,7 +376,7 @@ class FaceMatchingTest extends TestCase
     {
         $this->seedPrayerTimes();
 
-        $this->attach($this->makeUser(User::RoleMurid), [0.10, 0.10]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.23, 0.23]);
         $this->openZuhur();
 
         $this->fakeFaceService(status: FaceEncodingService::StatusFaceTooSmall, faceSize: 24);
@@ -384,8 +393,8 @@ class FaceMatchingTest extends TestCase
     {
         $this->seedPrayerTimes();
 
-        $this->attach($this->makeUser(User::RoleMurid), [0.30, 0.30]);
-        $this->attach($this->makeUser(User::RoleMurid), [0.31, 0.31]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.69, 0.69]);
+        $this->attach($this->makeUser(User::RoleMurid), [0.713, 0.713]);
 
         $this->openZuhur();
         $this->fakeFaceService($this->probe());

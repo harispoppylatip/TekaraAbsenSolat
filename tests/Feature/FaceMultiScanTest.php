@@ -204,11 +204,12 @@ class FaceMultiScanTest extends TestCase
         $satu = $this->memberOn(0, 'Haris');
         $dua = $this->memberOn(1, 'Siswa B');
 
-        // Wajah ketiga berada jauh dari seluruh angka wajah yang tersimpan.
+        // Wajah ketiga berada jauh dari seluruh angka wajah yang tersimpan:
+        // jaraknya 1,4142 sedangkan ambang penerimaannya 1,15.
         $this->fakeFaceService(faces: [
             $this->face($this->spot(0), 40),
             $this->face($this->spot(1), 300),
-            $this->face($this->spot(9, 0.9), 560),
+            $this->face($this->spot(9, 1.4), 560),
         ]);
 
         $balasan = $this->scanAs($this->petugas())->assertOk();
@@ -234,8 +235,8 @@ class FaceMultiScanTest extends TestCase
         $this->memberOn(0, 'Haris');
 
         $this->fakeFaceService(faces: [
-            $this->face($this->spot(9, 0.9), 40),
-            $this->face($this->spot(10, 0.9), 300),
+            $this->face($this->spot(9, 1.4), 40),
+            $this->face($this->spot(10, 1.4), 300),
         ]);
 
         $this->scanAs($this->petugas())
@@ -508,7 +509,7 @@ class FaceMultiScanTest extends TestCase
         $this->openZuhur();
         $this->memberOn(0, 'Haris');
 
-        $this->fakeFaceService(faces: [$this->face($this->spot(9, 0.9), 40)], photo: "\xFF\xD8\xFF\xE0bukti");
+        $this->fakeFaceService(faces: [$this->face($this->spot(9, 1.4), 40)], photo: "\xFF\xD8\xFF\xE0bukti");
 
         $this->scanAs($this->petugas())->assertOk()->assertJson(['ok' => false]);
 

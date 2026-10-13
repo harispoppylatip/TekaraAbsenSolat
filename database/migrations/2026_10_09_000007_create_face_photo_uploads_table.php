@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
  * Halaman Wajah tidak lagi menahan admin menunggu mesin wajah. Fotonya
  * dititipkan di server, pekerjaan pengubahan angka masuk antrean, dan baris di
  * tabel ini yang mencatat kemajuannya. Berkas foto dihapus begitu selesai,
- * sehingga yang tersimpan selamanya tetap hanya 128 angka wajah.
+ * sehingga yang tersimpan selamanya tetap hanya 512 angka wajah.
  */
 return new class extends Migration
 {

@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 /**
  * Pencocokan wajah di sisi aplikasi.
  *
- * Angka pembanding dari layanan wajah (128 bilangan) dicocokkan dengan seluruh
+ * Angka pembanding dari layanan wajah (512 bilangan) dicocokkan dengan seluruh
  * sidik wajah yang tersimpan. Cara ini disebut pencocokan 1:N: dari satu wajah
  * di depan kamera, dicari siapa di antara semua anggota yang paling mendekati.
  *

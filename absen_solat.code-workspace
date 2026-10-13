@@ -1,11 +1,12 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../../face absen"
-		}
-	],
-	"settings": {}
+    "folders": [
+        {
+            "path": ".",
+        },
+        {
+            "name": "mesin wajah (InsightFace)",
+            "path": "../../IoT/instighface/absen-solat",
+        },
+    ],
+    "settings": {},
 }

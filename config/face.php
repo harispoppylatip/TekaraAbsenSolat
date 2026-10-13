@@ -19,21 +19,34 @@ return [
     | Ambang penerimaan identitas
     |--------------------------------------------------------------------------
     |
-    | Semakin kecil angkanya, semakin ketat pencocokan. Nilai bawaan 0,5 dipilih
-    | dari pengukuran di mesin sekolah: wajah orang yang berbeda berada pada
-    | jarak 0,53 sampai 0,71, sedangkan wajah orang yang sama pada potret yang
-    | layak berada di bawah 0,5. Angka lama 0,6 terbukti meloloskan orang lain
-    | menjadi anggota yang sudah terdaftar.
+    | Angka ini adalah JARAK, bukan kemiripan: semakin kecil, semakin mirip.
+    | Layanan wajah InsightFace menormalkan angkanya lebih dulu, sehingga jarak
+    | euclid di sini setara dengan cosine similarity.
     |
-    | Nilai ini wajib diukur ulang dengan foto sungguhan di sekolah sebelum
-    | dipakai untuk kehadiran yang dihitung. Mengubah angkanya membuat
-    | keputusan lama tidak bisa dibandingkan lagi dengan yang baru.
+    | Nilai 1,15 dipilih dari pengukuran tiga himpunan foto sungguhan di mesin
+    | pengembang (5 orang, 34 foto). Pada ketiga pengukuran itu, celah aman
+    | berada di antara 1,1427 dan 1,1650, jadi 1,15 berada di dalam celah
+    | ketiganya sekaligus:
+    |
+    |   wajah orang yang sama    : jarak 0,4519 sampai 1,1427
+    |   wajah orang yang berbeda : jarak 1,1650 sampai 1,5032
+    |   pada ambang 1,11 (17 foto): orang lain lolos 0 dari 112,
+    |                              orang sama ditolak 0 dari 24
+    |
+    | Sebagai pembanding, model dlib sebelum ini memakai jarak dengan ambang
+    | 0,5. Angka lama itu TIDAK berlaku di sini karena skalanya berbeda.
+    |
+    | Lima orang masih sampel kecil. Wajib diukur ulang dengan foto sungguhan
+    | di sekolah sebelum dipakai untuk kehadiran yang dihitung: kumpulkan 10
+    | sampai 20 foto per orang, lalu jalankan `python verifikasi.py --jarak 1.15`
+    | di folder layanan wajah. Mengubah angkanya membuat keputusan lama tidak
+    | bisa dibandingkan lagi dengan yang baru.
     |
     | Setiap kunci di bawah ini juga bisa diatur lewat berkas .env.
     |
     */
 
-    'tolerance' => (float) env('FACE_TOLERANCE', 0.5),
+    'tolerance' => (float) env('FACE_TOLERANCE', 1.15),
 
     /*
     |--------------------------------------------------------------------------
@@ -62,7 +75,7 @@ return [
     |
     */
 
-    'single_photo_tolerance' => (float) env('FACE_SINGLE_PHOTO_TOLERANCE', 0.45),
+    'single_photo_tolerance' => (float) env('FACE_SINGLE_PHOTO_TOLERANCE', 1.04),
 
     /*
     |--------------------------------------------------------------------------
@@ -74,7 +87,7 @@ return [
     |
     */
 
-    'min_margin' => (float) env('FACE_MIN_MARGIN', 0.06),
+    'min_margin' => (float) env('FACE_MIN_MARGIN', 0.14),
 
     /*
     |--------------------------------------------------------------------------
@@ -94,9 +107,19 @@ return [
     |--------------------------------------------------------------------------
     | Model yang dipakai
     |--------------------------------------------------------------------------
+    |
+    | Nilai ini WAJIB sama dengan FACE_MODEL_NAME di layanan wajah Python.
+    | Nama yang dilaporkan mesin InsightFace adalah "insightface-" diikuti nama
+    | modelnya, contoh insightface-buffalo_sc untuk model ringan dan
+    | insightface-buffalo_l untuk model berat.
+    |
+    | Angka sidik wajah juga wajib sama panjangnya. Panjangnya diatur oleh
+    | FaceEmbedding::Dimensions dan tidak bisa diatur lewat berkas ini, supaya
+    | hanya ada satu sumber kebenaran.
+    |
     */
 
-    'model' => env('FACE_MODEL', 'dlib-resnet-v1'),
+    'model' => env('FACE_MODEL', 'insightface-buffalo_sc'),
 
     /*
     |--------------------------------------------------------------------------
@@ -116,11 +139,15 @@ return [
     | Batas waktu tunggu (detik)
     |--------------------------------------------------------------------------
     |
-    | Satu foto bisa memakan 12 sampai 15 detik pada mesin tanpa GPU.
+    | Model InsightFace buffalo_sc jauh lebih cepat daripada model dlib
+    | sebelumnya: satu foto sampai terkirim balik terukur 44 milidetik di mesin
+    | tanpa kartu grafis, sedangkan dlib memerlukan 12 sampai 15 detik. Batas 30
+    | detik tetap disediakan supaya server sekolah yang jauh lebih lemah atau
+    | pemuatan model pertama tidak langsung gagal.
     |
     */
 
-    'timeout' => (int) env('FACE_SERVICE_TIMEOUT', 90),
+    'timeout' => (int) env('FACE_SERVICE_TIMEOUT', 30),
 
     /*
     |--------------------------------------------------------------------------
@@ -128,14 +155,14 @@ return [
     |--------------------------------------------------------------------------
     |
     | Dipakai hanya untuk menghitung kemajuan di panel Proses pendaftaran wajah.
-    | Mesin tanpa GPU memerlukan sekitar 15 detik untuk satu foto; mesin dengan
-    | GPU jauh lebih cepat, jadi angkanya bisa diturunkan lewat
-    | FACE_EXPECTED_SECONDS di berkas .env supaya persennya tidak terlalu cepat
-    | menyentuh batas atas.
+    | Model InsightFace buffalo_sc memerlukan sekitar 44 milidetik per foto di
+    | mesin pengembang, jadi dua detik sudah memberi ruang yang longgar untuk
+    | server yang lebih lemah. Bila kemajuannya terlihat terlalu cepat atau
+    | terlalu lambat, sesuaikan lewat FACE_EXPECTED_SECONDS di berkas .env.
     |
     */
 
-    'expected_seconds' => (int) env('FACE_EXPECTED_SECONDS', 15),
+    'expected_seconds' => (int) env('FACE_EXPECTED_SECONDS', 2),
 
     /*
     |--------------------------------------------------------------------------

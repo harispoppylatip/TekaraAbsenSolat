@@ -142,16 +142,20 @@ Kunci berikut juga ditulis tanpa akhiran `_DOCKER` dan dipakai bersama oleh
 `php artisan serve` serta layanan `app` dan `queue`. Alasan setiap angkanya
 dijelaskan di `README.md` pada bagian Cara identitas diputuskan.
 
-| Kunci                         | Arti                                                                | Bawaan           |
-| ----------------------------- | ------------------------------------------------------------------- | ---------------- |
-| `FACE_TOLERANCE`              | Jarak terjauh yang masih diterima sebagai anggota yang sama         | `0.5`            |
-| `FACE_AGGREGATE_PHOTOS`       | Berapa jarak foto terdekat yang dirata-ratakan saat menilai anggota | `2`              |
-| `FACE_SINGLE_PHOTO_TOLERANCE` | Batas lebih ketat bagi anggota yang fotonya kurang dari `2`         | `0.45`           |
-| `FACE_MIN_MARGIN`             | Selisih minimal juara pertama dan kedua sebelum hasilnya ambigu     | `0.06`           |
-| `FACE_MIN_FACE_SIZE`          | Sisi wajah paling kecil dalam piksel, `0` mematikan pemeriksaannya  | `80`             |
-| `FACE_ENFORCE_MODEL`          | Lewati angka wajah yang dihitung oleh model lain                    | `true`           |
-| `FACE_MODEL`                  | Nama model wajah yang dipakai dan dicatat pada setiap angka         | `dlib-resnet-v1` |
-| `FACE_SERVICE_TIMEOUT`        | Batas tunggu satu foto ke mesin wajah, dalam detik                  | `90`             |
+| Kunci                         | Arti                                                                | Bawaan                   |
+| ----------------------------- | ------------------------------------------------------------------- | ------------------------ |
+| `FACE_TOLERANCE`              | Jarak terjauh yang masih diterima sebagai anggota yang sama         | `1.15`                   |
+| `FACE_AGGREGATE_PHOTOS`       | Berapa jarak foto terdekat yang dirata-ratakan saat menilai anggota | `2`                      |
+| `FACE_SINGLE_PHOTO_TOLERANCE` | Batas lebih ketat bagi anggota yang fotonya kurang dari `2`         | `1.04`                   |
+| `FACE_MIN_MARGIN`             | Selisih minimal juara pertama dan kedua sebelum hasilnya ambigu     | `0.14`                   |
+| `FACE_MIN_FACE_SIZE`          | Sisi wajah paling kecil dalam piksel, `0` mematikan pemeriksaannya  | `80`                     |
+| `FACE_ENFORCE_MODEL`          | Lewati angka wajah yang dihitung oleh model lain                    | `true`                   |
+| `FACE_MODEL`                  | Nama model wajah yang dipakai dan dicatat pada setiap angka         | `insightface-buffalo_sc` |
+| `FACE_SERVICE_TIMEOUT`        | Batas tunggu satu foto ke mesin wajah, dalam detik                  | `30`                     |
+
+Angka ambang di atas memakai skala jarak model InsightFace yang sekarang
+`buffalo_sc`. Model dlib sebelumnya memakai skala berbeda dengan ambang `0.5`,
+jadi angka lama tidak bisa dipakai apa adanya.
 
 Mesin wajah yang dipasang wajib mendukung `POST /detect`, karena halaman Absen
 Wajah mengirim satu bingkai kamera ke sana dan mengharapkan daftar wajah
@@ -162,7 +166,7 @@ aplikasi, jadi mesin lama pun tetap menolak foto yang memuat lebih dari satu
 orang.
 
 Batas pekerjaan pada satu bingkai diatur di sisi mesin wajah, bukan di berkas
-ini: `FACE_DETECT_MAX_SIDE` (bawaan `1024`) dan `FACE_MAX_FACES` (bawaan `8`)
+ini: `FACE_DETECT_LONG_SIDE` (bawaan `640`) dan `FACE_MAX_FACES` (bawaan `8`)
 ditulis di `.env` folder mesin wajah dan diteruskan oleh compose di sana.
 
 ### Mengganti port

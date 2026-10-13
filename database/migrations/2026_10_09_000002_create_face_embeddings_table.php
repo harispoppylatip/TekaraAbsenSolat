@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Menyimpan sidik wajah anggota berupa 128 angka hasil pengenalan.
+     * Menyimpan sidik wajah anggota berupa 512 angka hasil pengenalan.
      * Foto aslinya tidak pernah disimpan.
      */
     public function up(): void
@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('label')->nullable();
-            $table->string('model')->default('dlib-resnet-v1');
+            $table->string('model')->default('insightface-buffalo_sc');
             $table->json('embedding');
             $table->timestamps();
 

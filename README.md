@@ -385,22 +385,43 @@ jalan walaupun layanan ini mati.
 
 ```env
 FACE_SERVICE_URL=http://127.0.0.1:5005
-FACE_TOLERANCE=0.5
+FACE_MODEL=insightface-buffalo_sc
+FACE_TOLERANCE=1.15
 FACE_AGGREGATE_PHOTOS=2
-FACE_SINGLE_PHOTO_TOLERANCE=0.45
-FACE_MIN_MARGIN=0.06
+FACE_SINGLE_PHOTO_TOLERANCE=1.04
+FACE_MIN_MARGIN=0.14
 FACE_MIN_FACE_SIZE=80
 FACE_ENFORCE_MODEL=true
-FACE_SERVICE_TIMEOUT=90
-FACE_EXPECTED_SECONDS=15
+FACE_SERVICE_TIMEOUT=30
+FACE_EXPECTED_SECONDS=2
 ```
 
 Mesin wajah adalah layanan Python terpisah yang berada di repositori lain.
+Yang dipakai sekarang adalah **InsightFace** dengan model `buffalo_sc`, dan
+berkasnya ada di `instighface/absen-solat`. Mesin itu menggantikan dlib yang
+dipakai sebelum ini.
+
+Tiga hal yang berubah akibat penggantian itu, dan perlu diketahui operator:
+
+1. Angka wajahnya sekarang **512 angka**, bukan 128. Angka dari kedua mesin
+   tidak bisa dibandingkan sama sekali.
+2. Ambangnya sekarang memakai **skala jarak InsightFace**: penerimaan 1,15,
+   anggota berfoto tunggal 1,04, selisih minimal 0,14. Angka lama 0,5 dan 0,45
+   TIDAK berlaku lagi.
+3. `FACE_MODEL` wajib sama dengan `FACE_MODEL_NAME` di berkas `.env` layanan
+   wajah. Bila berbeda, aplikasi menolak seluruh angka wajah yang masuk supaya
+   tidak ada pencocokan yang memakai angka tidak setara.
+
 Setelah layanannya hidup, periksa sambungannya:
 
 ```sh
 curl http://127.0.0.1:5005/health
 ```
+
+Balasan yang sehat memuat `"model_ready": true` dan
+`"model": "insightface-buffalo_sc"`. Bila modelnya belum selesai dimuat,
+layanan membalas HTTP 503 dan aplikasi menampilkan pesan bahwa mesin wajah
+sedang tidak bisa dihubungi.
 
 Alur pemakaiannya:
 
@@ -432,7 +453,7 @@ nyaris bersamaan pun tidak bisa membuat absen ganda.
 
 Layanan wajah memakai `POST /detect` untuk keperluan ini, sedangkan perangkat
 sensor gerbang tetap memakai jalur satu wajah yang lama. Batas pekerjaan pada
-satu bingkai diatur di sisi layanan Python lewat `FACE_DETECT_MAX_SIDE` dan
+satu bingkai diatur di sisi layanan Python lewat `FACE_DETECT_LONG_SIDE` dan
 `FACE_MAX_FACES`, bukan di `.env` aplikasi ini.
 
 Kotak dan nama di atas gambar kamera hanya petunjuk bagi petugas. Yang
@@ -486,7 +507,7 @@ dicabut.
 
 ### Cara identitas diputuskan
 
-Mesin wajah mengubah wajah menjadi 128 angka, dan angka itulah yang dibandingkan.
+Mesin wajah mengubah wajah menjadi 512 angka, dan angka itulah yang dibandingkan.
 Yang paling dekat belum tentu orang yang sama, jadi keputusannya diambil berlapis:
 
 | Lapis                       | Aturannya                                                                                     |

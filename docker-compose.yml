@@ -26,12 +26,14 @@
 #                              sesinya (bawaan 1, isi 0 bila hanya hari ini)
 #
 #   FACE_SERVICE_URL           alamat mesin wajah
+#   FACE_MODEL                 nama model wajah, WAJIB sama dengan
+#                              FACE_MODEL_NAME milik mesin wajah
 #   FACE_TOLERANCE             jarak terjauh yang diterima sebagai anggota
-#                              yang sama (bawaan 0.5)
+#                              yang sama (bawaan 1.15 pada model InsightFace)
 #   FACE_AGGREGATE_PHOTOS      berapa jarak foto terdekat yang dirata-ratakan
 #                              saat menilai anggota (bawaan 2)
 #   FACE_SINGLE_PHOTO_TOLERANCE batas lebih ketat bagi anggota yang fotonya
-#                              kurang dari jumlah di atas (bawaan 0.45)
+#                              kurang dari jumlah di atas (bawaan 1.04)
 #   FACE_MIN_MARGIN            selisih minimal juara pertama dan kedua, di
 #                              bawah angka ini hasilnya dinyatakan ambigu
 #   FACE_MIN_FACE_SIZE         sisi wajah paling kecil dalam piksel yang boleh
@@ -194,8 +196,9 @@ services:
     # Pekerja antrean
     #
     # Mengubah foto wajah menjadi angka dikerjakan di sini, bukan di permintaan
-    # web, karena satu foto memerlukan belasan detik. Tanpa layanan ini kartu
-    # kemajuan unggahan akan berhenti di tengah jalan.
+    # web, supaya unggahan beberapa foto tidak menahan permintaan pengguna.
+    # Model InsightFace memerlukan sekitar 0,04 detik per foto, jadi layanan ini
+    # lebih sering menganggur daripada bekerja.
     # -------------------------------------------------------------------------
     queue:
         <<: *app-wadah
@@ -263,7 +266,7 @@ networks:
     absen:
         name: absen-solat
 
-    # Jaringan bersama dengan mesin wajah Python di folder "face absen".
+    # Jaringan bersama dengan mesin wajah Python (folder instighface/absen-solat).
     # Mesin wajah masuk ke sini dengan alias "wajah", jadi alamatnya dari dalam
     # wadah cukup http://wajah:5005 dan portnya tidak perlu dibuka ke komputer
     # induk sama sekali.

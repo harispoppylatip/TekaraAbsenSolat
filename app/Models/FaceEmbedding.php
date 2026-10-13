@@ -12,13 +12,28 @@ class FaceEmbedding extends Model
 {
     /**
      * Jumlah angka pada satu sidik wajah.
+     *
+     * Nilai ini WAJIB sama dengan FACE_DIMENSIONS di layanan wajah Python
+     * (folder instighface/absen-solat). Model InsightFace ArcFace menghasilkan
+     * 512 angka; model dlib sebelumnya menghasilkan 128 angka.
+     *
+     * Angka dari kedua model TIDAK bisa dibandingkan sama sekali, jadi
+     * mengubah nilai ini membuat seluruh sidik wajah lama tidak terpakai dan
+     * anggota perlu mendaftar ulang wajahnya. Pemeriksaan panjang angka di
+     * FaceMatcherService akan melewati baris lama dengan sendirinya, sehingga
+     * yang terjadi adalah wajah tidak dikenali, bukan salah mengenali.
      */
-    public const Dimensions = 128;
+    public const Dimensions = 512;
 
     /**
      * Nama model wajah bawaan yang dipakai mesin pengenal.
+     *
+     * Nilai ini WAJIB sama dengan FACE_MODEL di berkas .env, sebab
+     * FaceMatcherService memakai nama ini untuk memutuskan sidik wajah mana
+     * yang boleh dibandingkan. Bila namanya berbeda, seluruh sidik wajah lama
+     * dilewati dan tidak ada anggota yang bisa dikenali.
      */
-    public const DefaultModel = 'dlib-resnet-v1';
+    public const DefaultModel = 'insightface-buffalo_sc';
 
     /**
      * @return array<string, string>
