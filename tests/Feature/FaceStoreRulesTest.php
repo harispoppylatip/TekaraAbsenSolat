@@ -95,6 +95,11 @@ class FaceStoreRulesTest extends TestCase
                 return $this->encodeContents('potret uji', $withPhoto);
             }
 
+            public function encodeForEnrollment(string $contents): array
+            {
+                return $this->encodeContents($contents);
+            }
+
             public function encodeContents(string $contents, bool $withPhoto = false): array
             {
                 $answer = $this->answers[$this->calls] ?? null;

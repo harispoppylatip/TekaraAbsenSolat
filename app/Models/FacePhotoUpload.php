@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
     'original_name',
     'path',
     'label',
+    'self_enrolled',
     'replace',
     'status',
     'result_status',
@@ -51,6 +52,7 @@ class FacePhotoUpload extends Model
     {
         return [
             'replace' => 'boolean',
+            'self_enrolled' => 'boolean',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];

@@ -28,8 +28,20 @@ class PasswordController extends Controller
             'password_changed_at' => now(),
         ])->save();
 
-        // Setelah sandi diganti, anggota langsung dibawa ke halaman utamanya
-        // supaya tidak tertinggal di halaman ganti sandi.
+        // Setelah sandi diganti, pemilik akun yang wajahnya belum terdaftar
+        // langsung diarahkan mendaftarkan wajahnya. Urutan ini disengaja: sandi
+        // bawaan harus diganti lebih dulu supaya tidak ada wajah yang
+        // didaftarkan dari akun yang masih bisa dibuka orang lain, dan pendaftaran
+        // wajah tanpa absen langsung terasa manfaatnya karena halaman berikutnya
+        // membuat pemiliknya bisa absen memakai wajah.
+        if ($user->needsEnrollment()) {
+            return redirect()
+                ->route('enrollment.show')
+                ->with('status', 'Sandi berhasil diganti. Daftarkan wajah Anda sekarang supaya bisa absen tanpa menempelkan jari.');
+        }
+
+        // Sisanya langsung dibawa ke halaman utamanya supaya tidak tertinggal di
+        // halaman ganti sandi.
         return redirect()
             ->route($user->homeRoute())
             ->with('status', 'Sandi berhasil diganti. Pakai sandi baru pada masuk berikutnya.');

@@ -18,6 +18,9 @@ class FaceDataController extends Controller
     /** Jumlah anggota per halaman pada daftar wajah terdaftar. */
     public const PerPage = 10;
 
+    /** Jumlah anggota per halaman pada daftar yang perlu mendaftar ulang. */
+    public const EnrollmentPerPage = 12;
+
     public function index(Request $request, FacePhotoQueueService $queue, FaceMatcherService $matcher): View
     {
         $term = trim((string) $request->query('q', ''));
@@ -56,6 +59,17 @@ class FaceDataController extends Controller
                 'foto' => FaceEmbedding::query()->count(),
                 'batas' => (int) config('face.max_photos_per_user', 20),
                 'perlu' => $matcher->aggregatePhotos(),
+                // Keadaan pendaftaran mandiri. Dihitung dari kolom status, bukan
+                // dari jumlah foto, supaya terlihat juga anggota yang sudah
+                // mulai mengirim tetapi belum cukup, dan yang fotonya ditolak.
+                'selesai' => User::query()->where('enrollment_status', User::EnrollmentCompleted)->count(),
+                'belum' => User::query()->whereNotIn('enrollment_status', [
+                    User::EnrollmentCompleted,
+                ])->count(),
+                'sedang' => User::query()->where('enrollment_status', User::EnrollmentProcessing)->count(),
+                'perlu_daftar_ulang' => User::query()->where('enrollment_status', User::EnrollmentNeedsReenrollment)->count(),
+                'pendaftaran_terakhir' => User::query()->whereNotNull('enrolled_at')->max('enrolled_at'),
+                'wajib_foto' => (int) config('face.enrollment.required_photos', 5),
             ],
             'operators' => User::query()
                 ->where('can_scan_face', true)
@@ -84,7 +98,37 @@ class FaceDataController extends Controller
             'expectedSeconds' => (int) config('face.expected_seconds', 15),
             'outlierPhotos' => $this->outlierPhotos($members, $matcher),
             'photosNeeded' => $matcher->aggregatePhotos(),
+            // Daftar anggota yang wajahnya belum selesai, dengan halaman
+            // TERPISAH dari daftar wajah terdaftar di atas. Dua daftar dengan
+            // halaman masing-masing memakai nama kunci halaman yang berbeda,
+            // sebab kalau memakai kunci yang sama, membuka halaman dua pada
+            // salah satunya akan menggeser halaman yang lain.
+            'pending' => $this->pendingEnrollment(),
         ]);
+    }
+
+    /**
+     * Anggota yang wajahnya belum selesai, supaya admin tahu siapa yang perlu
+     * diingatkan atau diminta mendaftar ulang.
+     *
+     * @return LengthAwarePaginator<int, User>
+     */
+    private function pendingEnrollment(): LengthAwarePaginator
+    {
+        return User::query()
+            ->where('enrollment_status', '!=', User::EnrollmentCompleted)
+            ->withCount('faceEmbeddings')
+            ->orderByRaw(
+                'CASE enrollment_status'
+                .' WHEN ? THEN 1'
+                .' WHEN ? THEN 2'
+                .' WHEN ? THEN 3'
+                .' ELSE 4 END',
+                [User::EnrollmentNeedsReenrollment, User::EnrollmentRejected, User::EnrollmentInProgress],
+            )
+            ->orderBy('name')
+            ->paginate(self::EnrollmentPerPage, ['*'], 'wajah_page')
+            ->withQueryString();
     }
 
     /**
@@ -209,5 +253,25 @@ class FaceDataController extends Controller
         return back()->with('status', $assign
             ? $member->name.' sekarang boleh memakai kamera absen.'
             : $member->name.' tidak lagi boleh memakai kamera absen.');
+    }
+
+    /**
+     * Minta anggota mendaftarkan wajahnya kembali.
+     *
+     * Dipakai saat foto yang tersimpan ternyata tidak layak, misalnya karena
+     * satu foto milik orang lain ikut terunggah, atau karena seluruh fotonya
+     * diambil dengan mesin wajah versi lama.
+     *
+     * Tandanya dinaikkan, tetapi data lamanya SENGAJA tidak dihapus di sini.
+     * Anggota itu masih perlu absen besok, dan menghapus wajahnya sekarang akan
+     * membuat dia tidak bisa absen sebelum fotonya yang baru selesai diperiksa.
+     * Bila memang data lamanya harus dibuang, admin memakai tombol hapus foto
+     * yang sudah tersedia di halaman ini.
+     */
+    public function requestReenrollment(User $member): RedirectResponse
+    {
+        $member->forceFill(['enrollment_status' => User::EnrollmentNeedsReenrollment])->save();
+
+        return back()->with('status', $member->name.' diminta mendaftarkan wajahnya kembali. Minta dia membuka halaman pendaftaran wajah setelah masuk.');
     }
 }

@@ -113,4 +113,24 @@ return [
         'murid' => 'Murid / Jamaah',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tulisan keadaan pendaftaran wajah
+    |--------------------------------------------------------------------------
+    |
+    | Halaman pendaftaran dan panel admin menampilkan keadaan yang sama dengan
+    | kalimat yang berbeda peran pembacanya, jadi kalimatnya dikumpulkan di sini.
+    | Kuncinya mengikuti User::EnrollmentStatuses.
+    |
+    */
+
+    'enrollment_status_labels' => [
+        'not_started' => 'Belum mendaftar',
+        'in_progress' => 'Belum selesai',
+        'processing' => 'Sedang diproses',
+        'completed' => 'Sudah terdaftar',
+        'rejected' => 'Fotonya ditolak',
+        'needs_reenrollment' => 'Perlu daftar ulang',
+    ],
+
 ];

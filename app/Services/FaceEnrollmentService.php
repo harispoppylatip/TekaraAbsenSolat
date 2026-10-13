@@ -37,7 +37,25 @@ class FaceEnrollmentService
     /** Foto tidak bisa dibaca mesin wajah. */
     public const StatusInvalid = 'invalid_photo';
 
-    public function __construct(private FaceEncodingService $encoder) {}
+    /** Foto terlalu gelap untuk dijadikan pembanding wajah. */
+    public const StatusTooDark = 'too_dark';
+
+    /** Foto terlalu terang sampai wajahnya sulit dibaca. */
+    public const StatusTooBright = 'too_bright';
+
+    /** Foto kurang tajam, biasanya karena kamera bergerak. */
+    public const StatusBlurry = 'blurry';
+
+    /** Wajah menghadap terlalu jauh dari kamera. */
+    public const StatusBadPose = 'bad_pose';
+
+    /** Foto hampir sama dengan foto yang sudah diterima di kelompok yang sama. */
+    public const StatusDuplicate = 'duplicate';
+
+    public function __construct(
+        private FaceEncodingService $encoder,
+        private FaceMatcherService $matcher,
+    ) {}
 
     /**
      * Simpan angka pembanding wajah pada baris baru.
@@ -106,11 +124,26 @@ class FaceEnrollmentService
      * Isi berkas, bukan unggahan, supaya pekerja antrean bisa memakai jalur yang
      * sama dengan unggahan langsung dari halaman.
      *
+     * Dua pilihan terakhir hanya dinyalakan oleh halaman pendaftaran wajah
+     * mandiri. Pendaftaran yang dilakukan operator di panel tetap memakai
+     * perilaku lama supaya pekerjaan yang sudah berjalan tidak ikut berubah
+     * hanya karena ambang mutu atau ambang foto kembar disetel.
+     *
+     * @param  array<int, array<int, float>>  $compareWith  angka wajah yang sudah diterima di kelompok yang sama
      * @return array{status: string, message: string, total: int, embedding_id?: int}
      */
-    public function enrollFromContents(User $user, string $contents, ?string $label = null, bool $replace = false): array
-    {
-        $encoded = $this->encoder->encodeContents($contents);
+    public function enrollFromContents(
+        User $user,
+        string $contents,
+        ?string $label = null,
+        bool $replace = false,
+        bool $checkQuality = false,
+        array $compareWith = [],
+    ): array {
+        $encoded = $checkQuality
+            ? $this->encoder->encodeForEnrollment($contents)
+            : $this->encoder->encodeContents($contents);
+
         $before = $this->photoCount($user);
         $max = (int) config('face.max_photos_per_user', 20);
 
@@ -126,6 +159,17 @@ class FaceEnrollmentService
             return [
                 'status' => $this->translateStatus($encoded['status']),
                 'message' => $encoded['message'],
+                'total' => $before,
+            ];
+        }
+
+        // Foto kembar diperiksa SETELAH mutu dan SEBELUM penyimpanan: sepuluh
+        // foto yang hampir sama persis tidak menambah bahan pembanding apa pun,
+        // hanya membuat pendaftar merasa sudah mengirim sepuluh foto berbeda.
+        if ($compareWith !== [] && $this->looksLikeDuplicate($encoded['encoding'], $compareWith)) {
+            return [
+                'status' => self::StatusDuplicate,
+                'message' => 'Foto ini hampir sama dengan foto yang sudah diterima. Ambil dari sudut, jarak, atau arah yang berbeda.',
                 'total' => $before,
             ];
         }
@@ -200,8 +244,40 @@ class FaceEnrollmentService
             FaceEncodingService::StatusMultipleFaces => self::StatusMultipleFaces,
             FaceEncodingService::StatusFaceTooSmall => self::StatusFaceTooSmall,
             FaceEncodingService::StatusUnavailable => self::StatusUnavailable,
+            FaceEncodingService::StatusTooDark => self::StatusTooDark,
+            FaceEncodingService::StatusTooBright => self::StatusTooBright,
+            FaceEncodingService::StatusBlurry => self::StatusBlurry,
+            FaceEncodingService::StatusBadPose => self::StatusBadPose,
             default => self::StatusInvalid,
         };
+    }
+
+    /**
+     * Apakah angka wajah ini hampir sama dengan salah satu angka pembanding.
+     *
+     * Jaraknya memakai jarak yang sama dengan pencocokan absen, supaya satu
+     * pengertian "dekat" berlaku di seluruh aplikasi.
+     *
+     * @param  array<int, mixed>  $encoding
+     * @param  array<int, array<int, float>>  $compareWith
+     */
+    private function looksLikeDuplicate(array $encoding, array $compareWith): bool
+    {
+        $tolerance = (float) config('face.enrollment.duplicate_tolerance', 0.38);
+
+        if ($tolerance <= 0) {
+            return false;
+        }
+
+        $baru = FaceEmbedding::normalizeEmbedding($encoding);
+
+        foreach ($compareWith as $lama) {
+            if ($this->matcher->distance($baru, FaceEmbedding::normalizeEmbedding($lama)) < $tolerance) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

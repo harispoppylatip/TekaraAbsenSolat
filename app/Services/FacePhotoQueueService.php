@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\EncodeFacePhoto;
+use App\Models\FaceEmbedding;
 use App\Models\FacePhotoUpload;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -46,17 +47,28 @@ class FacePhotoQueueService
     /**
      * Titipkan beberapa foto satu anggota ke antrean.
      *
+     * `$selfEnrolled` menandai foto yang diunggah pemilik akunnya sendiri dari
+     * halaman pendaftaran wajah. Foto seperti itu diperiksa mutunya dan
+     * dibandingkan dengan foto lain di kelompok yang sama, sedangkan foto yang
+     * diunggah operator tidak.
+     *
      * @param  array<int, UploadedFile>  $photos
      * @return array{batch: string, count: int}
      */
-    public function enqueue(User $member, array $photos, ?User $uploader = null, ?string $label = null, bool $replace = false): array
-    {
+    public function enqueue(
+        User $member,
+        array $photos,
+        ?User $uploader = null,
+        ?string $label = null,
+        bool $replace = false,
+        bool $selfEnrolled = false,
+    ): array {
         $batch = (string) Str::uuid();
         $count = 0;
 
         foreach ($photos as $photo) {
             if ($photo instanceof UploadedFile) {
-                $this->enqueueOne($member, $photo, $batch, $uploader, $label, $replace);
+                $this->enqueueOne($member, $photo, $batch, $uploader, $label, $replace, $selfEnrolled);
                 $count++;
             }
         }
@@ -74,6 +86,7 @@ class FacePhotoQueueService
         ?User $uploader = null,
         ?string $label = null,
         bool $replace = false,
+        bool $selfEnrolled = false,
     ): FacePhotoUpload {
         $path = (string) $photo->store(self::Folder, 'local');
 
@@ -85,6 +98,7 @@ class FacePhotoQueueService
                 'original_name' => Str::limit($photo->getClientOriginalName(), 120, ''),
                 'path' => $path,
                 'label' => $label ?? $photo->getClientOriginalName(),
+                'self_enrolled' => $selfEnrolled,
                 'replace' => $replace,
                 'status' => FacePhotoUpload::StatusMenunggu,
             ]);
@@ -100,6 +114,37 @@ class FacePhotoQueueService
         EncodeFacePhoto::dispatch((int) $row->getKey());
 
         return $row;
+    }
+
+    /**
+     * Angka wajah yang sudah diterima dari satu kelompok unggahan.
+     *
+     * Dipakai pemeriksaan foto kembar. Pembandingnya sengaja hanya foto dari
+     * kelompok yang SAMA, bukan seluruh wajah anggota itu: yang dicegah adalah
+     * sepuluh foto yang hampir sama persis dalam satu kali pendaftaran, bukan
+     * anggota yang memperbarui wajahnya dengan sudut baru.
+     *
+     * @return array<int, array<int, float>>
+     */
+    public function acceptedEmbeddings(string $batchId): array
+    {
+        $ids = FacePhotoUpload::query()
+            ->where('batch_id', $batchId)
+            ->whereNotNull('face_embedding_id')
+            ->pluck('face_embedding_id')
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return FaceEmbedding::query()
+            ->whereKey($ids)
+            ->pluck('embedding')
+            ->map(fn ($embedding): array => is_array($embedding) ? $embedding : [])
+            ->reject(fn (array $embedding): bool => $embedding === [])
+            ->values()
+            ->all();
     }
 
     /**
@@ -204,11 +249,27 @@ class FacePhotoQueueService
     /**
      * Ringkasan kemajuan beberapa kelompok unggahan terakhir.
      *
+     * `$member` membatasi pembacaan pada satu anggota, dipakai halaman
+     * pendaftaran wajah supaya pemiliknya hanya melihat kelompok unggahannya
+     * sendiri dan bukan seluruh antrean sekolah.
+     *
+     * `$hideFinished` mematikan penghilangan kelompok yang sudah selesai.
+     * Bawaannya menghilangkan, dan itu yang dipakai panel admin supaya panelnya
+     * tidak penuh kartu lama. Halaman pendaftaran wajah mematikannya, sebab
+     * pemilik akun perlu masih bisa MEMBACA alasan fotonya ditolak walau
+     * pemeriksaannya sudah lewat beberapa menit. Tanpa itu, panelnya berubah
+     * menjadi "belum ada foto yang dikirim" padahal fotonya baru saja ditolak,
+     * dan pemiliknya tidak tahu apa yang harus diperbaiki.
+     *
      * @return array<int, array<string, mixed>>
      */
-    public function batches(int $limit = self::BatchesShown): array
-    {
+    public function batches(
+        int $limit = self::BatchesShown,
+        ?User $member = null,
+        bool $hideFinished = true,
+    ): array {
         $batchIds = FacePhotoUpload::query()
+            ->when($member !== null, fn ($query) => $query->where('user_id', $member->getKey()))
             ->orderByDesc('id')
             ->limit(200)
             ->pluck('batch_id')
@@ -238,7 +299,7 @@ class FacePhotoQueueService
                 continue;
             }
 
-            $removal = $this->removalMoment($rows);
+            $removal = $hideFinished ? $this->removalMoment($rows) : null;
 
             if ($removal !== null && now()->greaterThanOrEqualTo($removal)) {
                 continue;

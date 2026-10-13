@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FaceDataController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Murid\HistoryController;
@@ -45,6 +46,25 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/riwayat', HistoryController::class)->name('murid.riwayat');
 
+    /*
+    | Pendaftaran wajah mandiri.
+    |
+    | Dibuka untuk SEMUA peran yang sudah masuk, termasuk admin dan petugas,
+    | sebab semua orang absen di depan kamera dan guru baru juga perlu
+    | mendaftarkan wajahnya sendiri. Identitas foto selalu diambil dari akun yang
+    | sedang masuk, jadi tidak ada nomor akun yang dibaca dari peramban.
+    */
+    Route::get('/pendaftaran-wajah', [EnrollmentController::class, 'show'])->name('enrollment.show');
+    Route::get('/pendaftaran-wajah/proses', [EnrollmentController::class, 'progress'])->name('enrollment.progress');
+    Route::post('/pendaftaran-wajah/foto', [EnrollmentController::class, 'store'])
+        ->middleware('throttle:30,1')
+        ->name('enrollment.photos.store');
+    Route::delete('/pendaftaran-wajah/foto/{faceEmbedding}', [EnrollmentController::class, 'destroyPhoto'])->name('enrollment.photos.destroy');
+    Route::delete('/pendaftaran-wajah/foto', [EnrollmentController::class, 'destroyAll'])->name('enrollment.photos.clear');
+    Route::post('/pendaftaran-wajah/proses/{batch}/ulang', [EnrollmentController::class, 'retry'])->name('enrollment.retry');
+    Route::post('/pendaftaran-wajah/selesai', [EnrollmentController::class, 'complete'])->name('enrollment.complete');
+    Route::get('/pendaftaran-wajah/selesai', [EnrollmentController::class, 'done'])->name('enrollment.done');
+
     // Foto bukti absen disajikan lewat rute berizin, bukan berkas publik.
     Route::get('/bukti-absen/{log}', AttendanceProofController::class)->name('attendance.proof');
 
@@ -73,6 +93,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/wajah/unggah', [FaceDataController::class, 'store'])->name('face.photos.store');
         Route::delete('/wajah/foto/{faceEmbedding}', [FaceDataController::class, 'destroyPhoto'])->name('face.photos.destroy');
         Route::delete('/wajah/anggota/{member}', [FaceDataController::class, 'destroyMember'])->name('face.member.destroy');
+        Route::put('/wajah/anggota/{member}/daftar-ulang', [FaceDataController::class, 'requestReenrollment'])->name('face.enrollment.reopen');
         Route::put('/wajah/petugas/{member}', [FaceDataController::class, 'updateOperator'])->name('face.operator.update');
 
         Route::get('/perangkat', [DeviceController::class, 'index'])->name('devices.index');

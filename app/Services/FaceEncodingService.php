@@ -40,6 +40,34 @@ class FaceEncodingService
     /** Balasan layanan wajah tidak sesuai yang diharapkan. */
     public const StatusInvalid = 'invalid_response';
 
+    /** Foto terlalu gelap untuk dijadikan pembanding wajah. */
+    public const StatusTooDark = 'too_dark';
+
+    /** Foto terlalu terang sampai wajahnya sulit dibaca. */
+    public const StatusTooBright = 'too_bright';
+
+    /** Foto kurang tajam, biasanya karena kamera bergerak. */
+    public const StatusBlurry = 'blurry';
+
+    /** Wajah menghadap terlalu jauh dari kamera. */
+    public const StatusBadPose = 'bad_pose';
+
+    /**
+     * Seluruh keadaan mutu foto yang dikenali.
+     *
+     * Keadaan ini hanya muncul bila pemanggil meminta pemeriksaan mutu, yaitu
+     * dari halaman pendaftaran wajah. Alur absen di gerbang tidak memintanya,
+     * sehingga ambang mutu bisa disetel tanpa mengubah aturan kehadiran.
+     *
+     * @var array<int, string>
+     */
+    public const QualityStatuses = [
+        self::StatusTooDark,
+        self::StatusTooBright,
+        self::StatusBlurry,
+        self::StatusBadPose,
+    ];
+
     /**
      * Pesan saat nama model di mesin wajah tidak sama dengan yang diharapkan
      * aplikasi.
@@ -85,6 +113,35 @@ class FaceEncodingService
      */
     public function encodeContents(string $contents, bool $withPhoto = false): array
     {
+        return $this->encodeWith($contents, $withPhoto, false);
+    }
+
+    /**
+     * Hitung angka pembanding wajah sekaligus periksa mutu fotonya.
+     *
+     * Dipakai halaman pendaftaran wajah, tempat foto yang gelap, buram, atau
+     * menghadap terlalu jauh ke samping HARUS ditolak sebelum angkanya disimpan.
+     * Foto seperti itu tetap menghasilkan angka yang terlihat sah, sehingga
+     * tanpa pemeriksaan ini datanya masuk dan baru ketahuan bermasalah saat
+     * pemiliknya tidak pernah dikenali di depan kamera absen.
+     *
+     * Pemeriksaan mutu sengaja tidak menjadi bawaan `encodeContents()`, sebab
+     * alur absen di gerbang memakai jalur yang sama dan aturan pencatatan
+     * kehadiran yang sudah berjalan tidak boleh ikut berubah saat ambang mutu
+     * disetel.
+     *
+     * @return array{status: string, encoding: array<int, float>|null, face_count: int, face_size: int, model: string|null, message: string, photo: string|null}
+     */
+    public function encodeForEnrollment(string $contents): array
+    {
+        return $this->encodeWith($contents, false, true);
+    }
+
+    /**
+     * @return array{status: string, encoding: array<int, float>|null, face_count: int, face_size: int, model: string|null, message: string, photo: string|null}
+     */
+    private function encodeWith(string $contents, bool $withPhoto, bool $withQuality): array
+    {
         if ($contents === '') {
             return $this->failure(self::StatusInvalid, 'Foto tidak terbaca. Ambil ulang fotonya.');
         }
@@ -93,7 +150,7 @@ class FaceEncodingService
             $response = Http::timeout((int) config('face.timeout', 90))
                 ->acceptJson()
                 ->attach('image', $contents, 'scan.jpg')
-                ->post($this->serviceUrl().'/encode?'.$this->query($withPhoto));
+                ->post($this->serviceUrl().'/encode?'.$this->query($withPhoto, $withQuality));
         } catch (ConnectionException) {
             return $this->failure(self::StatusUnavailable, $this->unavailableMessage());
         }
@@ -123,6 +180,26 @@ class FaceEncodingService
             return $this->failure(
                 self::StatusMultipleFaces,
                 'Ada lebih dari satu wajah di depan kamera. Absen satu orang saja supaya tidak salah catat.',
+                $faceCount,
+            );
+        }
+
+        // Mutu diperiksa lebih dulu daripada angka wajah, sebab saat mutunya
+        // ditolak mesin wajah memang tidak mengirim angka apa pun. Tanpa cabang
+        // ini, penolakan yang sudah dijelaskan mesin wajah akan muncul sebagai
+        // "balasan tidak dikenali" dan pesannya jadi tidak berguna.
+        //
+        // Cabangnya sengaja hanya berlaku bila pemeriksaan mutu MEMANG diminta.
+        // Alur absen di gerbang memakai jalur yang sama, dan aturan pencatatan
+        // kehadiran tidak boleh ikut berubah hanya karena ambang mutu disetel
+        // untuk pendaftaran. Penolakan mutu yang datang tanpa diminta karena itu
+        // diperlakukan sebagai balasan yang tidak dikenali.
+        if ($withQuality && in_array($status, self::QualityStatuses, true)) {
+            return $this->failure(
+                $status,
+                is_string($data['message'] ?? null) && $data['message'] !== ''
+                    ? $data['message']
+                    : 'Foto ini belum bisa dipakai. Ambil ulang fotonya.',
                 $faceCount,
             );
         }
@@ -361,13 +438,20 @@ class FaceEncodingService
      * lebih dari satu orang, bukan diam-diam memakai wajah terbesar. Mesin wajah
      * versi lama mengabaikan permintaan ini, dan dalam hal itu pemeriksaan
      * jumlah wajah tetap dikerjakan di sisi aplikasi.
+     *
+     * `quality=1` meminta pemeriksaan mutu foto. Hanya halaman pendaftaran yang
+     * memintanya.
      */
-    private function query(bool $withPhoto): string
+    private function query(bool $withPhoto, bool $withQuality = false): string
     {
         $query = ['require_single' => 1];
 
         if ($withPhoto) {
             $query['with_photo'] = 1;
+        }
+
+        if ($withQuality) {
+            $query['quality'] = 1;
         }
 
         return http_build_query($query);

@@ -194,4 +194,79 @@ return [
 
     'max_photos_per_submit' => 10,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Pendaftaran wajah mandiri oleh pemilik akun
+    |--------------------------------------------------------------------------
+    |
+    | Anggota sekolah bisa mendaftarkan wajahnya sendiri dari halaman
+    | /pendaftaran-wajah setelah mengganti sandi. Pengaturan di bawah ini yang
+    | menentukan seberapa banyak foto yang wajib dan berapa yang boleh dikirim
+    | sekaligus.
+    |
+    | Jumlah wajib sengaja lebih dari satu: satu foto hanya bisa dibandingkan
+    | dari satu sudut, sehingga satu foto yang kebetulan kurang beruntung membuat
+    | pemiliknya tidak pernah dikenali. Lima sudut berbeda memberi mesin wajah
+    | bahan pembanding yang cukup.
+    |
+    */
+
+    'enrollment' => [
+        /*
+        | Jumlah foto yang wajib terkumpul sebelum pendaftaran dianggap selesai.
+        */
+        'required_photos' => (int) env('FACE_ENROLLMENT_REQUIRED_PHOTOS', 5),
+
+        /*
+        | Jumlah foto terbanyak yang boleh dikumpulkan satu anggota. Tidak boleh
+        | melebihi `max_photos_per_user`, karena kelebihannya akan langsung
+        | dibuang saat penyimpanan.
+        */
+        'max_photos' => (int) env('FACE_ENROLLMENT_MAX_PHOTOS', 10),
+
+        /*
+        | Batas kiriman sekali jalan pada halaman pendaftaran. Dibatasi lebih
+        | ketat daripada panel admin, sebab halaman ini dipakai banyak orang
+        | sekaligus dan satu kiriman besar memakai satu slot antrean.
+        */
+        'max_photos_per_submit' => (int) env('FACE_ENROLLMENT_PER_SUBMIT', 3),
+
+        /*
+        | Jarak maksimal antara dua angka wajah yang masih dianggap foto kembar.
+        |
+        | Diukur dari 34 foto lima orang: pasangan foto yang jelas kembar
+        | berjarak 0,2137 sampai 0,3567, sedangkan pasangan foto orang sama yang
+        | memang berbeda sudut berjarak 0,4998 ke atas. Angka 0,38 diletakkan di
+        | tengah celah itu, sehingga foto yang hampir sama persis ditolak tanpa
+        | ikut menolak foto sah yang berbeda sudut.
+        |
+        | Angka 0 mematikan pemeriksaan ini.
+        */
+        'duplicate_tolerance' => (float) env('FACE_DUPLICATE_TOLERANCE', 0.38),
+
+        /*
+        | Panduan variasi foto.
+        |
+        | Halaman pendaftaran menampilkan daftar ini satu per satu supaya
+        | pemiliknya tahu foto seperti apa yang belum diambil, bukan sekadar
+        | diminta "kirim lima foto". Lima variasi pertama adalah syarat minimum;
+        | sisa daftarnya hanya tambahan bila ingin menambah foto.
+        |
+        | Kalimatnya sengaja pendek dan berupa perintah yang bisa langsung
+        | dikerjakan, sebab panduan ini dibaca sambil memegang telepon.
+        */
+        'variations' => [
+            ['label' => 'Menghadap lurus', 'hint' => 'Lihat tepat ke kamera, wajah lurus, telinga kiri dan kanan sama-sama terlihat.'],
+            ['label' => 'Sedikit ke kiri', 'hint' => 'Putar wajah pelan ke kiri, jangan sampai telinga kanan hilang.'],
+            ['label' => 'Sedikit ke kanan', 'hint' => 'Putar wajah pelan ke kanan, jangan sampai telinga kiri hilang.'],
+            ['label' => 'Sedikit mendongak', 'hint' => 'Angkat dagu sedikit saja, mata tetap melihat ke kamera.'],
+            ['label' => 'Sedikit menunduk', 'hint' => 'Turunkan dagu sedikit saja, jangan sampai mata hilang di balik kelopak.'],
+            ['label' => 'Tersenyum wajar', 'hint' => 'Tersenyum biasa, tidak perlu lebar. Gunanya melatih wajah saat mulut terbuka.'],
+            ['label' => 'Tanpa penutup kepala', 'hint' => 'Bila memakai topi atau penutup kepala, lepaskan dulu supaya dahi terlihat.'],
+            ['label' => 'Dengan kacamata', 'hint' => 'Bila sehari-hari memakai kacamata, ambil satu foto tetap berkacamata. Pastikan tidak ada pantulan cahaya.'],
+            ['label' => 'Dari jarak lebih dekat', 'hint' => 'Dekatkan kamera sampai wajah memenuhi sebagian besar layar.'],
+            ['label' => 'Di tempat lain', 'hint' => 'Ambil satu foto di ruangan dengan cahaya berbeda supaya mesin mengenali Anda di berbagai tempat.'],
+        ],
+    ],
+
 ];

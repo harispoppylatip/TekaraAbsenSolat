@@ -104,6 +104,7 @@ abstract class TestCase extends BaseTestCase
      *
      * @param  array<int, float>|null  $encoding
      * @param  array<int, array<string, mixed>>  $faces
+     * @param  array<int, array<int, float>>  $sequence  angka wajah yang dikembalikan bergantian untuk setiap foto
      */
     protected function fakeFaceService(
         ?array $encoding = null,
@@ -116,10 +117,11 @@ abstract class TestCase extends BaseTestCase
         array $faces = [],
         int $frameWidth = 640,
         int $frameHeight = 480,
+        array $sequence = [],
     ): void {
         $embedding = $encoding ?? array_fill(0, FaceEmbedding::Dimensions, 0.01);
 
-        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available, $photo, $faceSize, $model, $status, $faces, $frameWidth, $frameHeight) extends FaceEncodingService
+        $this->app->instance(FaceEncodingService::class, new class($embedding, $faceCount, $available, $photo, $faceSize, $model, $status, $faces, $frameWidth, $frameHeight, $sequence) extends FaceEncodingService
         {
             /** Apakah foto bukti diminta pada pemanggilan terakhir. */
             public bool $askedForPhoto = false;
@@ -127,9 +129,16 @@ abstract class TestCase extends BaseTestCase
             /** Berapa kali jalur deteksi banyak wajah dipanggil. */
             public int $detectCalls = 0;
 
+            /** Berapa kali jalur pendaftaran mandiri dipanggil. */
+            public int $enrollmentCalls = 0;
+
+            /** Berapa kali angka wajah dihitung dari sebuah foto. */
+            private int $encodeCalls = 0;
+
             /**
              * @param  array<int, float>  $embedding
              * @param  array<int, array<string, mixed>>  $faces
+             * @param  array<int, array<int, float>>  $sequence
              */
             public function __construct(
                 private array $embedding,
@@ -142,6 +151,7 @@ abstract class TestCase extends BaseTestCase
                 private array $faces,
                 private int $frameWidth,
                 private int $frameHeight,
+                private array $sequence = [],
             ) {}
 
             public function encode(UploadedFile $image, bool $withPhoto = false): array
@@ -178,6 +188,7 @@ abstract class TestCase extends BaseTestCase
             public function encodeContents(string $contents, bool $withPhoto = false): array
             {
                 $this->askedForPhoto = $withPhoto;
+                $this->encodeCalls++;
 
                 if (! $this->available) {
                     return [
@@ -215,15 +226,70 @@ abstract class TestCase extends BaseTestCase
                     ];
                 }
 
+                // Aturan ukuran wajah paling kecil ikut ditiru di sini. Aturan
+                // itu ada di dalam layanan induk, dan tiruan ini menggantikan
+                // seluruh kelasnya, sehingga tanpa salinan di sini pengujian
+                // halaman pendaftaran akan menganggap foto sekecil apa pun
+                // diterima padahal layanan sungguhannya menolak.
+                $minSize = (int) config('face.min_face_size', 80);
+
+                if ($this->faceSize > 0 && $minSize > 0 && $this->faceSize < $minSize) {
+                    return [
+                        'status' => self::StatusFaceTooSmall,
+                        'encoding' => null,
+                        'face_count' => $this->faceCount,
+                        'face_size' => $this->faceSize,
+                        'model' => $this->model,
+                        'message' => 'Wajah terlalu kecil di layar. Dekatkan wajah ke kamera, lalu coba lagi.',
+                        'photo' => null,
+                    ];
+                }
+
                 return [
                     'status' => self::StatusSuccess,
-                    'encoding' => $this->embedding,
+                    'encoding' => $this->nextEmbedding(),
                     'face_count' => $this->faceCount,
                     'face_size' => $this->faceSize,
                     'model' => $this->model,
                     'message' => 'Wajah terbaca.',
                     'photo' => $this->photo,
                 ];
+            }
+
+            /**
+             * Jalur pendaftaran mandiri.
+             *
+             * Tiruan ini tidak bisa menilai mutu foto, sebab penilaian itu
+             * dikerjakan mesin wajah Python. Yang ditiru adalah balasannya,
+             * sehingga aturan mutu yang diputuskan aplikasi tetap bisa diuji
+             * dengan mengisi `$status` bernilai `too_dark` dan sejenisnya.
+             */
+            public function encodeForEnrollment(string $contents): array
+            {
+                $this->enrollmentCalls++;
+
+                return $this->encodeContents($contents);
+            }
+
+            /**
+             * Angka wajah untuk pemanggilan berikutnya.
+             *
+             * Bila `$sequence` diisi, setiap pemanggilan memakai angka yang
+             * berbeda dari daftarnya secara bergilir. Ini diperlukan pengujian
+             * pemeriksaan foto kembar: dengan angka yang selalu sama, foto
+             * kedua dan seterusnya akan selalu dianggap kembar.
+             *
+             * @return array<int, float>
+             */
+            private function nextEmbedding(): array
+            {
+                if ($this->sequence === []) {
+                    return $this->embedding;
+                }
+
+                $index = ($this->encodeCalls - 1) % count($this->sequence);
+
+                return $this->sequence[$index];
             }
 
             /**

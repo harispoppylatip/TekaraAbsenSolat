@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\FacePhotoUpload;
 use App\Services\FaceEnrollmentService;
 use App\Services\FacePhotoQueueService;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -43,7 +44,7 @@ class EncodeFacePhoto implements ShouldQueue
         }
 
         try {
-            $this->process($row, $faces);
+            $this->process($row, $faces, $queue);
         } finally {
             // Penggantian kumpulan foto diselesaikan setelah baris ini selesai,
             // dan hanya benar benar mengubah data ketika seluruh foto kelompok
@@ -51,13 +52,32 @@ class EncodeFacePhoto implements ShouldQueue
             // angkanya, supaya penggantian berlaku pada seluruh kumpulan dan
             // bukan pada satu foto.
             $queue->finaliseReplacement($row, $faces);
+
+            // Keadaan pendaftaran pemilik akun dihitung ulang dari jumlah foto
+            // yang benar benar tersimpan. Tanpa ini, satu-satunya tanda bahwa
+            // pendaftaran selesai adalah jumlah baris di tabel angka wajah, dan
+            // halaman pendaftaran tidak bisa membedakan "sedang diolah" dari
+            // "fotonya ditolak".
+            $this->refreshEnrollment($row);
         }
+    }
+
+    /**
+     * Perbarui keadaan pendaftaran pemilik foto, hanya untuk kiriman mandiri.
+     */
+    private function refreshEnrollment(FacePhotoUpload $row): void
+    {
+        if (! $row->self_enrolled || $row->user === null) {
+            return;
+        }
+
+        app(StudentEnrollmentService::class)->refresh($row->user);
     }
 
     /**
      * Ubah satu foto menjadi angka wajah, lalu tutup baris kemajuannya.
      */
-    private function process(FacePhotoUpload $row, FaceEnrollmentService $faces): void
+    private function process(FacePhotoUpload $row, FaceEnrollmentService $faces, FacePhotoQueueService $queue): void
     {
         if ($row->user === null) {
             $this->settle($row, FacePhotoUpload::StatusGagal, null, 'Anggota pemilik foto ini sudah tidak ada.');
@@ -82,7 +102,20 @@ class EncodeFacePhoto implements ShouldQueue
         // penggantian. Foto lama baru dibuang setelah seluruh foto kelompok ini
         // selesai, sehingga foto yang gagal tidak pernah ikut tersimpan dan foto
         // lama tidak pernah hilang karena foto baru yang gagal.
-        $result = $faces->enrollFromContents($row->user, $disk->get($row->path), $row->label, false);
+        $mandiri = (bool) $row->self_enrolled;
+
+        $result = $faces->enrollFromContents(
+            $row->user,
+            $disk->get($row->path),
+            $row->label,
+            false,
+            // Kiriman mandiri diperiksa lebih ketat: mutu fotonya dinilai, dan
+            // hasilnya dibandingkan dengan foto yang sudah diterima di kelompok
+            // yang sama supaya sepuluh kiriman yang hampir sama persis tidak
+            // lolos sebagai sepuluh bahan pembanding.
+            $mandiri,
+            $mandiri ? $queue->acceptedEmbeddings((string) $row->batch_id) : [],
+        );
         $saved = $result['status'] === FaceEnrollmentService::StatusSaved;
 
         $this->settle(
@@ -116,6 +149,7 @@ class EncodeFacePhoto implements ShouldQueue
         // foto itu, dan bila ada yang gagal di antaranya kumpulan lama tetap
         // dipertahankan.
         app(FacePhotoQueueService::class)->finaliseReplacement($row, app(FaceEnrollmentService::class));
+        $this->refreshEnrollment($row);
     }
 
     private function settle(

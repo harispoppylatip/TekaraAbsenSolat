@@ -393,6 +393,12 @@ div[data-live] {
     line-height: 1.1;
 }
 
+/* Angka statistik yang isinya tulisan, misalnya tanggal. Ukurannya
+   diperkecil supaya tanggal panjang tidak melimpah keluar kartunya. */
+.stat-value-small {
+    font-size: 19px;
+}
+
 .stat-note {
     font-size: 12.5px;
     color: var(--on-surface-variant);
@@ -1292,6 +1298,141 @@ select.select-field {
 
 .queue-item[data-tone="sebagian"] .progress-fill {
     background: var(--warning);
+}
+
+/* ---------- Halaman pendaftaran wajah mandiri ---------- */
+
+/*
+   Blok kemajuan dipakai di dua tempat pada halaman yang sama: di bagian atas
+   sebagai ringkasan, dan di dalam bagian kemajuan. Bentuknya disamakan supaya
+   angkanya terbaca sebagai satu keadaan yang sama.
+*/
+.progress-block {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.progress-value {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 20px;
+    color: var(--on-surface);
+    margin: 0;
+}
+
+.progress-note {
+    font-size: 13.5px;
+    color: var(--on-surface-variant);
+    margin: 0;
+}
+
+/*
+   Daftar panduan foto.
+
+   Setiap baris ditulis sebagai satu kotak dengan tiga tingkat teks: nomor
+   fotonya, nama variasinya, lalu penjelasannya. Tidak ada lambang, titik, atau
+   kotak label, sesuai aturan tampilan proyek ini.
+*/
+.variation-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.variation-item {
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    background: var(--surface);
+}
+
+.variation-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    margin: 0 0 6px;
+}
+
+.variation-mark {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 6px;
+}
+
+.variation-title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 15.5px;
+    color: var(--on-surface);
+    margin: 0 0 4px;
+}
+
+.variation-hint {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--on-surface-variant);
+    margin: 0;
+}
+
+/*
+   Hasil jepretan dan foto pilihan yang belum dikirim.
+
+   Petaknya memakai ukuran tetap supaya jumlah foto yang berubah tidak membuat
+   tata letaknya meloncat naik turun.
+*/
+.shot-stage {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--outline-variant);
+}
+
+.shot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.shot-grid:empty {
+    display: none;
+}
+
+.shot-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    background: var(--surface);
+}
+
+.shot-image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    display: block;
+    background: var(--surface-container);
+}
+
+/* Di layar sempit kamera tetap satu kolom penuh, tetapi jepretannya dibuat
+   dua kolom supaya pemiliknya bisa melihat semua fotonya tanpa menggulir
+   jauh. */
+@media (max-width: 640px) {
+    .shot-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .variation-list {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ---------- Halaman masuk ---------- */

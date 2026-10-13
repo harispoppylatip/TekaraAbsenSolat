@@ -29,11 +29,14 @@ rapi untuk dipasang di server sekolah.
 | ---------------- | -------------------------------------------------------------------- |
 | Administrator    | Ringkasan, Anggota, Waktu Solat, Sesi Absen, Rekap, Perangkat, Wajah |
 | Petugas          | Ringkasan, Sesi Absen, Rekap, Absen Wajah                            |
-| Murid            | Riwayat absen sendiri                                                |
+| Murid            | Riwayat absen sendiri, Pendaftaran wajah sendiri                     |
+| Semua peran      | Pendaftaran wajah sendiri (`/pendaftaran-wajah`)                     |
 | Perangkat sensor | API absen solat dan API pendaftaran wajah                            |
 
 Semua peran masuk lewat halaman `/masuk`. Akun yang belum pernah mengganti
-password langsung diarahkan ke `/ganti-password`.
+password langsung diarahkan ke `/ganti-password`, dan setelah passwordnya
+diganti pemilik akun yang wajahnya belum terdaftar langsung diarahkan ke
+halaman pendaftaran wajah.
 
 ## Cara kerja sesi absen
 
@@ -394,7 +397,19 @@ FACE_MIN_FACE_SIZE=80
 FACE_ENFORCE_MODEL=true
 FACE_SERVICE_TIMEOUT=30
 FACE_EXPECTED_SECONDS=2
+FACE_ENROLLMENT_REQUIRED_PHOTOS=5
+FACE_ENROLLMENT_MAX_PHOTOS=10
+FACE_ENROLLMENT_PER_SUBMIT=3
+FACE_DUPLICATE_TOLERANCE=0.38
 ```
+
+Empat baris terakhir hanya mengatur halaman pendaftaran wajah mandiri: berapa
+foto yang wajib, berapa yang boleh dikumpulkan, berapa yang boleh dikirim
+sekali jalan, dan seberapa mirip dua foto sampai dianggap kembar. Ambang mutu
+foto (gelap, buram, arah hadap) tidak diatur di sini melainkan di `.env`
+layanan wajah, sebab penilaiannya memang dikerjakan mesin wajah. Pemeriksaan
+itu hanya menyala bila halaman pendaftaran memintanya, sehingga menyetel
+ambangnya tidak mengubah aturan absen di gerbang.
 
 Mesin wajah adalah layanan Python terpisah yang berada di repositori lain.
 Yang dipakai sekarang adalah **InsightFace** dengan model `buffalo_sc`, dan
@@ -494,6 +509,41 @@ bila mesin wajah sedang mati, sebab foto seperti itu isinya tidak salah dan
 masih bisa diulang. Baris antrean yang pekerjaannya mati di tengah jalan ikut
 dibersihkan bersama berkasnya oleh `face:purge-uploads` yang berjalan harian.
 
+### Pendaftaran wajah oleh pemilik akun sendiri
+
+Seluruh peran yang sudah masuk boleh membuka `/pendaftaran-wajah` dan
+mendaftarkan wajahnya sendiri. Halaman itu dibuat karena jumlah anggota sekolah
+bisa mencapai ratusan orang, dan mendaftarkan lima sampai sepuluh foto per orang
+dari panel admin tidak bisa dikerjakan satu per satu.
+
+Yang menentukan apakah halaman ini perlu dibuka adalah kolom
+`users.enrollment_status`. Nilaianya enam: `not_started`, `in_progress`,
+`processing`, `completed`, `rejected`, dan `needs_reenrollment`. Nilaianya tidak
+diubah bertahap, melainkan dihitung ulang dari jumlah angka wajah yang benar
+benar tersimpan setiap kali ada foto selesai diperiksa.
+
+Aturan yang berlaku di halaman ini:
+
+| Hal                         | Ketentuan                                                                    |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| Jumlah foto wajib           | 5 foto, diatur `FACE_ENROLLMENT_REQUIRED_PHOTOS`                             |
+| Jumlah foto terbanyak       | 10 foto per anggota, diatur `FACE_ENROLLMENT_MAX_PHOTOS`                     |
+| Sekali kirim                | 3 foto, diatur `FACE_ENROLLMENT_PER_SUBMIT`                                  |
+| Sumber identitas            | Hanya akun yang sedang masuk; tidak ada nomor akun yang dibaca dari peramban |
+| Dua kiriman bersamaan       | Ditolak selama kiriman sebelumnya belum selesai diperiksa                    |
+| Foto lama saat daftar ulang | Tetap tersimpan sampai foto barunya lolos seluruhnya                         |
+
+Pemeriksaan mutu foto hanya dijalankan di halaman ini. Mesin wajah menilai
+kecerahan, ketajaman, dan arah hadap wajah, lalu menolak foto yang terlalu gelap,
+terlalu terang, buram, atau menghadap terlalu jauh ke samping. Foto yang hampir
+sama persis dengan foto lain di kelompok yang sama juga ditolak, sebab sepuluh
+foto yang serupa tidak menambah bahan pembanding apa pun. Ambangnya diukur dari
+foto sungguhan dan diatur di `.env` layanan wajah, sedangkan jarak foto kembar
+diatur `FACE_DUPLICATE_TOLERANCE` di aplikasi ini.
+
+Pengaturan yang disebut di tabel itu dan pengaturan mutu foto dijelaskan satu
+per satu pada bagian pengaturan di bawah.
+
 ### Keadaan tugas petugas kamera
 
 Satu-satunya sumber kebenaran penugasan adalah kolom `can_scan_face` pada data
@@ -558,20 +608,22 @@ supaya persen kemajuannya tidak terlalu cepat mentok di angka 100.
 
 ## Kalau ada masalah
 
-| Gejala                                                | Perbaikan                                                                                                             |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `could not find driver`                               | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                                  |
-| `Unknown database 'absen_solat'`                      | Databasenya belum dibuat. Kerjakan langkah 4                                                                          |
-| `Access denied for user 'root'@'localhost'`           | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                                |
-| Halaman terbuka tanpa gaya dan tanpa warna            | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                      |
-| `Vite manifest not found`                             | Sama seperti di atas, file hasil build belum ada                                                                      |
-| Error 419 Page Expired                                | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`                    |
-| Masuk berhasil lalu langsung kembali ke halaman masuk | Sesi tidak tersimpan. Pastikan `SESSION_DRIVER=database` dan migrasi sudah jalan, lalu periksa jam komputer           |
-| Kolom Bukti menulis Tanpa bukti                       | Mesin wajah belum diperbarui atau `SOLAT_KEEP_PROOF_PHOTO=false`. Absen lama yang belum punya foto juga tampil begitu |
-| Halaman muncul tetapi semua daftar kosong             | `php artisan migrate --seed` belum dijalankan, atau hanya migrasinya saja                                             |
-| Unggah foto wajah gagal setelah menunggu lama         | Mesin wajah lambat atau mati. Periksa `FACE_SERVICE_URL`, lalu naikkan `FACE_SERVICE_TIMEOUT` bila memang lambat      |
-| Pesan berhasil hilang sebelum sempat dibaca           | Halaman menyegarkan dirinya sendiri. Muat ulang halaman untuk melihat riwayatnya                                      |
-| Perubahan `.env` tidak terasa                         | Jalankan `php artisan config:clear`, sebab konfigurasi bisa tersimpan di cache                                        |
+| Gejala                                                | Perbaikan                                                                                                                                                                |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `could not find driver`                               | Ekstensi `pdo_mysql` belum aktif. Hidupkan di `php.ini` lalu jalankan ulang `php -m`                                                                                     |
+| `Unknown database 'absen_solat'`                      | Databasenya belum dibuat. Kerjakan langkah 4                                                                                                                             |
+| `Access denied for user 'root'@'localhost'`           | `DB_USERNAME` atau `DB_PASSWORD` tidak cocok dengan MySQL yang dipakai                                                                                                   |
+| Halaman terbuka tanpa gaya dan tanpa warna            | Aset belum dibangun. Jalankan `npm install` lalu `npm run build`                                                                                                         |
+| `Vite manifest not found`                             | Sama seperti di atas, file hasil build belum ada                                                                                                                         |
+| Error 419 Page Expired                                | `APP_KEY` kosong atau berubah. Jalankan `php artisan key:generate` lalu `php artisan config:clear`                                                                       |
+| Masuk berhasil lalu langsung kembali ke halaman masuk | Sesi tidak tersimpan. Pastikan `SESSION_DRIVER=database` dan migrasi sudah jalan, lalu periksa jam komputer                                                              |
+| Kolom Bukti menulis Tanpa bukti                       | Mesin wajah belum diperbarui atau `SOLAT_KEEP_PROOF_PHOTO=false`. Absen lama yang belum punya foto juga tampil begitu                                                    |
+| Halaman muncul tetapi semua daftar kosong             | `php artisan migrate --seed` belum dijalankan, atau hanya migrasinya saja                                                                                                |
+| Unggah foto wajah gagal setelah menunggu lama         | Mesin wajah lambat atau mati. Periksa `FACE_SERVICE_URL`, lalu naikkan `FACE_SERVICE_TIMEOUT` bila memang lambat                                                         |
+| Foto pendaftaran selalu ditolak tanpa alasan jelas    | Baca alasan per foto di panel Kemajuan pemeriksaan foto. Alasan mutu (gelap, buram, arah hadap) berasal dari mesin wajah, jadi ambangnya disetel di `.env` layanan wajah |
+| Panel kemajuan pendaftaran menulis belum ada foto     | Kiriman sebelumnya sudah dibersihkan dari antrean. Riwayat foto yang benar benar tersimpan ada di bagian bawah halaman pendaftaran                                       |
+| Pesan berhasil hilang sebelum sempat dibaca           | Halaman menyegarkan dirinya sendiri. Muat ulang halaman untuk melihat riwayatnya                                                                                         |
+| Perubahan `.env` tidak terasa                         | Jalankan `php artisan config:clear`, sebab konfigurasi bisa tersimpan di cache                                                                                           |
 
 ## Pengujian
 

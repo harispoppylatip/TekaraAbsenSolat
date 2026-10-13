@@ -205,6 +205,104 @@
                 <p class="stat-value">{{ $operators->count() }}</p>
                 <p class="stat-note">Boleh memakai halaman absen wajah</p>
             </div>
+
+            <div class="stat-card">
+                <p class="stat-label">Sudah terdaftar</p>
+                <p class="stat-value">{{ $stats['selesai'] }}</p>
+                <p class="stat-note">Dari {{ $stats['anggota'] }} anggota, minimal
+                    {{ $stats['wajib_foto'] }} foto masing-masing</p>
+            </div>
+
+            <div class="stat-card">
+                <p class="stat-label">Belum terdaftar</p>
+                <p class="stat-value">{{ $stats['belum'] }}</p>
+                <p class="stat-note">{{ $stats['sedang'] }} sedang diperiksa,
+                    {{ $stats['perlu_daftar_ulang'] }} perlu daftar ulang</p>
+            </div>
+
+            <div class="stat-card">
+                <p class="stat-label">Pendaftaran terakhir</p>
+                <p class="stat-value stat-value-small">
+                    {{ $stats['pendaftaran_terakhir']
+                        ? \Illuminate\Support\Carbon::parse($stats['pendaftaran_terakhir'])->translatedFormat('d M Y')
+                        : 'Belum ada' }}
+                </p>
+                <p class="stat-note">
+                    {{ $stats['pendaftaran_terakhir']
+                        ? \Illuminate\Support\Carbon::parse($stats['pendaftaran_terakhir'])->translatedFormat('H:i') . ' WIB'
+                        : 'Belum ada anggota yang menyelesaikan pendaftaran sendiri' }}
+                </p>
+            </div>
+        </section>
+
+        {{--
+            Daftar anggota yang wajahnya belum selesai. Dipisah dari daftar wajah
+            terdaftar supaya admin bisa langsung melihat siapa yang perlu
+            diingatkan, dan supaya halaman dengan halamannya sendiri tidak
+            menggeser halaman daftar yang lain.
+        --}}
+        <section class="card">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Menunggu pendaftaran wajah</h2>
+                    <p class="section-note">
+                        Anggota di bawah ini belum bisa absen memakai wajah. Urutannya dari yang paling perlu
+                        ditangani: yang perlu daftar ulang lebih dulu, lalu yang fotonya ditolak, lalu yang belum
+                        selesai. Anggota melakukannya sendiri di halaman pendaftaran wajah setelah masuk.
+                    </p>
+                </div>
+            </div>
+
+            @if ($pending->isEmpty())
+                <p class="empty-state">Seluruh anggota sudah menyelesaikan pendaftaran wajahnya.</p>
+            @else
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Anggota</th>
+                                <th>Keadaan</th>
+                                <th>Foto tersimpan</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($pending as $anggota)
+                                <tr>
+                                    <td>
+                                        {{ $anggota->name }}
+                                        <span class="cell-note">
+                                            {{ $anggota->identifier_number ?: 'nomor induk belum ada' }}
+                                            @if ($anggota->class_name)
+                                                , {{ $anggota->class_name }}
+                                            @endif
+                                        </span>
+                                    </td>
+                                    <td>{{ $anggota->enrollmentLabel() }}</td>
+                                    <td>{{ $anggota->face_embeddings_count }} dari {{ $stats['wajib_foto'] }} foto</td>
+                                    <td>
+                                        @if ($anggota->enrollmentStatus() === \App\Models\User::EnrollmentNeedsReenrollment)
+                                            <span class="cell-note">Sudah diminta mendaftar ulang</span>
+                                        @else
+                                            <form method="POST"
+                                                action="{{ route('face.enrollment.reopen', $anggota) }}">
+                                                @csrf
+                                                @method('PUT')
+                                                <button class="btn btn-small btn-outline" type="submit"
+                                                    data-confirm="Minta {{ $anggota->name }} mendaftarkan wajahnya kembali? Foto lamanya tetap tersimpan sampai foto barunya lolos pemeriksaan.">
+                                                    Minta daftar ulang
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{ $pending->links('pagination.records') }}
+            @endif
         </section>
 
         <section class="card">
