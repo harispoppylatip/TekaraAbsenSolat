@@ -111,8 +111,8 @@ class StudentFaceEnrollmentTest extends TestCase
             ->assertSee($murid->identifier_number)
             ->assertSee('X TKJ 1')
             ->assertSee('Belum mendaftar')
-            ->assertDontSee('name="member_id"')
-            ->assertDontSee('name="user_id"');
+            ->assertDontSee('name="member_id"', false)
+            ->assertDontSee('name="user_id"', false);
     }
 
     public function test_guru_dan_petugas_juga_bisa_mendaftar_wajah(): void
@@ -561,12 +561,12 @@ class StudentFaceEnrollmentTest extends TestCase
         $this->assertDatabaseHas('face_embeddings', ['id' => $milikLain->id]);
     }
 
-    public function test_anggota_bisa_menghapus_seluruh_fotonya_lalu_mendaftar_ulang(): void
+    public function test_anggota_yang_belum_selesai_bisa_menghapus_seluruh_fotonya_lalu_mendaftar_ulang(): void
     {
         Storage::fake('local');
         $this->fakeFaceService(faces: [], sequence: $this->beragam(3));
 
-        $murid = $this->makeUser(User::RoleMurid, ['enrollment_status' => User::EnrollmentCompleted]);
+        $murid = $this->makeUser(User::RoleMurid, ['enrollment_status' => User::EnrollmentRejected]);
 
         FaceEmbedding::create([
             'user_id' => $murid->id,
@@ -581,6 +581,184 @@ class StudentFaceEnrollmentTest extends TestCase
 
         $this->assertSame(0, $murid->refresh()->faceEmbeddings()->count());
         $this->assertSame(User::EnrollmentNotStarted, $murid->enrollmentStatus());
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pendaftaran yang sudah selesai terkunci
+    |--------------------------------------------------------------------------
+    |
+    | Wajah yang sudah dipakai absen setiap hari tidak boleh berubah sendiri
+    | oleh pemiliknya, sebab catatan kehadiran bisa dipindah ke orang lain tanpa
+    | satu pun petugas melihatnya. Membukanya hanya bisa lewat admin.
+    |
+    */
+
+    /**
+     * Anggota yang pendaftarannya sudah selesai, beserta foto wajahnya.
+     */
+    private function anggotaTerkunci(): User
+    {
+        $murid = $this->makeUser(User::RoleMurid, ['enrollment_status' => User::EnrollmentCompleted]);
+
+        foreach (range(1, 5) as $urut) {
+            FaceEmbedding::create([
+                'user_id' => $murid->id,
+                'embedding' => array_fill(0, FaceEmbedding::Dimensions, 0.0),
+                'label' => 'foto-'.$urut.'.jpg',
+                'model' => (string) config('face.model'),
+            ]);
+        }
+
+        return $murid->refresh();
+    }
+
+    public function test_halaman_pendaftaran_akun_terkunci_tidak_menampilkan_isi_ubah(): void
+    {
+        $this->fakeFaceService();
+
+        $murid = $this->anggotaTerkunci();
+
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertSee('sudah selesai dan terkunci')
+            ->assertSee('Lihat riwayat absen saya')
+            // Daftar fotonya tetap terlihat supaya pemiliknya tahu berapa yang
+            // tersimpan, tetapi tanpa kolom aksi.
+            ->assertSee('Foto wajah yang tersimpan')
+            // Tanda kutip wajib dimatikan escapingnya. Bawaannya, NEEDLE saja yang
+            // di-escape sementara isi halaman tidak, sehingga mencari
+            // `name="photos[]"` akan mencari `name=&quot;photos[]&quot;` dan tidak
+            // pernah ketemu. Akibatnya baik assertSee maupun assertDontSee pada
+            // teks bertanda kutip selalu lolos tanpa membuktikan apa pun.
+            ->assertDontSee('name="photos[]"', false)
+            ->assertDontSee('data-enrollment-form', false)
+            ->assertDontSee('Kirim foto untuk')
+            ->assertDontSee('Hapus seluruh foto saya')
+            ->assertDontSee('Selesaikan pendaftaran');
+    }
+
+    public function test_akun_terkunci_tidak_bisa_mengirim_foto(): void
+    {
+        Storage::fake('local');
+        $this->fakeFaceService(faces: [], sequence: $this->beragam(3));
+
+        $murid = $this->anggotaTerkunci();
+        $sebelum = $murid->faceEmbeddings()->count();
+
+        $this->actingAs($murid)
+            ->post(route('enrollment.photos.store'), ['photos' => [$this->photo('baru.jpg')]])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertSame($sebelum, $murid->refresh()->faceEmbeddings()->count());
+        $this->assertSame(0, FacePhotoUpload::query()->where('user_id', $murid->id)->count());
+    }
+
+    public function test_akun_terkunci_tidak_bisa_menghapus_satu_foto(): void
+    {
+        $murid = $this->anggotaTerkunci();
+        $foto = $murid->faceEmbeddings()->firstOrFail();
+
+        $this->actingAs($murid)
+            ->delete(route('enrollment.photos.destroy', $foto))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('face_embeddings', ['id' => $foto->id]);
+    }
+
+    public function test_akun_terkunci_tidak_bisa_menghapus_seluruh_fotonya(): void
+    {
+        $murid = $this->anggotaTerkunci();
+        $sebelum = $murid->faceEmbeddings()->count();
+
+        $this->actingAs($murid)
+            ->delete(route('enrollment.photos.clear'))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertSame($sebelum, $murid->refresh()->faceEmbeddings()->count());
+        $this->assertSame(User::EnrollmentCompleted, $murid->enrollmentStatus());
+    }
+
+    public function test_akun_terkunci_tidak_bisa_mengulang_foto_gagal(): void
+    {
+        Storage::fake('local');
+
+        $murid = $this->anggotaTerkunci();
+
+        FacePhotoUpload::create([
+            'batch_id' => 'kelompok-terkunci',
+            'user_id' => $murid->id,
+            'original_name' => 'gagal.jpg',
+            'path' => FacePhotoQueueService::Folder.'/gagal.jpg',
+            'label' => 'gagal.jpg',
+            'self_enrolled' => true,
+            'status' => FacePhotoUpload::StatusGagal,
+            'result_status' => FaceEnrollmentService::StatusUnavailable,
+            'finished_at' => now(),
+        ]);
+
+        Storage::disk('local')->put(FacePhotoQueueService::Folder.'/gagal.jpg', 'isi');
+
+        $this->actingAs($murid)
+            ->post(route('enrollment.retry', 'kelompok-terkunci'))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertSame(
+            FacePhotoUpload::StatusGagal,
+            FacePhotoUpload::query()->where('batch_id', 'kelompok-terkunci')->value('status'),
+        );
+    }
+
+    public function test_pembukaan_oleh_admin_membuat_halaman_bisa_dipakai_lagi(): void
+    {
+        Storage::fake('local');
+        $this->fakeFaceService();
+
+        $murid = $this->anggotaTerkunci();
+        $admin = $this->makeUser(User::RoleAdmin);
+
+        $this->actingAs($admin)->put(route('face.enrollment.reopen', $murid))->assertRedirect();
+
+        $murid->refresh();
+
+        $this->assertSame(User::EnrollmentNeedsReenrollment, $murid->enrollmentStatus());
+
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertSee('name="photos[]"', false)
+            ->assertDontSee('sudah selesai dan terkunci');
+
+        // Dan kiriman fotonya benar benar diterima lagi.
+        $sebelum = $murid->faceEmbeddings()->count();
+
+        $this->actingAs($murid)
+            ->post(route('enrollment.photos.store'), ['photos' => [$this->photo('baru.jpg')]])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertSame($sebelum + 1, $murid->refresh()->faceEmbeddings()->count());
+    }
+
+    public function test_dua_panduan_foto_dilipat_dan_bisa_dibuka(): void
+    {
+        $murid = $this->makeUser(User::RoleMurid);
+
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertSee('data-guide="cara-mengambil-foto"', false)
+            ->assertSee('data-guide="foto-yang-perlu-diambil"', false)
+            ->assertSee('Buka panduan')
+            ->assertSee('Buka daftar foto')
+            // Panduannya tetap benar benar ada di halaman, hanya dilipat.
+            ->assertSee('Hadap ke arah cahaya')
+            ->assertSee('Menghadap lurus');
     }
 
     public function test_pendaftaran_ulang_menjaga_foto_lama_sampai_foto_baru_lolos(): void

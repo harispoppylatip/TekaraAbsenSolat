@@ -11,6 +11,7 @@
     @php
         $kurang = max(0, $state['required'] - $state['usable']);
         $sisaJatah = max(0, $state['max'] - $state['total']);
+        $terkunci = $state['locked'];
     @endphp
 
     {{--
@@ -68,6 +69,25 @@
             </div>
         @endif
 
+        @if ($terkunci)
+            {{--
+                Akun yang pendaftarannya sudah selesai TIDAK boleh mengubah
+                wajahnya sendiri. Alasannya ditulis apa adanya supaya tidak
+                terbaca sebagai kerusakan: wajah yang sudah dipakai absen
+                setiap hari tidak boleh berubah tanpa sepengetahuan sekolah,
+                jadi pembukaannya harus lewat petugas.
+            --}}
+            <div class="alert alert-info">
+                <strong>Pendaftaran wajah Anda sudah selesai dan terkunci</strong>
+                <p>
+                    Karena wajah Anda sudah dipakai untuk absen, fotonya tidak bisa lagi ditambah, diganti,
+                    atau dihapus dari halaman ini. Bila memang perlu diganti, minta petugas sekolah membuka
+                    pendaftaran ulang dari halaman Data Wajah. Setelah dibuka, halaman ini bisa dipakai lagi
+                    seperti biasa.
+                </p>
+            </div>
+        @endif
+
         @if ($state['pending'])
             <div class="alert alert-info" data-shoot-busy>
                 <strong>Foto Anda sedang diperiksa</strong>
@@ -80,14 +100,32 @@
         @endif
     </section>
 
-    @if ($state['finished'])
+    @if ($terkunci)
         <section class="card">
             <div class="section-head">
                 <div>
                     <h2 class="section-title">Wajah Anda sudah terdaftar</h2>
                     <p class="section-note">
                         {{ $state['usable'] }} foto wajah tersimpan untuk akun Anda. Saat absen, berdirilah di
-                        depan kamera dengan wajah terlihat jelas.
+                        depan kamera dengan wajah terlihat jelas. Bila wajahnya tidak dikenali, minta petugas
+                        sekolah mencatat kehadiran Anda secara manual.
+                    </p>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route($user->homeRoute()) }}">Lihat riwayat absen saya</a>
+            </div>
+        </section>
+    @elseif ($state['finished'])
+        <section class="card">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Foto yang dibutuhkan sudah terkumpul</h2>
+                    <p class="section-note">
+                        Periksa dulu hasilnya di bawah. Bila sudah sesuai, tekan Selesaikan pendaftaran supaya
+                        wajah Anda bisa dipakai absen. Setelah diselesaikan, fotonya tidak bisa diubah lagi
+                        tanpa dibuka petugas sekolah.
                     </p>
                 </div>
             </div>
@@ -101,19 +139,25 @@
         </section>
     @endif
 
-    {{-- Panduan foto. Ditulis sebagai daftar bernomor tanpa lambang apa pun,
-         sebab yang dibaca sambil memegang telepon perlu baris yang pendek dan
-         langsung bisa dikerjakan. --}}
-    <section class="card">
-        <div class="section-head">
-            <div>
-                <h2 class="section-title">Cara mengambil foto yang benar</h2>
-                <p class="section-note">
-                    Ambil foto dari tempat yang terang, bisa di dalam atau di luar ruangan. Yang penting wajah
-                    terlihat jelas, kamera tidak bergerak, dan tidak ada orang lain di dalam bingkai.
-                </p>
-            </div>
-        </div>
+    {{--
+        Dua panduan di bawah ini dilipat, bukan dibuka, karena keduanya berisi
+        bacaan yang panjang sedangkan yang perlu dikerjakan pemiliknya pertama
+        kali justru bagian Ambil foto. Yang dilipat tetap bisa dibuka kapan saja
+        tanpa memuat ulang halaman, dan terbuka sendiri di peramban yang tidak
+        menjalankan JavaScript sebab unsur `details` memang begitu bawaannya.
+    --}}
+    <details class="card fold-card" data-guide="cara-mengambil-foto">
+        <summary>
+            <span class="section-title">Cara mengambil foto yang benar</span>
+            <span class="section-note">
+                Ambil foto dari tempat yang terang, bisa di dalam atau di luar ruangan. Yang penting wajah
+                terlihat jelas, kamera tidak bergerak, dan tidak ada orang lain di dalam bingkai.
+            </span>
+            <span class="fold-card-hint">
+                <span class="fold-card-open">Buka panduan</span>
+                <span class="fold-card-close">Tutup panduan</span>
+            </span>
+        </summary>
 
         <div class="table-wrap">
             <table class="data-table">
@@ -154,20 +198,23 @@
                 </tbody>
             </table>
         </div>
-    </section>
+    </details>
 
     {{-- Variasi foto yang harus ada. Susunannya diatur di config/face.php
          supaya jumlah wajibnya ikut berubah bila batas minimalnya diubah. --}}
-    <section class="card">
-        <div class="section-head">
-            <div>
-                <h2 class="section-title">Foto yang perlu diambil</h2>
-                <p class="section-note">
-                    Sekali kirim paling banyak {{ $state['max_per_submit'] }} foto, jadi panduan ini bisa
-                    dikerjakan dalam beberapa kali kirim. Boleh dikirim sebagian dulu dan dilanjutkan nanti.
-                </p>
-            </div>
-        </div>
+    <details class="card fold-card" data-guide="foto-yang-perlu-diambil">
+        <summary>
+            <span class="section-title">Foto yang perlu diambil</span>
+            <span class="section-note">
+                {{ $state['required'] }} foto wajib, dan boleh ditambah sampai {{ $state['max'] }} foto.
+                Sekali kirim paling banyak {{ $state['max_per_submit'] }} foto, jadi panduan ini bisa
+                dikerjakan dalam beberapa kali kirim.
+            </span>
+            <span class="fold-card-hint">
+                <span class="fold-card-open">Buka daftar foto</span>
+                <span class="fold-card-close">Tutup daftar foto</span>
+            </span>
+        </summary>
 
         <div class="variation-list">
             @foreach ($variations as $index => $variasi)
@@ -181,10 +228,17 @@
                 </div>
             @endforeach
         </div>
-    </section>
+    </details>
 
-    {{-- Dua cara mengambil foto. Sengaja dilipat supaya halaman tidak penuh
-         isian sekaligus, dan supaya cara pertama yang dilihat adalah kamera. --}}
+    {{--
+        Dua cara mengambil foto. Sengaja dilipat supaya halaman tidak penuh
+        isian sekaligus, dan supaya cara pertama yang dilihat adalah kamera.
+
+        Seluruh bagian ini disembunyikan pada akun yang pendaftarannya sudah
+        selesai, dan penolakannya juga diperiksa ulang di pengendali. Menyembunyikan
+        tombol saja tidak cukup: permintaan tetap bisa dibuat langsung ke alamatnya.
+    --}}
+    @unless ($terkunci)
     <section class="card">
         <div class="section-head">
             <div>
@@ -310,6 +364,7 @@
             </div>
         </form>
     </section>
+    @endunless
 
     {{--
         Wilayah ini memutakhirkan dirinya sendiri setiap beberapa detik, jadi

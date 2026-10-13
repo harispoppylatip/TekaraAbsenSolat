@@ -13,6 +13,7 @@
     $wajib = $state['required'];
     $tersimpan = $user->faceEmbeddings()->orderByDesc('id')->get();
     $banyakTersimpan = $tersimpan->count();
+    $terkunci = $state['locked'];
 @endphp
 
 <section class="card">
@@ -127,8 +128,13 @@
             <div>
                 <h2 class="section-title">Foto wajah yang tersimpan</h2>
                 <p class="section-note">
-                    Daftar ini hanya memuat jumlah foto akun Anda, tanpa gambar dan tanpa angka wajahnya. Hapus
-                    foto yang menurut Anda sudah tidak layak, lalu ambil penggantinya.
+                    Daftar ini hanya memuat jumlah foto akun Anda, tanpa gambar dan tanpa angka wajahnya.
+                    @if ($terkunci)
+                        Pendaftaran Anda sudah selesai, jadi fotonya tidak bisa dihapus dari halaman ini.
+                        Bila memang perlu diganti, minta petugas sekolah membuka pendaftaran ulang.
+                    @else
+                        Hapus foto yang menurut Anda sudah tidak layak, lalu ambil penggantinya.
+                    @endif
                 </p>
             </div>
         </div>
@@ -140,7 +146,9 @@
                         <th>Foto ke</th>
                         <th>Nama berkas asal</th>
                         <th>Diterima pada</th>
-                        <th>Aksi</th>
+                        @unless ($terkunci)
+                            <th>Aksi</th>
+                        @endunless
                     </tr>
                 </thead>
                 <tbody>
@@ -149,28 +157,32 @@
                             <td>{{ $banyakTersimpan - $index }}</td>
                             <td>{{ $wajah->label ?: 'tanpa nama' }}</td>
                             <td>{{ $wajah->created_at?->translatedFormat('d M Y, H:i') ?? 'tidak diketahui' }}</td>
-                            <td>
-                                <form method="POST" action="{{ route('enrollment.photos.destroy', $wajah) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn btn-small btn-danger" type="submit">Hapus</button>
-                                </form>
-                            </td>
+                            @unless ($terkunci)
+                                <td>
+                                    <form method="POST" action="{{ route('enrollment.photos.destroy', $wajah) }}">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="btn btn-small btn-danger" type="submit">Hapus</button>
+                                    </form>
+                                </td>
+                            @endunless
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
 
-        <form method="POST" action="{{ route('enrollment.photos.clear') }}">
-            @csrf
-            @method('DELETE')
-            <div class="form-actions">
-                <button class="btn btn-outline" type="submit"
-                    data-confirm="Hapus seluruh foto wajah akun Anda? Anda perlu mendaftar ulang dari awal.">
-                    Hapus seluruh foto saya
-                </button>
-            </div>
-        </form>
+        @unless ($terkunci)
+            <form method="POST" action="{{ route('enrollment.photos.clear') }}">
+                @csrf
+                @method('DELETE')
+                <div class="form-actions">
+                    <button class="btn btn-outline" type="submit"
+                        data-confirm="Hapus seluruh foto wajah akun Anda? Anda perlu mendaftar ulang dari awal.">
+                        Hapus seluruh foto saya
+                    </button>
+                </div>
+            </form>
+        @endunless
     </section>
 @endif

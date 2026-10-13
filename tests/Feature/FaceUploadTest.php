@@ -496,4 +496,86 @@ class FaceUploadTest extends TestCase
 
         return $matches[0] ?? '';
     }
+
+    /**
+     * Isi satu kartu anggota, dari penandanya sampai penutupnya.
+     *
+     * Dipakai untuk membuktikan sebuah tombol benar benar berada DI DALAM kartu
+     * anggota yang dimaksud, bukan sekadar ada di suatu tempat di halaman.
+     */
+    private function recordBody(string $html, int $id): string
+    {
+        $start = strpos($html, 'data-record="'.$id.'"');
+
+        if ($start === false) {
+            return '';
+        }
+
+        $end = strpos($html, '</details>', $start);
+
+        return substr($html, $start, ($end === false ? strlen($html) : $end) - $start);
+    }
+
+    /**
+     * Pendaftaran wajah yang sudah selesai terkunci bagi pemiliknya, jadi satu
+     * satunya jalan mengganti fotonya adalah dibuka petugas. Tombol pembukanya
+     * wajib ada di kartu anggota itu sendiri: anggota yang sudah selesai tidak
+     * pernah muncul di daftar "Menunggu pendaftaran wajah", sehingga tombol di
+     * daftar itu tidak pernah menjangkaunya.
+     */
+    public function test_kartu_anggota_terkunci_memuat_tombol_buka_pendaftaran_ulang(): void
+    {
+        $admin = $this->admin();
+        $member = $this->makeUser(User::RoleMurid, ['enrollment_status' => User::EnrollmentCompleted]);
+
+        foreach (range(1, 5) as $urut) {
+            FaceEmbedding::create([
+                'user_id' => $member->id,
+                'label' => 'foto-'.$urut.'.jpg',
+                'model' => FaceEmbedding::DefaultModel,
+                'embedding' => array_fill(0, FaceEmbedding::Dimensions, 0.07),
+            ]);
+        }
+
+        $html = $this->actingAs($admin)
+            ->get(route('face.index'))
+            ->assertOk()
+            ->getContent();
+
+        $body = $this->recordBody($html, $member->id);
+
+        $this->assertNotSame('', $body, 'Kartu anggota '.$member->name.' tidak ditemukan.');
+        $this->assertStringContainsString('Terkunci, tidak bisa diganti sendiri', $body);
+        $this->assertStringContainsString('Buka pendaftaran ulang', $body);
+        $this->assertStringContainsString(route('face.enrollment.reopen', $member), $body);
+    }
+
+    /**
+     * Anggota yang pendaftarannya belum selesai memang belum terkunci, jadi
+     * tombol pembukanya tidak ditampilkan supaya tidak ada dua arti tombol yang
+     * mirip di satu halaman.
+     */
+    public function test_kartu_anggota_yang_belum_selesai_tanpa_tombol_buka_pendaftaran_ulang(): void
+    {
+        $admin = $this->admin();
+        $member = $this->makeUser(User::RoleMurid, ['enrollment_status' => User::EnrollmentInProgress]);
+
+        FaceEmbedding::create([
+            'user_id' => $member->id,
+            'label' => 'baru.jpg',
+            'model' => FaceEmbedding::DefaultModel,
+            'embedding' => array_fill(0, FaceEmbedding::Dimensions, 0.07),
+        ]);
+
+        $html = $this->actingAs($admin)
+            ->get(route('face.index'))
+            ->assertOk()
+            ->getContent();
+
+        $body = $this->recordBody($html, $member->id);
+
+        $this->assertNotSame('', $body, 'Kartu anggota '.$member->name.' tidak ditemukan.');
+        $this->assertStringNotContainsString('Buka pendaftaran ulang', $body);
+        $this->assertStringNotContainsString('Terkunci, tidak bisa diganti sendiri', $body);
+    }
 }

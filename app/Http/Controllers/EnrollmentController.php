@@ -47,6 +47,10 @@ class EnrollmentController extends Controller
     ): RedirectResponse {
         $user = $request->user();
 
+        if (($terkunci = $this->locked($user, $enrollment)) !== null) {
+            return $terkunci;
+        }
+
         // Dua proses berjalan bersamaan pada satu akun membuat pemeriksaan foto
         // kembar tidak bisa melihat foto kiriman yang lain, dan pemiliknya
         // melihat kemajuan yang tercampur dari dua kelompok berbeda.
@@ -84,9 +88,10 @@ class EnrollmentController extends Controller
                 'percent' => $state['percent'],
                 'finished' => $state['finished'],
                 'pending' => $state['pending'],
+                'locked' => $state['locked'],
             ],
             'batches' => $state['batches'],
-            'done_url' => $state['finished'] ? route('enrollment.done') : null,
+            'done_url' => $state['finished'] && ! $state['locked'] ? route('enrollment.done') : null,
         ]);
     }
 
@@ -98,6 +103,10 @@ class EnrollmentController extends Controller
         FaceEmbedding $faceEmbedding,
         StudentEnrollmentService $enrollment,
     ): RedirectResponse {
+        if (($terkunci = $this->locked($request->user(), $enrollment)) !== null) {
+            return $terkunci;
+        }
+
         if (! $enrollment->removePhoto($request->user(), $faceEmbedding)) {
             return back()->with('error', 'Foto itu bukan milik akun Anda.');
         }
@@ -110,6 +119,10 @@ class EnrollmentController extends Controller
      */
     public function destroyAll(Request $request, StudentEnrollmentService $enrollment): RedirectResponse
     {
+        if (($terkunci = $this->locked($request->user(), $enrollment)) !== null) {
+            return $terkunci;
+        }
+
         $jumlah = $enrollment->removeAll($request->user());
 
         if ($jumlah === 0) {
@@ -127,6 +140,10 @@ class EnrollmentController extends Controller
         string $batch,
         StudentEnrollmentService $enrollment,
     ): RedirectResponse {
+        if (($terkunci = $this->locked($request->user(), $enrollment)) !== null) {
+            return $terkunci;
+        }
+
         $retried = $enrollment->retryBatch($request->user(), $batch);
 
         if ($retried === 0) {
@@ -134,6 +151,23 @@ class EnrollmentController extends Controller
         }
 
         return back()->with('status', $retried.' foto dimasukkan kembali ke antrean pemeriksaan.');
+    }
+
+    /**
+     * Balasan penolakan bila pendaftaran wajah akun ini sudah selesai.
+     *
+     * Diperiksa LEBIH DULU oleh setiap aksi yang mengubah data, bukan hanya
+     * disembunyikan dari halaman. Tombol yang disembunyikan melindungi pengguna
+     * dari kesalahan, tetapi bukan dari permintaan yang dibuat sendiri di luar
+     * halaman.
+     */
+    private function locked(User $user, StudentEnrollmentService $enrollment): ?RedirectResponse
+    {
+        if (! $enrollment->isLocked($user)) {
+            return null;
+        }
+
+        return back()->with('error', StudentEnrollmentService::LockedMessage);
     }
 
     /**

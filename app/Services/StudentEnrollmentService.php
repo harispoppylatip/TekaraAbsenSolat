@@ -34,6 +34,15 @@ class StudentEnrollmentService
     public const BatchesShown = 5;
 
     /**
+     * Pesan saat pemilik akun mencoba mengubah wajah yang sudah selesai.
+     *
+     * Ditulis di sini, bukan di pengendali, sebab pemeriksaan yang sama dipakai
+     * oleh empat aksi (kirim foto, hapus satu foto, hapus semua foto, dan
+     * mengulang foto gagal) dan kalimatnya tidak boleh berbeda antaraksi.
+     */
+    public const LockedMessage = 'Wajah Anda sudah terdaftar dan terkunci. Untuk mengganti fotonya, minta petugas sekolah membuka pendaftaran ulang dari halaman Data Wajah.';
+
+    /**
      * Jumlah foto yang wajib terkumpul sebelum pendaftaran dianggap selesai.
      */
     public function requiredPhotos(): int
@@ -104,6 +113,7 @@ class StudentEnrollmentService
      *     percent: int,
      *     finished: bool,
      *     pending: bool,
+     *     locked: bool,
      *     has_photos: bool,
      *     batches: array<int, array<string, mixed>>
      * }
@@ -113,6 +123,7 @@ class StudentEnrollmentService
         $photo = $this->photoBreakdown($user);
         $required = $this->requiredPhotos();
         $pending = $this->hasPending($user);
+        $locked = $this->isLocked($user);
 
         return [
             'status' => $user->enrollmentStatus(),
@@ -126,9 +137,26 @@ class StudentEnrollmentService
             'percent' => (int) min(100, round(($photo['usable'] / max(1, $required)) * 100)),
             'finished' => $photo['usable'] >= $required && ! $pending,
             'pending' => $pending,
+            'locked' => $locked,
             'has_photos' => $photo['total'] > 0,
             'batches' => $this->queue->batches(self::BatchesShown, $user, false),
         ];
+    }
+
+    /**
+     * Pendaftaran wajah akun ini sudah selesai, sehingga TIDAK boleh diubah
+     * sendiri oleh pemiliknya.
+     *
+     * Alasannya bukan sekadar kerapian. Wajah yang sudah dipakai absen setiap
+     * hari tidak boleh berubah tanpa sepengetahuan sekolah: bila pemiliknya
+     * bisa menukar fotonya sendiri kapan saja, catatan kehadiran bisa dipindah
+     * ke orang lain tanpa satu pun petugas melihatnya. Karena itu perubahan
+     * wajah yang sudah selesai hanya bisa dibuka oleh admin lewat halaman Data
+     * Wajah, dan pembukaan itu terekam pada keadaan `needs_reenrollment`.
+     */
+    public function isLocked(User $user): bool
+    {
+        return $user->hasCompletedEnrollment();
     }
 
     /**

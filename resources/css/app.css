@@ -900,6 +900,28 @@ select.select-field {
     padding: 0 16px 16px;
 }
 
+/*
+    Blok pembuka pendaftaran wajah yang sudah terkunci. Dipisahkan dari isi
+    kartu dengan garis pada kontainer, bukan dengan ornamen di samping teks,
+    supaya tidak terlewat oleh admin yang sedang mencari jalan membukanya.
+*/
+.reopen-block {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--outline-variant);
+}
+
+.reopen-block .cell-note {
+    display: block;
+    margin-bottom: 14px;
+}
+
+.reopen-block form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
 /* ---------- Panel alat buka tutup ---------- */
 
 .tool-list {
@@ -1301,6 +1323,47 @@ select.select-field {
 }
 
 /* ---------- Halaman pendaftaran wajah mandiri ---------- */
+
+/*
+   Kartu yang bisa dilipat.
+
+   Dipakai untuk panduan yang bacaannya panjang, supaya yang pertama kali
+   dilihat pemilik akun adalah bagian yang perlu dikerjakan. Bentuk ringkasannya
+   sengaja memakai susunan yang sama dengan judul bagian pada kartu biasa, jadi
+   kartu yang dilipat tidak terlihat sebagai jenis unsur yang berbeda.
+*/
+.fold-card > summary {
+    cursor: pointer;
+    list-style: none;
+    display: grid;
+    gap: 3px;
+}
+
+.fold-card > summary::-webkit-details-marker {
+    display: none;
+}
+
+.fold-card[open] > summary {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--outline-variant);
+}
+
+.fold-card-hint {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-container);
+    margin-top: 2px;
+}
+
+.fold-card-close,
+.fold-card[open] .fold-card-open {
+    display: none;
+}
+
+.fold-card[open] .fold-card-close {
+    display: inline;
+}
 
 /*
    Blok kemajuan dipakai di dua tempat pada halaman yang sama: di bagian atas

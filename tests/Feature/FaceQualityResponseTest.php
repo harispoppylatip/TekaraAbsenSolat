@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -82,6 +83,14 @@ class FaceQualityResponseTest extends TestCase
     }
 
     /**
+     * Daftar penolakan mutu beserta pesan yang diharapkan.
+     *
+     * Dipasang lewat atribut, bukan anotasi, sebab PHPUnit 12 yang dipakai
+     * proyek ini sudah tidak menjalankan anotasi `@dataProvider`. Anotasinya
+     * gagal secara diam diam: tesnya tetap dijalankan, tetapi TANPA argumen,
+     * sehingga yang muncul adalah galat argumen yang membingungkan dan bukan
+     * tes yang benar benar menguji empat jenis penolakan itu.
+     *
      * @return array<int, array{0: string, 1: string}>
      */
     public static function penolakanMutu(): array
@@ -94,9 +103,7 @@ class FaceQualityResponseTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider penolakanMutu
-     */
+    #[DataProvider('penolakanMutu')]
     public function test_penolakan_mutu_disampaikan_apa_adanya(string $dariMesin, string $pesan): void
     {
         $this->balas([

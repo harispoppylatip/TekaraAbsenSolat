@@ -25,7 +25,10 @@
 
         <div class="form-actions">
             <a class="btn btn-primary" href="{{ route($user->homeRoute()) }}">Lihat riwayat absen saya</a>
-            <a class="btn btn-outline" href="{{ route('enrollment.show') }}">Tambah atau ganti foto</a>
+
+            @unless ($state['locked'])
+                <a class="btn btn-outline" href="{{ route('enrollment.show') }}">Tambah atau ganti foto</a>
+            @endunless
         </div>
     </section>
 
@@ -62,8 +65,9 @@
                     </tr>
                     <tr>
                         <td>Bila ingin mengganti foto</td>
-                        <td>Buka kembali halaman pendaftaran wajah. Foto lama bisa dihapus satu per satu atau
-                            seluruhnya, lalu diganti dengan foto yang baru.</td>
+                        <td>Foto wajah yang sudah dipakai absen terkunci, jadi tidak bisa diganti sendiri dari
+                            halaman pendaftaran. Bila memang perlu diganti, minta petugas sekolah membuka
+                            pendaftaran ulang dari halaman Data Wajah.</td>
                     </tr>
                 </tbody>
             </table>

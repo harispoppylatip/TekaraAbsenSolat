@@ -394,6 +394,9 @@
                                         ? $member->face_embeddings_count . ' foto wajah tersimpan'
                                         : 'Belum ada foto wajah' }}
                                 </span>
+                                @if ($member->hasCompletedEnrollment())
+                                    <span class="record-card-note">Terkunci, tidak bisa diganti sendiri</span>
+                                @endif
                                 <span class="record-card-hint">Lihat detail</span>
                             </summary>
 
@@ -464,6 +467,39 @@
 
                                         <a class="btn btn-small btn-outline"
                                             href="{{ route('members.edit', $member) }}">Ubah data anggota</a>
+                                    </div>
+                                @endif
+
+                                {{--
+                                    Satu satunya jalan membuka pendaftaran wajah yang
+                                    sudah selesai. Tombolnya WAJIB ada di kartu anggota
+                                    yang sudah selesai, bukan hanya di daftar anggota yang
+                                    belum selesai: pendaftaran yang selesai dikunci, dan
+                                    anggota yang terkunci memang tidak pernah muncul di
+                                    daftar itu. Tanpa tombol di sini, pesan di halaman
+                                    pendaftaran yang menyuruh pemiliknya menghadap petugas
+                                    tidak bisa ditindaklanjuti siapa pun.
+                                --}}
+                                @if ($member->hasCompletedEnrollment())
+                                    <div class="reopen-block">
+                                        <p class="cell-note">
+                                            Pendaftaran wajah anggota ini sudah selesai, jadi dia tidak bisa
+                                            menambah, mengganti, atau menghapus fotonya sendiri. Bukalah pendaftaran
+                                            ulang bila memang perlu diganti. Foto lamanya tetap tersimpan sampai
+                                            foto barunya lolos pemeriksaan, dan setelah pemiliknya menekan
+                                            Selesaikan pendaftaran, wajahnya terkunci lagi.
+                                        </p>
+
+                                        <form method="POST"
+                                            action="{{ route('face.enrollment.reopen', $member) }}"
+                                            data-confirm="Buka pendaftaran ulang wajah {{ $member->name }}? Setelah dibuka, dia bisa mengganti fotonya sendiri dari halaman pendaftaran wajah.">
+                                            @csrf
+                                            @method('PUT')
+                                            {{-- Labelnya dijadikan satu baris: label tombol yang
+                                                 terbelah baris di berkas blade membuat pencarian
+                                                 teks di halaman gagal walau tampilannya benar. --}}
+                                            <button class="btn btn-small btn-outline" type="submit">Buka pendaftaran ulang</button>
+                                        </form>
                                     </div>
                                 @endif
                             </div>
