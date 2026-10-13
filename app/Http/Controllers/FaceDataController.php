@@ -22,6 +22,8 @@ class FaceDataController extends Controller
     {
         $term = trim((string) $request->query('q', ''));
 
+        $service = app(FaceEncodingService::class);
+        $health = $service->health();
         $members = User::query()
             ->search($term !== '' ? $term : null)
             ->with(['faceEmbeddings' => fn ($query) => $query->orderBy('id')])
@@ -33,8 +35,21 @@ class FaceDataController extends Controller
         return view('face.index', [
             'members' => $members,
             'term' => $term,
-            'serviceReady' => app(FaceEncodingService::class)->isAvailable(),
+            // Kesiapannya DITURUNKAN dari keadaan yang sudah dibaca di atas,
+            // bukan dipanggil ulang. Memanggil isAvailable() terpisah berarti
+            // menghubungi layanan wajah dua kali untuk satu halaman.
+            'serviceReady' => $health !== null,
             'serviceUrl' => (string) config('face.service_url'),
+            // Keadaan layanan wajah dibaca SEKALI lalu dipakai untuk dua hal:
+            // memberi tahu siap atau tidak, dan MEMBANDINGKAN nama model yang
+            // dilaporkan mesin dengan yang diharapkan aplikasi.
+            //
+            // Perbandingan itu penting ditampilkan, sebab dua berkas .env
+            // terpisah yang mengaturnya dan berkas .env TIDAK ikut tersalin saat
+            // proyek dipindah ke server. Tanpa ditampilkan, keadaannya hanya
+            // muncul sebagai kegagalan unggah yang membingungkan.
+            'serviceModel' => $health['model'] ?? null,
+            'expectedModel' => $service->expectedModel(),
             'stats' => [
                 'anggota' => User::query()->count(),
                 'berwajah' => User::query()->has('faceEmbeddings')->count(),

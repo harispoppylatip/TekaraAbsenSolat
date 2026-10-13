@@ -514,6 +514,7 @@ File yang sudah dikompilasi bisa dibersihkan dengan
 | Kartu kemajuan upload wajah berhenti                                  | Container `queue` mati atau mesin wajah tidak bisa dihubungi. Periksa `docker compose ps` dan `docker compose logs queue`                                                                                                                                                                                                                                                                                 |
 | `network absen-jaringan declared as external, but could not be found` | Jaringan bersama belum dibuat, atau pernah terhapus. Jalankan `docker network create absen-jaringan`, lalu ulangi `docker compose up -d`                                                                                                                                                                                                                                                                  |
 | Halaman Wajah menulis layanan wajah belum aktif                       | Mesin wajahnya belum hidup atau belum ikut ke jaringan bersama. Jalankan `docker compose up -d` di folder mesin wajah, lalu periksa dengan `docker compose exec app wget -qO- http://wajah:5005/health`                                                                                                                                                                                                   |
+| Seluruh unggahan foto wajah gagal dengan pesan Versi mesin wajah berbeda | `FACE_MODEL` di `.env` aplikasi tidak sama dengan `FACE_MODEL_NAME` di `.env` mesin wajah. Pesannya menyebut KEDUA nama model, jadi samakan keduanya lalu jalankan `docker compose exec app php artisan config:clear`. Sebab tersering: `.env` TIDAK ikut `git pull` sebab berkas itu ada di `.gitignore`, sehingga server masih memegang pengaturan lama. Lihat bagian **Memindahkan aplikasi ke server lain** |
 | Access denied for user                                                | Dua sebab. Bila `DB_HOST_DOCKER=db`: password di `DB_PASSWORD_DOCKER` tidak sama dengan password yang sudah tersimpan di volume MySQL, jadi kembalikan password lama atau hapus volume dengan `docker compose down -v` bila datanya boleh hilang. Bila memakai MySQL komputer host: akun `root@localhost` tidak cocok untuk sambungan dari alamat jaringan Docker sehingga perlu user `'absen_solat'@'%'` |
 | `required variable DB_PASSWORD_DOCKER is missing a value`             | `DB_PASSWORD_DOCKER` atau `DB_ROOT_PASSWORD` masih kosong di `.env`. Compose menolak seluruh file walaupun layanan `db` tidak ikut dijalankan, jadi isi kedua kunci itu dengan password yang sah                                                                                                                                                                                                          |
 | Port sudah dipakai                                                    | Ubah `APP_PORT` atau `DB_PUBLISH_PORT` di `.env`, lalu `docker compose up -d`                                                                                                                                                                                                                                                                                                                             |
@@ -564,6 +565,42 @@ docker compose config --quiet
    Bila layanan itu mati, sesi tidak terbuka sendiri dan pesannya terlihat di
    `docker compose logs scheduler`. Tombol Buka di halaman Sesi Absen tetap bisa
    dipakai sebagai jalan darurat.
+
+## Memindahkan aplikasi ke server lain
+
+Perintah `git pull` **TIDAK** membawa berkas `.env`, dan itu bukan kesalahan
+git. Berkas itu memang ada di `.gitignore` baris ketiga, bersama `.env.backup`
+dan `.env.production`, sebab isinya memuat kata sandi basis data dan kunci
+`APP_KEY` yang tidak boleh masuk repositori.
+
+Akibatnya sebuah komputer bisa menjalankan kode yang paling baru sementara
+pengaturannya masih yang lama. Yang paling mudah terjadi adalah mesin wajah
+berganti model (mis. dari dlib ke InsightFace) tetapi aplikasi di server masih
+mengharapkan model lama, sehingga **setiap unggahan foto wajah ditolak** dengan
+pesan versi mesin wajah berbeda. Kejadian ini sudah pernah menelan waktu
+berjam-jam, padahal penyebabnya hanya satu baris di `.env`.
+
+Yang wajib dikerjakan setiap kali pindah server atau berganti mesin wajah:
+
+1. Salin `.env` sendiri, jangan bergantung pada `git pull`. Bila berkasnya belum
+   ada, salin dari `.env.example` lalu isi seluruh nilainya.
+2. Periksa blok `FACE_*` di kedua sisi. `FACE_MODEL` milik aplikasi wajib sama
+   dengan `FACE_MODEL_NAME` milik mesin wajah. Ambangnya juga wajib sesuai skala
+   model yang dipakai, sebab ambang model lama menjadi angka tanpa arti pada
+   model baru.
+3. Jalankan `php artisan config:clear` sesudah `.env` diubah. Tanpa itu Laravel
+   masih memakai pengaturan yang sudah di-cache dan perubahannya seolah tidak
+   berpengaruh.
+4. Buktikan dari dalam container, jangan dari komputer sendiri:
+
+```sh
+docker compose exec app php artisan config:show face
+docker compose exec app wget -qO- http://wajah:5005/health
+```
+
+Baris `model` pada keluaran pertama wajib sama dengan `model` pada keluaran
+kedua. Halaman `/wajah` juga menampilkan peringatan sendiri bila keduanya
+berbeda, supaya keadaan itu terbaca sebelum foto diunggah satu per satu.
 
 ## File terkait
 

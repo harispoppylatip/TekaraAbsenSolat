@@ -35,10 +35,34 @@
             </div>
         </div>
 
-        @if ($serviceReady)
+        @if ($serviceReady && $serviceModel !== null && $serviceModel !== $expectedModel)
+            {{-- Model yang dilaporkan mesin wajah berbeda dari yang diharapkan
+                 aplikasi. Seluruh unggahan akan ditolak sampai keduanya sama,
+                 jadi keadaan ini diberitahukan lebih dulu di sini supaya tidak
+                 terbaca sebagai kegagalan satu per satu foto. --}}
+            <div class="alert alert-error">
+                <strong>Versi mesin wajah tidak sama dengan aplikasi</strong>
+                <p>
+                    Aplikasi mengharapkan model {{ $expectedModel }}, sedangkan mesin wajah melaporkan
+                    {{ $serviceModel }}. Selama keduanya berbeda, setiap foto akan ditolak karena angka wajah dari
+                    dua model tidak bisa dibandingkan.
+                </p>
+                <p>
+                    Samakan <code>FACE_MODEL</code> di berkas <code>.env</code> aplikasi ini dengan
+                    <code>FACE_MODEL_NAME</code> di berkas <code>.env</code> mesin wajah, lalu jalankan
+                    <code>php artisan config:clear</code>. Perhatikan bahwa berkas <code>.env</code> tidak ikut
+                    tersalin saat proyek dipindah ke server, jadi berkas itu wajib diperiksa sendiri.
+                </p>
+            </div>
+        @elseif ($serviceReady)
             <div class="alert alert-success">
                 <strong>Layanan wajah siap</strong>
-                <p>Foto yang diunggah langsung diterima, lalu diubah menjadi angka wajah satu per satu di latar belakang.
+                <p>
+                    Foto yang diunggah langsung diterima, lalu diubah menjadi angka wajah satu per satu di latar
+                    belakang.
+                    @if ($serviceModel !== null)
+                        Model yang dipakai: {{ $serviceModel }}.
+                    @endif
                 </p>
             </div>
         @else

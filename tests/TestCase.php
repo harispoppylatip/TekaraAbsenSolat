@@ -149,6 +149,32 @@ abstract class TestCase extends BaseTestCase
                 return $this->encodeContents('potret uji', $withPhoto);
             }
 
+            /**
+             * Keadaan layanan menurut tiruan ini.
+             *
+             * WAJIB ditimpa, sebab bawaan induknya menghubungi layanan sungguhan
+             * lewat HTTP. Tanpa ini, halaman /wajah akan bergantung pada apakah
+             * mesin wajah sedang menyala di komputer yang menjalankan pengujian,
+             * dan hasilnya bisa berbeda antara dua komputer.
+             *
+             * Nama modelnya diambil dari `$model` supaya pengujian juga bisa
+             * memalsukan keadaan "mesin memakai model yang berbeda", yaitu
+             * keadaan yang terjadi saat berkas .env tidak ikut tersalin ketika
+             * proyek dipindah ke server.
+             */
+            public function health(): ?array
+            {
+                if (! $this->available) {
+                    return null;
+                }
+
+                return [
+                    'model' => $this->model ?? FaceEmbedding::DefaultModel,
+                    'ready' => true,
+                    'dimensions' => FaceEmbedding::Dimensions,
+                ];
+            }
+
             public function encodeContents(string $contents, bool $withPhoto = false): array
             {
                 $this->askedForPhoto = $withPhoto;
@@ -283,11 +309,6 @@ abstract class TestCase extends BaseTestCase
                     'photo' => $withPhoto ? $this->photo : null,
                     'faces' => $daftar,
                 ]);
-            }
-
-            public function isAvailable(): bool
-            {
-                return $this->available;
             }
         });
     }

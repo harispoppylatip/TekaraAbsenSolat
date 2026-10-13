@@ -41,6 +41,22 @@ class FaceEncodingService
     public const StatusInvalid = 'invalid_response';
 
     /**
+     * Pesan saat nama model di mesin wajah tidak sama dengan yang diharapkan
+     * aplikasi.
+     *
+     * Kedua nama model ditulis supaya operator langsung tahu mana yang harus
+     * disamakan. Tanpa itu pesannya hanya mengatakan ada yang tidak cocok, dan
+     * penyebabnya harus ditebak sendiri. Kejadian nyata: berkas .env tidak ikut
+     * tersalin saat proyek dipindah ke server (berkas itu memang tidak dilacak
+     * git), sehingga aplikasi masih mengharapkan model lama sementara mesin
+     * wajahnya sudah memakai model baru.
+     *
+     * Dua tempat kosong: %1$s = model yang diharapkan aplikasi, %2$s = model
+     * yang dilaporkan mesin wajah.
+     */
+    public const ModelMismatchMessage = 'Versi mesin wajah berbeda. Aplikasi mengharapkan %1$s tetapi mesin melaporkan %2$s. Samakan FACE_MODEL di berkas .env aplikasi dengan FACE_MODEL_NAME di berkas .env mesin wajah.';
+
+    /**
      * Hitung angka pembanding wajah dari sebuah foto yang diunggah lewat
      * halaman.
      *
@@ -117,6 +133,13 @@ class FaceEncodingService
         // Angka wajah dari model yang berbeda tidak bisa dibandingkan dengan
         // angka wajah yang sudah tersimpan, jadi mesin yang versinya berbeda
         // ditolak lebih dulu daripada diam-diam mencocokkan yang tidak setara.
+        //
+        // Kedua nama model DITULIS di pesannya, sebab tanpa itu operator hanya
+        // tahu ada yang tidak cocok tetapi tidak tahu harus menyamakan yang mana.
+        // Kejadian nyata: berkas .env tidak ikut tersalin saat proyek dipindah ke
+        // server (berkas itu memang tidak dilacak git), sehingga aplikasi masih
+        // mengharapkan model lama sementara mesin wajahnya sudah memakai model
+        // baru, dan pesan tanpa kedua nama itu tidak bisa menunjukkan sebabnya.
         if ($model !== '' && $model !== $expected) {
             Log::warning('Mesin wajah memakai model yang berbeda dari data tersimpan.', [
                 'mesin' => $model,
@@ -125,7 +148,7 @@ class FaceEncodingService
 
             return $this->failure(
                 self::StatusInvalid,
-                'Versi mesin wajah berbeda dari data wajah yang tersimpan. Minta operator menyamakan versinya.',
+                sprintf(self::ModelMismatchMessage, $expected, $model),
                 $faceCount,
             );
         }
@@ -220,9 +243,7 @@ class FaceEncodingService
                 'diharapkan' => $expected,
             ]);
 
-            return array_merge($empty, [
-                'message' => 'Versi mesin wajah berbeda dari data wajah yang tersimpan. Minta operator menyamakan versinya.',
-            ]);
+            return array_merge($empty, ['message' => sprintf(self::ModelMismatchMessage, $expected, $model)]);
         }
 
         $faces = [];
@@ -273,11 +294,54 @@ class FaceEncodingService
      */
     public function isAvailable(): bool
     {
+        return $this->health() !== null;
+    }
+
+    /**
+     * Keadaan layanan wajah menurut pemeriksaan kesehatannya.
+     *
+     * Dipakai halaman wajah untuk MENUNJUKKAN sampai di mana kesiapannya,
+     * termasuk nama model yang sedang dilaporkan mesin. Halaman itu penting
+     * untuk membandingkannya dengan model yang diharapkan aplikasi, sebab dua
+     * berkas .env terpisah mengaturnya dan berkas .env TIDAK ikut tersalin saat
+     * proyek dipindah ke server. Tanpa perbandingan yang terlihat, keadaan itu
+     * hanya muncul sebagai kegagalan unggah yang membingungkan.
+     *
+     * Mengembalikan null bila layanan tidak bisa dihubungi, jadi pemanggilnya
+     * tidak perlu membedakan "mati" dari "membalas tetapi bukan JSON".
+     *
+     * @return array{model: string, ready: bool, dimensions: int}|null
+     */
+    public function health(): ?array
+    {
         try {
-            return Http::timeout(3)->acceptJson()->get($this->serviceUrl().'/health')->successful();
+            $response = Http::timeout(3)->acceptJson()->get($this->serviceUrl().'/health');
         } catch (ConnectionException) {
-            return false;
+            return null;
         }
+
+        $data = $response->json();
+
+        // Layanan membalas 503 selama modelnya belum selesai dimuat, dan itu
+        // tetap berita yang berguna: nama modelnya sudah bisa dibaca.
+        if (! is_array($data) || ! $response->successful()) {
+            return null;
+        }
+
+        return [
+            'model' => is_string($data['model'] ?? null) ? trim($data['model']) : '',
+            'ready' => ($data['model_ready'] ?? false) === true,
+            'dimensions' => (int) ($data['dimensions'] ?? 0),
+        ];
+    }
+
+    /**
+     * Nama model yang diharapkan aplikasi, dipakai halaman untuk membandingkan
+     * dengan nama model yang dilaporkan mesin wajah.
+     */
+    public function expectedModel(): string
+    {
+        return (string) config('face.model', FaceEmbedding::DefaultModel);
     }
 
     public function unavailableMessage(): string
