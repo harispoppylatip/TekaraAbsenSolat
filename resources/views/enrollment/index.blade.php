@@ -239,131 +239,131 @@
         tombol saja tidak cukup: permintaan tetap bisa dibuat langsung ke alamatnya.
     --}}
     @unless ($terkunci)
-    <section class="card">
-        <div class="section-head">
-            <div>
-                <h2 class="section-title">Ambil foto</h2>
-                <p class="section-note">
-                    Foto yang siap dikirim dikumpulkan lebih dulu di bawah panel ini, jadi Anda bisa membuang
-                    yang kurang bagus sebelum dikirim.
-                </p>
+        <section class="card">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Ambil foto</h2>
+                    <p class="section-note">
+                        Foto yang siap dikirim dikumpulkan lebih dulu di bawah panel ini, jadi Anda bisa membuang
+                        yang kurang bagus sebelum dikirim.
+                    </p>
+                </div>
             </div>
-        </div>
 
-        @if ($sisaJatah === 0)
-            <div class="alert alert-warning">
-                <strong>Jatah foto Anda sudah penuh</strong>
-                <p>
-                    Akun Anda sudah memuat {{ $state['total'] }} foto, yaitu batas terbanyaknya. Hapus beberapa
-                    foto di bagian bawah halaman ini kalau ingin menambah foto baru.
-                </p>
-            </div>
-        @endif
+            @if ($sisaJatah === 0)
+                <div class="alert alert-warning">
+                    <strong>Jatah foto Anda sudah penuh</strong>
+                    <p>
+                        Akun Anda sudah memuat {{ $state['total'] }} foto, yaitu batas terbanyaknya. Hapus beberapa
+                        foto di bagian bawah halaman ini kalau ingin menambah foto baru.
+                    </p>
+                </div>
+            @endif
 
-        <form method="POST" action="{{ route('enrollment.photos.store') }}" enctype="multipart/form-data"
-            data-enrollment-form data-max-submit="{{ $state['max_per_submit'] }}"
-            data-progress-url="{{ route('enrollment.progress') }}">
-            @csrf
-            <input type="hidden" name="replace" value="0">
+            <form method="POST" action="{{ route('enrollment.photos.store') }}" enctype="multipart/form-data"
+                data-enrollment-form data-max-submit="{{ $state['max_per_submit'] }}"
+                data-progress-url="{{ route('enrollment.progress') }}">
+                @csrf
+                <input type="hidden" name="replace" value="0">
 
-            <div class="tool-list">
-                <details class="tool-panel" data-record="enrollment-kamera" @if ($errors->any()) open @endif>
-                    <summary>
-                        <span class="tool-name">Ambil foto sekarang</span>
-                        <span class="tool-note">Pakai kamera peramban. Paling nyaman dikerjakan dari telepon.</span>
-                        <span class="tool-hint">
-                            <span class="tool-hint-open">Buka</span>
-                            <span class="tool-hint-close">Tutup</span>
-                        </span>
-                    </summary>
+                <div class="tool-list">
+                    <details class="tool-panel" data-record="enrollment-kamera" @if ($errors->any()) open @endif>
+                        <summary>
+                            <span class="tool-name">Ambil foto sekarang</span>
+                            <span class="tool-note">Pakai kamera peramban. Paling nyaman dikerjakan dari telepon.</span>
+                            <span class="tool-hint">
+                                <span class="tool-hint-open">Buka</span>
+                                <span class="tool-hint-close">Tutup</span>
+                            </span>
+                        </summary>
 
-                    <div class="tool-body">
-                        <div data-shoot="{{ $state['max_per_submit'] }}">
-                            <div class="camera-frame">
-                                <video data-shoot-video playsinline muted></video>
-                                <p class="camera-placeholder" data-shoot-placeholder>
-                                    Kamera belum dinyalakan.
-                                </p>
-                            </div>
-
-                            <div class="camera-controls">
-                                <div class="field">
-                                    <label class="field-label" for="enrollment-facing">Kamera yang dipakai</label>
-                                    <select class="select-field" id="enrollment-facing" data-shoot-facing>
-                                        <option value="user">Kamera depan</option>
-                                        <option value="environment">Kamera belakang</option>
-                                    </select>
+                        <div class="tool-body">
+                            <div data-shoot="{{ $state['max_per_submit'] }}">
+                                <div class="camera-frame">
+                                    <video data-shoot-video playsinline muted></video>
+                                    <p class="camera-placeholder" data-shoot-placeholder>
+                                        Kamera belum dinyalakan.
+                                    </p>
                                 </div>
 
-                                <div class="form-actions">
-                                    <button class="btn btn-secondary" type="button" data-shoot-start>Nyalakan
-                                        kamera</button>
-                                    <button class="btn btn-primary" type="button" data-shoot-capture disabled>Ambil
-                                        foto</button>
-                                    <button class="btn btn-outline btn-small" type="button" data-shoot-stop
-                                        disabled>Matikan</button>
+                                <div class="camera-controls">
+                                    <div class="field">
+                                        <label class="field-label" for="enrollment-facing">Kamera yang dipakai</label>
+                                        <select class="select-field" id="enrollment-facing" data-shoot-facing>
+                                            <option value="user">Kamera depan</option>
+                                            <option value="environment">Kamera belakang</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button class="btn btn-secondary" type="button" data-shoot-start>Nyalakan
+                                            kamera</button>
+                                        <button class="btn btn-primary" type="button" data-shoot-capture disabled>Ambil
+                                            foto</button>
+                                        <button class="btn btn-outline btn-small" type="button" data-shoot-stop
+                                            disabled>Matikan</button>
+                                    </div>
+                                </div>
+
+                                <p class="camera-status" data-shoot-status>
+                                    Pilih kamera, lalu nyalakan. Bila kamera tidak bisa dipakai, pakai pilihan foto dari
+                                    galeri di panel berikutnya. Hasilnya sama.
+                                </p>
+
+                                <div class="alert alert-warning" data-shoot-blocked hidden>
+                                    <strong>Kamera tidak bisa dipakai di halaman ini</strong>
+                                    <p>
+                                        Kamera peramban hanya bisa dipakai pada alamat yang memakai HTTPS dan pada
+                                        peramban yang mendukungnya. Pakai panel pilihan foto dari galeri, hasilnya
+                                        sama saja.
+                                    </p>
                                 </div>
                             </div>
+                        </div>
+                    </details>
 
-                            <p class="camera-status" data-shoot-status>
-                                Pilih kamera, lalu nyalakan. Bila kamera tidak bisa dipakai, pakai pilihan foto dari
-                                galeri di panel berikutnya. Hasilnya sama.
-                            </p>
+                    <details class="tool-panel" data-record="enrollment-galery">
+                        <summary>
+                            <span class="tool-name">Pilih foto dari galeri</span>
+                            <span class="tool-note">Foto yang sudah pernah diambil bisa dipakai dari sini.</span>
+                            <span class="tool-hint">
+                                <span class="tool-hint-open">Buka</span>
+                                <span class="tool-hint-close">Tutup</span>
+                            </span>
+                        </summary>
 
-                            <div class="alert alert-warning" data-shoot-blocked hidden>
-                                <strong>Kamera tidak bisa dipakai di halaman ini</strong>
-                                <p>
-                                    Kamera peramban hanya bisa dipakai pada alamat yang memakai HTTPS dan pada
-                                    peramban yang mendukungnya. Pakai panel pilihan foto dari galeri, hasilnya
-                                    sama saja.
+                        <div class="tool-body">
+                            <div class="field">
+                                <label class="field-label" for="photos">Foto wajah</label>
+                                <input class="input-field" type="file" id="photos" name="photos[]"
+                                    accept="image/jpeg,image/png,image/webp" multiple data-shoot-input>
+                                <p class="field-hint">
+                                    Format JPEG, PNG, atau WEBP. Ukuran satu foto paling besar 5 MB.
                                 </p>
+                                @error('photos')
+                                    <p class="field-error">{{ $message }}</p>
+                                @enderror
+                                @error('photos.*')
+                                    <p class="field-error">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
-                    </div>
-                </details>
+                    </details>
+                </div>
 
-                <details class="tool-panel" data-record="enrollment-galery">
-                    <summary>
-                        <span class="tool-name">Pilih foto dari galeri</span>
-                        <span class="tool-note">Foto yang sudah pernah diambil bisa dipakai dari sini.</span>
-                        <span class="tool-hint">
-                            <span class="tool-hint-open">Buka</span>
-                            <span class="tool-hint-close">Tutup</span>
-                        </span>
-                    </summary>
+                <div class="shot-stage">
+                    <p class="section-note" data-shoot-counter>Belum ada foto yang siap dikirim.</p>
+                    <p class="field-hint" data-shoot-note></p>
+                    <div class="shot-grid" data-shoot-preview></div>
+                </div>
 
-                    <div class="tool-body">
-                        <div class="field">
-                            <label class="field-label" for="photos">Foto wajah</label>
-                            <input class="input-field" type="file" id="photos" name="photos[]"
-                                accept="image/jpeg,image/png,image/webp" multiple data-shoot-input>
-                            <p class="field-hint">
-                                Format JPEG, PNG, atau WEBP. Ukuran satu foto paling besar 5 MB.
-                            </p>
-                            @error('photos')
-                                <p class="field-error">{{ $message }}</p>
-                            @enderror
-                            @error('photos.*')
-                                <p class="field-error">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                </details>
-            </div>
-
-            <div class="shot-stage">
-                <p class="section-note" data-shoot-counter>Belum ada foto yang siap dikirim.</p>
-                <p class="field-hint" data-shoot-note></p>
-                <div class="shot-grid" data-shoot-preview></div>
-            </div>
-
-            <div class="form-actions">
-                <button class="btn btn-primary" type="submit" data-shoot-submit disabled>Kirim foto untuk
-                    diperiksa</button>
-                <a class="btn btn-text" href="{{ route('enrollment.show') }}">Bersihkan pilihan</a>
-            </div>
-        </form>
-    </section>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit" data-shoot-submit disabled>Kirim foto untuk
+                        diperiksa</button>
+                    <a class="btn btn-text" href="{{ route('enrollment.show') }}">Bersihkan pilihan</a>
+                </div>
+            </form>
+        </section>
     @endunless
 
     {{--

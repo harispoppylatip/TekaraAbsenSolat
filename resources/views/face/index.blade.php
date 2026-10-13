@@ -490,15 +490,15 @@
                                             Selesaikan pendaftaran, wajahnya terkunci lagi.
                                         </p>
 
-                                        <form method="POST"
-                                            action="{{ route('face.enrollment.reopen', $member) }}"
+                                        <form method="POST" action="{{ route('face.enrollment.reopen', $member) }}"
                                             data-confirm="Buka pendaftaran ulang wajah {{ $member->name }}? Setelah dibuka, dia bisa mengganti fotonya sendiri dari halaman pendaftaran wajah.">
                                             @csrf
                                             @method('PUT')
                                             {{-- Labelnya dijadikan satu baris: label tombol yang
                                                  terbelah baris di berkas blade membuat pencarian
                                                  teks di halaman gagal walau tampilannya benar. --}}
-                                            <button class="btn btn-small btn-outline" type="submit">Buka pendaftaran ulang</button>
+                                            <button class="btn btn-small btn-outline" type="submit">Buka pendaftaran
+                                                ulang</button>
                                         </form>
                                     </div>
                                 @endif
