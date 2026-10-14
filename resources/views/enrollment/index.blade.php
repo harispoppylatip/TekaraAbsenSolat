@@ -149,55 +149,21 @@
     <details class="card fold-card" data-guide="cara-mengambil-foto">
         <summary>
             <span class="section-title">Cara mengambil foto yang benar</span>
-            <span class="section-note">
-                Ambil foto dari tempat yang terang, bisa di dalam atau di luar ruangan. Yang penting wajah
-                terlihat jelas, kamera tidak bergerak, dan tidak ada orang lain di dalam bingkai.
-            </span>
+            <span class="section-note">Tips singkat agar foto diterima.</span>
             <span class="fold-card-hint">
                 <span class="fold-card-open">Buka panduan</span>
                 <span class="fold-card-close">Tutup panduan</span>
             </span>
         </summary>
 
-        <div class="table-wrap">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Hal yang diperiksa</th>
-                        <th>Cara yang benar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Cahaya</td>
-                        <td>Hadap ke arah cahaya, jangan membelakangi jendela. Hindari ruangan gelap dan hindari
-                            lampu yang menyorot langsung ke wajah.</td>
-                    </tr>
-                    <tr>
-                        <td>Ketajaman</td>
-                        <td>Pegang telepon dengan tenang, atau minta orang lain memotretkan. Foto yang bergerak
-                            akan ditolak.</td>
-                    </tr>
-                    <tr>
-                        <td>Ukuran wajah</td>
-                        <td>Wajah memenuhi sebagian besar layar. Jangan terlalu jauh sampai wajahnya kecil.</td>
-                    </tr>
-                    <tr>
-                        <td>Arah hadap</td>
-                        <td>Menghadap kamera. Boleh diputar sedikit ke kiri atau ke kanan, tetapi jangan sampai
-                            telinga hilang dari bingkai.</td>
-                    </tr>
-                    <tr>
-                        <td>Isi bingkai</td>
-                        <td>Satu orang saja di dalam bingkai. Foto bersama tidak bisa dipakai.</td>
-                    </tr>
-                    <tr>
-                        <td>Yang menutupi wajah</td>
-                        <td>Rambut tidak menutupi dahi dan pipi. Lepaskan masker dan penutup kepala.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <ul class="guide-checklist">
+            <li>☀️ <strong>Cahaya</strong> — Hadap sumber cahaya, jangan membelakangi jendela.</li>
+            <li>📸 <strong>Diam</strong> — Pegang HP tenang atau minta orang lain memotret.</li>
+            <li>🧑 <strong>Dekat</strong> — Wajah isi sebagian besar layar, jangan terlalu jauh.</li>
+            <li>👀 <strong>Lihat kamera</strong> — Boleh sedikit ke kiri/kanan, jangan sampai telinga hilang.</li>
+            <li>👤 <strong>Sendiri</strong> — Satu orang saja dalam bingkai.</li>
+            <li>😶 <strong>Wajah terbuka</strong> — Lepas masker, topi, dan jangan rambut menutupi wajah.</li>
+        </ul>
     </details>
 
     {{-- Variasi foto yang harus ada. Susunannya diatur di config/face.php

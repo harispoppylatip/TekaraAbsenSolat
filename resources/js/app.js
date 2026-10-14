@@ -697,6 +697,14 @@ function initCamera(root) {
 
         stream = opened;
         video.srcObject = stream;
+
+        // Cek apakah kamera yang aktif adalah kamera depan
+        const isUserFacing =
+            typeof facing === "string" &&
+            (facing === "facing:user" ||
+                facing.includes("user") ||
+                facing.toLowerCase().includes("front"));
+        video.style.transform = isUserFacing ? "scaleX(-1)" : "none";
         video.hidden = false;
 
         if (placeholder) {

@@ -1398,6 +1398,27 @@ select.select-field {
    fotonya, nama variasinya, lalu penjelasannya. Tidak ada lambang, titik, atau
    kotak label, sesuai aturan tampilan proyek ini.
 */
+.guide-checklist {
+    list-style: none;
+    margin: 12px 0 4px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.guide-checklist li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--outline);
+}
+
 .variation-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

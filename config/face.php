@@ -229,7 +229,7 @@ return [
         | ketat daripada panel admin, sebab halaman ini dipakai banyak orang
         | sekaligus dan satu kiriman besar memakai satu slot antrean.
         */
-        'max_photos_per_submit' => (int) env('FACE_ENROLLMENT_PER_SUBMIT', 3),
+        'max_photos_per_submit' => (int) env('FACE_ENROLLMENT_PER_SUBMIT', 5),
 
         /*
         | Jarak maksimal antara dua angka wajah yang masih dianggap foto kembar.

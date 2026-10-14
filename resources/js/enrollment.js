@@ -224,6 +224,8 @@ function setupShooter(root, staging) {
         }
 
         video.srcObject = stream;
+        const isUserFacing = facing === "user";
+        video.style.transform = isUserFacing ? "scaleX(-1)" : "none";
 
         try {
             await video.play();
@@ -323,6 +325,39 @@ function setupQueueWatch(form, staging) {
     }
 
     let terakhir = null;
+    // Penanda waktu batch selesai untuk auto-dismiss setelah 15 detik
+    const batchDismissTimers = {};
+
+    const dismissBatchArticle = (batchId) => {
+        const article = document.querySelector(`[data-batch="${batchId}"]`);
+        if (article) {
+            article.style.transition = "opacity 0.5s";
+            article.style.opacity = "0";
+            setTimeout(() => {
+                if (article.parentNode) {
+                    article.parentNode.removeChild(article);
+                }
+            }, 500);
+        }
+        delete batchDismissTimers[batchId];
+    };
+
+    const scheduleAutoDismiss = (batchId) => {
+        // Jangan jadwalkan ulang kalau sudah ada timer
+        if (batchDismissTimers[batchId]) {
+            return;
+        }
+        batchDismissTimers[batchId] = setTimeout(() => {
+            dismissBatchArticle(batchId);
+        }, 15000);
+    };
+
+    const cancelAutoDismiss = (batchId) => {
+        if (batchDismissTimers[batchId]) {
+            clearTimeout(batchDismissTimers[batchId]);
+            delete batchDismissTimers[batchId];
+        }
+    };
 
     const check = async () => {
         let data = null;
@@ -346,6 +381,18 @@ function setupQueueWatch(form, staging) {
         }
 
         const pending = Boolean(data && data.state && data.state.pending);
+
+        // Periksa setiap batch: yang baru selesai (done=true) jadwalkan auto-dismiss;
+        // yang masih berjalan batalkan auto-dismiss agar tidak dihapus lebih awal.
+        if (data && data.state && Array.isArray(data.state.batches)) {
+            data.state.batches.forEach((batch) => {
+                if (batch.done) {
+                    scheduleAutoDismiss(batch.id);
+                } else {
+                    cancelAutoDismiss(batch.id);
+                }
+            });
+        }
 
         if (pending === terakhir) {
             return;
