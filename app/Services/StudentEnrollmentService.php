@@ -139,7 +139,7 @@ class StudentEnrollmentService
             'pending' => $pending,
             'locked' => $locked,
             'has_photos' => $photo['total'] > 0,
-            'batches' => $this->queue->batches(self::BatchesShown, $user, false),
+            'batches' => $this->queue->latestBatchFor($user),
         ];
     }
 

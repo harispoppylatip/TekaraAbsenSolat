@@ -425,46 +425,75 @@ class StudentFaceEnrollmentTest extends TestCase
     }
 
     /**
-     * Laporan kelompok yang sudah selesai tetap tampil di halaman pendaftaran.
+     * Kartu kelompok yang sudah selesai di halaman pendaftaran.
      *
-     * Kejadian nyata yang ditemukan saat pengujian di peramban: panel admin
-     * menghilangkan kartu kelompok yang selesai setelah dua puluh detik supaya
-     * panelnya tidak penuh kartu lama. Aturan itu terbawa ke halaman pendaftaran
-     * dan akibatnya pemilik akun hampir selalu menemukan panelnya kosong hanya
-     * beberapa detik setelah mengirim, sehingga alasan fotonya ditolak tidak
-     * pernah terbaca.
+     * Aturan diganti 2026-10-15 atas permintaan user: kartu kelompok di
+     * halaman pendaftaran HILANG 15 detik setelah seluruh fotonya selesai,
+     * termasuk bila ada foto yang gagal, supaya kartu lama tidak menumpuk
+     * saat pemiliknya memotret lagi.
      */
-    public function test_laporan_foto_tetap_terbaca_walau_pemeriksaannya_sudah_lama(): void
+    public function test_kartu_selesai_hilang_setelah_lima_belas_detik(): void
     {
         Storage::fake('local');
 
         $murid = $this->makeUser(User::RoleMurid);
-        $lama = now()->subHour();
 
-        $row = new FacePhotoUpload;
-        $row->forceFill([
-            'batch_id' => 'uji-sudah-lama',
-            'user_id' => $murid->id,
-            'original_name' => 'gelap.jpg',
-            'path' => FacePhotoQueueService::Folder.'/gelap.jpg',
-            'label' => 'gelap.jpg',
-            'self_enrolled' => true,
-            'status' => FacePhotoUpload::StatusGagal,
-            'result_status' => FaceEnrollmentService::StatusTooDark,
-            'message' => 'Fotonya terlalu gelap. Cari tempat yang lebih terang, lalu ambil ulang.',
-            'created_at' => $lama,
-            'updated_at' => $lama,
-            'finished_at' => $lama,
-        ])->save();
+        $this->makeFinishedRow($murid, 'uji-sudah-lama', 'gelap.jpg', now()->subSeconds(FacePhotoQueueService::EnrollmentLingerSeconds + 1));
 
-        // Panel admin memang menyembunyikannya.
-        $this->assertSame([], app(FacePhotoQueueService::class)->batches());
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertDontSee('gelap.jpg');
+    }
+
+    public function test_kartu_selesai_masih_tampil_sebelum_lima_belas_detik(): void
+    {
+        Storage::fake('local');
+
+        $murid = $this->makeUser(User::RoleMurid);
+
+        $this->makeFinishedRow($murid, 'uji-baru', 'gelap.jpg', now()->subSeconds(3));
 
         $this->actingAs($murid)
             ->get(route('enrollment.show'))
             ->assertOk()
             ->assertSee('gelap.jpg')
             ->assertSee('terlalu gelap');
+    }
+
+    public function test_hanya_kelompok_terbaru_yang_tampil(): void
+    {
+        Storage::fake('local');
+
+        $murid = $this->makeUser(User::RoleMurid);
+
+        $this->makeFinishedRow($murid, 'uji-lama', 'lama.jpg', now()->subSeconds(5));
+        $this->makeFinishedRow($murid, 'uji-baru', 'baru.jpg', now()->subSeconds(2));
+
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertSee('baru.jpg')
+            ->assertDontSee('lama.jpg');
+    }
+
+    private function makeFinishedRow(User $murid, string $batch, string $nama, \Illuminate\Support\Carbon $selesai): void
+    {
+        $row = new FacePhotoUpload;
+        $row->forceFill([
+            'batch_id' => $batch,
+            'user_id' => $murid->id,
+            'original_name' => $nama,
+            'path' => FacePhotoQueueService::Folder.'/'.$nama,
+            'label' => $nama,
+            'self_enrolled' => true,
+            'status' => FacePhotoUpload::StatusGagal,
+            'result_status' => FaceEnrollmentService::StatusTooDark,
+            'message' => 'Fotonya terlalu gelap. Cari tempat yang lebih terang, lalu ambil ulang.',
+            'created_at' => $selesai,
+            'updated_at' => $selesai,
+            'finished_at' => $selesai,
+        ])->save();
     }
 
     public function test_menu_pendaftaran_tetap_tampil_selagi_foto_diperiksa(): void
@@ -757,7 +786,7 @@ class StudentFaceEnrollmentTest extends TestCase
             ->assertSee('Buka panduan')
             ->assertSee('Buka daftar foto')
             // Panduannya tetap benar benar ada di halaman, hanya dilipat.
-            ->assertSee('Hadap ke arah cahaya')
+            ->assertSee('Hadap sumber cahaya')
             ->assertSee('Menghadap lurus');
     }
 

@@ -46,7 +46,9 @@
     </div>
 
     @if ($state['batches'] === [])
-        <p class="empty-state">Belum ada foto yang dikirim dari halaman ini.</p>
+        <p class="empty-state">
+            {{ $state['has_photos'] ? 'Tidak ada foto yang sedang diperiksa.' : 'Belum ada foto yang dikirim dari halaman ini.' }}
+        </p>
     @else
         @foreach ($state['batches'] as $batch)
             @php

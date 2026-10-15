@@ -45,6 +45,14 @@ class FacePhotoQueueService
     public const DoneLingerSeconds = 20;
 
     /**
+     * Lama kartu kelompok tetap tampil di halaman pendaftaran wajah setelah
+     * seluruh fotonya selesai diperiksa. Berbeda dengan panel admin, aturan
+     * ini juga berlaku untuk kelompok yang punya foto gagal: permintaan user
+     * 2026-10-15, kartu lama tidak boleh menumpuk saat memotret lagi.
+     */
+    public const EnrollmentLingerSeconds = 15;
+
+    /**
      * Titipkan beberapa foto satu anggota ke antrean.
      *
      * `$selfEnrolled` menandai foto yang diunggah pemilik akunnya sendiri dari
@@ -309,6 +317,50 @@ class FacePhotoQueueService
         }
 
         return $batches;
+    }
+
+    /**
+     * Kelompok unggahan yang ditampilkan di halaman pendaftaran wajah.
+     *
+     * Hanya kelompok TERBARU milik anggota itu yang dilaporkan, jadi kiriman
+     * baru otomatis menggantikan kartu lama. Kartunya hilang
+     * EnrollmentLingerSeconds detik setelah seluruh fotonya selesai, termasuk
+     * bila ada foto yang gagal. Wilayah `data-live` di halaman membangun ulang
+     * isinya dari jawaban ini, jadi penghilangannya WAJIB diputuskan di server:
+     * menghapus kartu lewat JavaScript saja akan dibatalkan penyegaran berikutnya.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function latestBatchFor(User $member): array
+    {
+        /** @var string|null $batchId */
+        $batchId = FacePhotoUpload::query()
+            ->where('user_id', $member->getKey())
+            ->orderByDesc('id')
+            ->value('batch_id');
+
+        if ($batchId === null) {
+            return [];
+        }
+
+        $rows = $this->rowsOfBatch($batchId);
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $belumSelesai = $rows->contains(fn (FacePhotoUpload $row): bool => $row->finished_at === null);
+
+        if (! $belumSelesai) {
+            /** @var Carbon|null $terakhir */
+            $terakhir = $rows->map(fn (FacePhotoUpload $row) => $row->finished_at)->filter()->max();
+
+            if ($terakhir !== null && now()->greaterThanOrEqualTo($terakhir->copy()->addSeconds(self::EnrollmentLingerSeconds))) {
+                return [];
+            }
+        }
+
+        return [$this->summarise($batchId, $rows)];
     }
 
     /**
