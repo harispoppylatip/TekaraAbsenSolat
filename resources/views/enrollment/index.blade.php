@@ -143,41 +143,15 @@
     @endif
 
     {{--
-        Dua panduan di bawah ini dilipat, bukan dibuka, karena keduanya berisi
-        bacaan yang panjang sedangkan yang perlu dikerjakan pemiliknya pertama
-        kali justru bagian Ambil foto. Yang dilipat tetap bisa dibuka kapan saja
-        tanpa memuat ulang halaman, dan terbuka sendiri di peramban yang tidak
-        menjalankan JavaScript sebab unsur `details` memang begitu bawaannya.
+        Panduan variasi foto yang harus ada. Dilipat secara bawaan agar pengguna
+        langsung fokus ke pengambilan foto, tetapi memuat tips penting serta 5 pose
+        wajah yang disinkronkan dengan pemotretan otomatis.
     --}}
-    <details class="card fold-card" data-guide="cara-mengambil-foto">
-        <summary>
-            <span class="section-title">Cara mengambil foto yang benar</span>
-            <span class="section-note">Tips singkat agar foto diterima.</span>
-            <span class="fold-card-hint">
-                <span class="fold-card-open">Buka panduan</span>
-                <span class="fold-card-close">Tutup panduan</span>
-            </span>
-        </summary>
-
-        <ul class="guide-checklist">
-            <li>☀️ <strong>Cahaya</strong> — Hadap sumber cahaya, jangan membelakangi jendela.</li>
-            <li>📸 <strong>Diam</strong> — Pegang HP tenang atau minta orang lain memotret.</li>
-            <li>🧑 <strong>Dekat</strong> — Wajah isi sebagian besar layar, jangan terlalu jauh.</li>
-            <li>👀 <strong>Lihat kamera</strong> — Boleh sedikit ke kiri/kanan, jangan sampai telinga hilang.</li>
-            <li>👤 <strong>Sendiri</strong> — Satu orang saja dalam bingkai.</li>
-            <li>😶 <strong>Wajah terbuka</strong> — Lepas masker, topi, dan jangan rambut menutupi wajah.</li>
-        </ul>
-    </details>
-
-    {{-- Variasi foto yang harus ada. Susunannya diatur di config/face.php
-         supaya jumlah wajibnya ikut berubah bila batas minimalnya diubah. --}}
     <details class="card fold-card" data-guide="foto-yang-perlu-diambil">
         <summary>
             <span class="section-title">Foto yang perlu diambil</span>
             <span class="section-note">
-                {{ $state['required'] }} foto wajib, dan boleh ditambah sampai {{ $state['max'] }} foto.
-                Sekali kirim paling banyak {{ $state['max_per_submit'] }} foto, jadi panduan ini bisa
-                dikerjakan dalam beberapa kali kirim.
+                Sistem membutuhkan {{ $state['required'] }} sudut foto wajah agar saat absen wajah Anda mudah dikenali. Cukup ikuti 5 pose terpandu di bawah ini.
             </span>
             <span class="fold-card-hint">
                 <span class="fold-card-open">Buka daftar foto</span>
@@ -185,11 +159,35 @@
             </span>
         </summary>
 
+        <div class="guide-summary-tips">
+            <div class="guide-tip-item">
+                <span class="guide-tip-icon">☀️</span>
+                <div>
+                    <strong>Cahaya terang</strong>
+                    <p>Hadap sumber cahaya langsung, jangan membelakangi jendela atau lampu.</p>
+                </div>
+            </div>
+            <div class="guide-tip-item">
+                <span class="guide-tip-icon">😶</span>
+                <div>
+                    <strong>Wajah terbuka</strong>
+                    <p>Lepas masker, kacamata hitam, atau topi agar seluruh wajah terlihat jelas.</p>
+                </div>
+            </div>
+            <div class="guide-tip-item">
+                <span class="guide-tip-icon">👤</span>
+                <div>
+                    <strong>Sendiri di layar</strong>
+                    <p>Pastikan hanya ada satu wajah Anda di dalam bingkai kamera.</p>
+                </div>
+            </div>
+        </div>
+
         <div class="variation-list">
             @foreach ($variations as $index => $variasi)
-                <div class="variation-item">
+                <div class="variation-item @if ($variasi['required']) variation-item-required @endif">
                     <p class="variation-label">
-                        Foto {{ $index + 1 }}
+                        Pose {{ $index + 1 }}
                         <span class="variation-mark">{{ $variasi['required'] ? 'wajib' : 'tambahan' }}</span>
                     </p>
                     <p class="variation-title">{{ $variasi['label'] }}</p>
@@ -200,12 +198,9 @@
     </details>
 
     {{--
-        Dua cara mengambil foto. Sengaja dilipat supaya halaman tidak penuh
-        isian sekaligus, dan supaya cara pertama yang dilihat adalah kamera.
-
-        Seluruh bagian ini disembunyikan pada akun yang pendaftarannya sudah
-        selesai, dan penolakannya juga diperiksa ulang di pengendali. Menyembunyikan
-        tombol saja tidak cukup: permintaan tetap bisa dibuat langsung ke alamatnya.
+        Pengambilan foto wajah. Kamera dibuka langsung agar murid dan orang tua
+        tidak bingung mencari tombol kamera. Panel galeri disediakan di bawahnya
+        sebagai alternatif jika kamera perangkat tidak dapat digunakan.
     --}}
     @unless ($terkunci)
         <section class="card">
@@ -236,7 +231,7 @@
                 <input type="hidden" name="replace" value="0">
 
                 <div class="tool-list">
-                    <details class="tool-panel" data-record="enrollment-kamera" @if ($errors->any()) open @endif>
+                    <details class="tool-panel" data-record="enrollment-kamera" open>
                         <summary>
                             <span class="tool-name">Ambil foto sekarang</span>
                             <span class="tool-note">Pakai kamera peramban. Paling nyaman dikerjakan dari telepon.</span>
@@ -247,6 +242,10 @@
                         </summary>
 
                         <div class="tool-body">
+                            <p class="camera-instruction-note">
+                                Panduan cepat: Nyalakan kamera, lalu klik tombol <strong>Mulai foto otomatis (5 sudut)</strong>. Sistem akan menghitung mundur 3 detik untuk setiap arah wajah secara berurutan.
+                            </p>
+
                             <div data-shoot="{{ $state['max_per_submit'] }}">
                                 <div class="camera-frame">
                                     <video data-shoot-video playsinline muted></video>
@@ -306,10 +305,10 @@
                         </div>
                     </details>
 
-                    <details class="tool-panel" data-record="enrollment-galery">
+                    <details class="tool-panel" data-record="enrollment-galery" @if ($errors->has('photos') || $errors->has('photos.*')) open @endif>
                         <summary>
                             <span class="tool-name">Pilih foto dari galeri</span>
-                            <span class="tool-note">Foto yang sudah pernah diambil bisa dipakai dari sini.</span>
+                            <span class="tool-note">Gunakan pilihan ini jika kamera peramban tidak dapat digunakan.</span>
                             <span class="tool-hint">
                                 <span class="tool-hint-open">Buka</span>
                                 <span class="tool-hint-close">Tutup</span>

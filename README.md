@@ -528,10 +528,30 @@ Aturan yang berlaku di halaman ini:
 | --------------------------- | ---------------------------------------------------------------------------- |
 | Jumlah foto wajib           | 5 foto, diatur `FACE_ENROLLMENT_REQUIRED_PHOTOS`                             |
 | Jumlah foto terbanyak       | 10 foto per anggota, diatur `FACE_ENROLLMENT_MAX_PHOTOS`                     |
-| Sekali kirim                | 3 foto, diatur `FACE_ENROLLMENT_PER_SUBMIT`                                  |
+| Sekali kirim                | 5 foto, diatur `FACE_ENROLLMENT_PER_SUBMIT`                                  |
 | Sumber identitas            | Hanya akun yang sedang masuk; tidak ada nomor akun yang dibaca dari peramban |
 | Dua kiriman bersamaan       | Ditolak selama kiriman sebelumnya belum selesai diperiksa                    |
 | Foto lama saat daftar ulang | Tetap tersimpan sampai foto barunya lolos seluruhnya                         |
+| Format berkas & simpanan    | Disimpan aman di folder privat `storage/app/private/face-photos/{user_id}`    |
+
+### Alur pemotretan dan konfirmasi pendaftaran
+
+Halaman pendaftaran dirancang ramah untuk murid dan orang tua dengan alur yang mudah:
+
+1. **Pemotretan Otomatis (5 Sudut Wajah)**:
+   Tombol **Mulai foto otomatis (5 sudut)** memandu pengambilan 5 pose secara berurutan:
+   - Pose 1: Hadap lurus ke kamera
+   - Pose 2: Tengok sedikit ke kiri
+   - Pose 3: Tengok sedikit ke kanan
+   - Pose 4: Angkat dagu sedikit ke atas (mendongak)
+   - Pose 5: Tundukkan kepala sedikit ke bawah
+   Setiap sudut dipandu dengan hitung mundur 3 detik, panduan oval wajah, dan animasi lampu kilat kamera. Pilihan ambil manual satu per satu atau unggah berkas dari galeri tetap tersedia.
+
+2. **Pratinjau Foto Asli Tersimpan**:
+   Setiap foto wajah yang lolos verifikasi mesin disimpan di `storage/app/private/face-photos/{user_id}/` dan dapat dilihat langsung thumbnail-nya pada tabel pendaftaran (`/pendaftaran-wajah/foto/{faceEmbedding}`). Jamaah atau orang tua dapat mengecek ketajaman dan kejelasan foto sebelum pendaftaran dikunci.
+
+3. **Konfirmasi Selesai & Penguncian**:
+   Ketika 5 foto wajib sudah terkumpul, status pendaftaran tidak langsung mengunci secara sepihak. Pengguna dapat mengecek foto-foto mereka terlebih dahulu, lalu menekan tombol **Kirim dan selesaikan pendaftaran** dengan dialog konfirmasi pencegah terkunci tidak sengaja. Setelah dikonfirmasi, pendaftaran terkunci agar data wajah konsisten untuk absensi harian.
 
 Pemeriksaan mutu foto hanya dijalankan di halaman ini. Mesin wajah menilai
 kecerahan, ketajaman, dan arah hadap wajah, lalu menolak foto yang terlalu gelap,

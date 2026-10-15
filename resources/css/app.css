@@ -1510,6 +1510,59 @@ select.select-field {
     border: 1px solid var(--outline);
 }
 
+.guide-summary-tips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+    margin: 14px 0 16px;
+}
+
+.guide-tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-sm);
+}
+
+.guide-tip-icon {
+    font-size: 1.25rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.guide-tip-item strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--on-surface);
+    margin-bottom: 2px;
+}
+
+.guide-tip-item p {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--on-surface-variant);
+    margin: 0;
+}
+
+.camera-instruction-note {
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--on-surface);
+    background: var(--surface-variant, #f1f5f9);
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin: 0 0 12px;
+}
+
+.variation-item-required {
+    border-color: var(--primary);
+}
+
 .variation-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

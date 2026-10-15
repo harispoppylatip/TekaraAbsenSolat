@@ -80,7 +80,7 @@ class StudentFaceEnrollmentTest extends TestCase
         $this->actingAs($murid->refresh())
             ->get(route('enrollment.show'))
             ->assertOk()
-            ->assertSee('Cara mengambil foto yang benar');
+            ->assertSee('Foto yang perlu diambil');
     }
 
     public function test_pemilik_yang_sudah_terdaftar_tidak_diarahkan_ke_pendaftaran(): void
@@ -793,9 +793,8 @@ class StudentFaceEnrollmentTest extends TestCase
         $this->actingAs($murid)
             ->get(route('enrollment.show'))
             ->assertOk()
-            ->assertSee('data-guide="cara-mengambil-foto"', false)
+            ->assertDontSee('data-guide="cara-mengambil-foto"', false)
             ->assertSee('data-guide="foto-yang-perlu-diambil"', false)
-            ->assertSee('Buka panduan')
             ->assertSee('Buka daftar foto')
             // Panduannya tetap benar benar ada di halaman, hanya dilipat.
             ->assertSee('Hadap sumber cahaya')
