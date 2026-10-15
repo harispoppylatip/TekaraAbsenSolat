@@ -126,6 +126,9 @@ function setupPhotoStaging(form) {
     return {
         canvas,
         add,
+        count() {
+            return staged.length;
+        },
         clear() {
             staged.splice(0, staged.length);
             sync();
@@ -139,11 +142,25 @@ function setupPhotoStaging(form) {
 
 /* ---------- Kamera ---------- */
 
+const AUTO_POSES = [
+    { label: "Lurus", step: "1/5", text: "Hadap lurus ke kamera" },
+    { label: "Serong Kiri", step: "2/5", text: "Tengok sedikit ke kiri" },
+    { label: "Serong Kanan", step: "3/5", text: "Tengok sedikit ke kanan" },
+    { label: "Sedikit ke Atas", step: "4/5", text: "Angkat kepala sedikit ke atas" },
+    { label: "Sedikit ke Bawah", step: "5/5", text: "Tundukkan kepala sedikit ke bawah" },
+];
+
 function setupShooter(root, staging) {
     const video = root.querySelector("[data-shoot-video]");
     const startButton = root.querySelector("[data-shoot-start]");
     const stopButton = root.querySelector("[data-shoot-stop]");
     const shootButton = root.querySelector("[data-shoot-capture]");
+    const autoButton = root.querySelector("[data-shoot-auto]");
+    const guideOverlay = root.querySelector("[data-shoot-guide]");
+    const guideStep = root.querySelector("[data-shoot-guide-step]");
+    const guideText = root.querySelector("[data-shoot-guide-text]");
+    const guideCountdown = root.querySelector("[data-shoot-guide-countdown]");
+    const flashEl = root.querySelector("[data-shoot-flash]");
     const picker = root.querySelector("[data-shoot-facing]");
     const status = root.querySelector("[data-shoot-status]");
     const placeholder = root.querySelector("[data-shoot-placeholder]");
@@ -154,6 +171,8 @@ function setupShooter(root, staging) {
 
     let stream = null;
     let facing = "user";
+    let isAutoRunning = false;
+    let autoTimer = null;
 
     const say = (message) => {
         if (status) {
@@ -161,7 +180,57 @@ function setupShooter(root, staging) {
         }
     };
 
+    const triggerFlash = () => {
+        if (!flashEl) return;
+        flashEl.hidden = false;
+        flashEl.classList.add("flash-active");
+        setTimeout(() => {
+            flashEl.classList.remove("flash-active");
+            setTimeout(() => {
+                flashEl.hidden = true;
+            }, 150);
+        }, 120);
+    };
+
+    const wait = (ms) => new Promise((resolve) => {
+        autoTimer = setTimeout(resolve, ms);
+    });
+
+    const stopAuto = () => {
+        isAutoRunning = false;
+        if (autoTimer) {
+            clearTimeout(autoTimer);
+            autoTimer = null;
+        }
+
+        if (guideOverlay) {
+            guideOverlay.hidden = true;
+            guideOverlay.classList.remove("is-active", "is-snapped");
+        }
+        if (guideCountdown) {
+            guideCountdown.hidden = true;
+        }
+
+        if (autoButton) {
+            autoButton.textContent = "Mulai foto otomatis (5 sudut)";
+            autoButton.disabled = !stream;
+        }
+        if (shootButton) {
+            shootButton.disabled = !stream;
+        }
+        if (startButton) {
+            startButton.disabled = !!stream;
+        }
+        if (stopButton) {
+            stopButton.disabled = !stream;
+        }
+    };
+
     const stop = () => {
+        if (isAutoRunning) {
+            stopAuto();
+        }
+
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             stream = null;
@@ -169,6 +238,9 @@ function setupShooter(root, staging) {
 
         video.srcObject = null;
         shootButton.disabled = true;
+        if (autoButton) {
+            autoButton.disabled = true;
+        }
         stopButton.disabled = true;
         startButton.disabled = false;
 
@@ -235,71 +307,163 @@ function setupShooter(root, staging) {
         }
 
         shootButton.disabled = false;
+        if (autoButton) {
+            autoButton.disabled = false;
+        }
         stopButton.disabled = false;
 
         if (placeholder) {
             placeholder.hidden = true;
         }
 
-        say("Kamera menyala. Ambil foto sesuai panduan di atas.");
+        say("Kamera menyala. Tekan 'Mulai foto otomatis (5 sudut)' untuk pengambilan otomatis.");
     };
 
-    const capture = () => {
-        const width = video.videoWidth;
-        const height = video.videoHeight;
+    const takeSnapshot = (customLabel = null) => {
+        return new Promise((resolve) => {
+            const width = video.videoWidth;
+            const height = video.videoHeight;
 
-        if (width === 0 || height === 0) {
-            say("Gambar kamera belum siap. Tunggu sebentar, lalu ambil lagi.");
+            if (width === 0 || height === 0) {
+                say("Gambar kamera belum siap. Tunggu sebentar.");
+                resolve(false);
+                return;
+            }
 
+            const scale = Math.min(1, 1280 / Math.max(width, height));
+            staging.canvas.width = Math.round(width * scale);
+            staging.canvas.height = Math.round(height * scale);
+
+            const context = staging.canvas.getContext("2d");
+            context.drawImage(
+                video,
+                0,
+                0,
+                staging.canvas.width,
+                staging.canvas.height,
+            );
+
+            triggerFlash();
+
+            if (guideOverlay) {
+                guideOverlay.classList.add("is-snapped");
+                setTimeout(() => guideOverlay.classList.remove("is-snapped"), 300);
+            }
+
+            staging.canvas.toBlob(
+                (blob) => {
+                    if (!blob) {
+                        say("Foto gagal diambil. Coba lagi.");
+                        resolve(false);
+                        return;
+                    }
+
+                    const suffix = customLabel
+                        ? `-${customLabel.toLowerCase().replace(/\s+/g, "-")}`
+                        : "";
+                    const file = new File([blob], `kamera${suffix}-${Date.now()}.jpg`, {
+                        type: "image/jpeg",
+                    });
+                    const rejected = staging.add([file]);
+
+                    if (rejected > 0) {
+                        say(
+                            "Jatah foto sekali kirim sudah penuh. Kirim dulu, lalu ambil foto berikutnya.",
+                        );
+                        resolve(false);
+                        return;
+                    }
+
+                    resolve(true);
+                },
+                "image/jpeg",
+                0.9,
+            );
+        });
+    };
+
+    const captureManual = async () => {
+        const ok = await takeSnapshot();
+        if (ok) {
+            say("Foto diambil. Ambil foto berikutnya dengan sudut yang berbeda.");
+        }
+    };
+
+    const runAutoCapture = async () => {
+        if (isAutoRunning) {
+            stopAuto();
+            say("Pengambilan foto otomatis dibatalkan.");
             return;
         }
 
-        const scale = Math.min(1, 1280 / Math.max(width, height));
-        staging.canvas.width = Math.round(width * scale);
-        staging.canvas.height = Math.round(height * scale);
+        if (!stream) {
+            await start();
+            if (!stream) return;
+        }
 
-        const context = staging.canvas.getContext("2d");
-        context.drawImage(
-            video,
-            0,
-            0,
-            staging.canvas.width,
-            staging.canvas.height,
-        );
+        const currentCount = staging.count ? staging.count() : 0;
+        if (currentCount >= 5) {
+            say("Sudah ada 5 foto siap dikirim. Buang foto terlebih dahulu jika ingin mengambil ulang.");
+            return;
+        }
 
-        staging.canvas.toBlob(
-            (blob) => {
-                if (!blob) {
-                    say("Foto gagal diambil. Coba lagi.");
+        isAutoRunning = true;
+        if (autoButton) {
+            autoButton.textContent = "Batal foto otomatis";
+        }
+        if (shootButton) {
+            shootButton.disabled = true;
+        }
 
-                    return;
-                }
+        if (guideOverlay) {
+            guideOverlay.hidden = false;
+            guideOverlay.classList.add("is-active");
+        }
 
-                const file = new File([blob], `kamera-${Date.now()}.jpg`, {
-                    type: "image/jpeg",
-                });
-                const rejected = staging.add([file]);
+        for (let i = 0; i < AUTO_POSES.length; i++) {
+            if (!isAutoRunning) break;
 
-                if (rejected > 0) {
-                    say(
-                        "Jatah foto sekali kirim sudah penuh. Kirim dulu, lalu ambil foto berikutnya.",
-                    );
+            const pose = AUTO_POSES[i];
+            if (guideStep) guideStep.textContent = pose.step;
+            if (guideText) guideText.textContent = pose.text;
+            say(`Langkah ${pose.step}: ${pose.text}`);
 
-                    return;
-                }
+            if (guideCountdown) {
+                guideCountdown.hidden = false;
+            }
 
-                say(
-                    "Foto diambil. Ambil foto berikutnya dengan sudut yang berbeda.",
-                );
-            },
-            "image/jpeg",
-            0.9,
-        );
+            for (let c = 3; c >= 1; c--) {
+                if (!isAutoRunning) break;
+                if (guideCountdown) guideCountdown.textContent = c;
+                await wait(1000);
+            }
+
+            if (!isAutoRunning) break;
+            if (guideCountdown) guideCountdown.hidden = true;
+
+            const success = await takeSnapshot(pose.label);
+            if (!success) {
+                break;
+            }
+
+            if (i < AUTO_POSES.length - 1) {
+                say(`Bagus! Bersiap untuk pose berikutnya...`);
+                await wait(900);
+            }
+        }
+
+        if (isAutoRunning) {
+            say("Selesai! 5 foto dari 5 sudut berhasil diambil. Periksa pilihan foto di bawah lalu kirim.");
+            stopAuto();
+        }
     };
 
     startButton.addEventListener("click", start);
     stopButton.addEventListener("click", stop);
-    shootButton.addEventListener("click", capture);
+    shootButton.addEventListener("click", captureManual);
+    if (autoButton) {
+        autoButton.addEventListener("click", runAutoCapture);
+    }
 
     if (picker) {
         picker.addEventListener("change", async () => {

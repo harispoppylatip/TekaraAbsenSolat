@@ -253,6 +253,17 @@
                                     <p class="camera-placeholder" data-shoot-placeholder>
                                         Kamera belum dinyalakan.
                                     </p>
+
+                                    {{-- Panduan Wajah dan Hitung Mundur Otomatis --}}
+                                    <div class="camera-guide-overlay" data-shoot-guide hidden>
+                                        <div class="camera-guide-oval"></div>
+                                        <div class="camera-guide-prompt" data-shoot-guide-prompt>
+                                            <span class="guide-step" data-shoot-guide-step>1/5</span>
+                                            <span class="guide-text" data-shoot-guide-text>Hadap lurus ke kamera</span>
+                                        </div>
+                                        <div class="camera-guide-countdown" data-shoot-guide-countdown hidden>3</div>
+                                    </div>
+                                    <div class="camera-flash" data-shoot-flash hidden></div>
                                 </div>
 
                                 <div class="camera-controls">
@@ -265,12 +276,16 @@
                                     </div>
 
                                     <div class="form-actions">
-                                        <button class="btn btn-secondary" type="button" data-shoot-start>Nyalakan
-                                            kamera</button>
-                                        <button class="btn btn-primary" type="button" data-shoot-capture disabled>Ambil
-                                            foto</button>
-                                        <button class="btn btn-outline btn-small" type="button" data-shoot-stop
-                                            disabled>Matikan</button>
+                                        <button class="btn btn-secondary" type="button" data-shoot-start>Nyalakan kamera</button>
+                                        <button class="btn btn-primary" type="button" data-shoot-auto disabled>
+                                            Mulai foto otomatis (5 sudut)
+                                        </button>
+                                        <button class="btn btn-outline" type="button" data-shoot-capture disabled>
+                                            Ambil manual
+                                        </button>
+                                        <button class="btn btn-outline btn-small" type="button" data-shoot-stop disabled>
+                                            Matikan
+                                        </button>
                                     </div>
                                 </div>
 
