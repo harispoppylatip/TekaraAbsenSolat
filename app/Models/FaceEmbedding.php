@@ -6,10 +6,25 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['user_id', 'label', 'model', 'embedding'])]
+#[Fillable(['user_id', 'label', 'photo_path', 'model', 'embedding'])]
 class FaceEmbedding extends Model
 {
+    protected static function booted(): void
+    {
+        static::deleted(function (self $faceEmbedding): void {
+            if ($faceEmbedding->photo_path && Storage::disk('local')->exists($faceEmbedding->photo_path)) {
+                Storage::disk('local')->delete($faceEmbedding->photo_path);
+            }
+        });
+    }
+
+    public function hasPhoto(): bool
+    {
+        return ! empty($this->photo_path);
+    }
+
     /**
      * Jumlah angka pada satu sidik wajah.
      *

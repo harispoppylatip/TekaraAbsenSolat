@@ -130,12 +130,12 @@
             <div>
                 <h2 class="section-title">Foto wajah yang tersimpan</h2>
                 <p class="section-note">
-                    Daftar ini hanya memuat jumlah foto akun Anda, tanpa gambar dan tanpa angka wajahnya.
+                    Periksa kembali foto wajah Anda agar jelas dan bagus sebelum menyelesaikan pendaftaran.
                     @if ($terkunci)
                         Pendaftaran Anda sudah selesai, jadi fotonya tidak bisa dihapus dari halaman ini.
                         Bila memang perlu diganti, minta petugas sekolah membuka pendaftaran ulang.
                     @else
-                        Hapus foto yang menurut Anda sudah tidak layak, lalu ambil penggantinya.
+                        Hapus foto yang buram atau kurang jelas, lalu ambil penggantinya.
                     @endif
                 </p>
             </div>
@@ -146,7 +146,7 @@
                 <thead>
                     <tr>
                         <th>Foto ke</th>
-                        <th>Nama berkas asal</th>
+                        <th>Foto</th>
                         <th>Diterima pada</th>
                         @unless ($terkunci)
                             <th>Aksi</th>
@@ -157,7 +157,21 @@
                     @foreach ($tersimpan as $index => $wajah)
                         <tr>
                             <td>{{ $banyakTersimpan - $index }}</td>
-                            <td>{{ $wajah->label ?: 'tanpa nama' }}</td>
+                            <td>
+                                @if ($wajah->photo_path)
+                                    <div class="face-photo-preview">
+                                        <a class="proof-link" href="{{ route('enrollment.photos.show', $wajah) }}"
+                                            target="_blank" rel="noopener" title="Lihat foto wajah">
+                                            <img class="proof-thumb" src="{{ route('enrollment.photos.show', $wajah) }}"
+                                                alt="Foto ke-{{ $banyakTersimpan - $index }}" width="56" height="56"
+                                                loading="lazy" decoding="async">
+                                        </a>
+                                        <span class="cell-note">{{ $wajah->label ?: 'Foto ke-'.($banyakTersimpan - $index) }}</span>
+                                    </div>
+                                @else
+                                    <span class="cell-note">{{ $wajah->label ?: 'tanpa foto' }}</span>
+                                @endif
+                            </td>
                             <td>{{ $wajah->created_at?->translatedFormat('d M Y, H:i') ?? 'tidak diketahui' }}</td>
                             @unless ($terkunci)
                                 <td>

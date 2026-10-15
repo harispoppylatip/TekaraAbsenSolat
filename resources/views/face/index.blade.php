@@ -425,7 +425,20 @@
                                                 @foreach ($member->faceEmbeddings as $embedding)
                                                     <tr>
                                                         <td class="cell-strong">
-                                                            {{ $embedding->label ?: 'Tanpa keterangan' }}
+                                                            @if ($embedding->photo_path)
+                                                                <div class="face-photo-preview" style="margin-bottom: 4px;">
+                                                                    <a class="proof-link" href="{{ route('enrollment.photos.show', $embedding) }}"
+                                                                        target="_blank" rel="noopener" title="Lihat foto wajah">
+                                                                        <img class="proof-thumb" src="{{ route('enrollment.photos.show', $embedding) }}"
+                                                                            alt="Foto wajah" width="44" height="44"
+                                                                            style="width: 44px; height: 44px;"
+                                                                            loading="lazy" decoding="async">
+                                                                    </a>
+                                                                    <span>{{ $embedding->label ?: 'Tanpa keterangan' }}</span>
+                                                                </div>
+                                                            @else
+                                                                {{ $embedding->label ?: 'Tanpa keterangan' }}
+                                                            @endif
                                                             @isset($outlierPhotos[$embedding->id])
                                                                 <span class="cell-note">Berbeda jauh dari foto lain anggota
                                                                     ini, jaraknya

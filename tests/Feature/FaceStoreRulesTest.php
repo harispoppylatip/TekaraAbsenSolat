@@ -289,7 +289,8 @@ class FaceStoreRulesTest extends TestCase
         $this->upload($admin, $member, ['a.jpg', 'b.jpg']);
         $this->workAll();
 
-        $this->assertSame([], Storage::disk('local')->allFiles(), 'Berkas sementara tidak boleh tertinggal.');
+        $this->assertSame([], Storage::disk('local')->allFiles(FacePhotoQueueService::Folder), 'Berkas sementara tidak boleh tertinggal.');
+        $this->assertCount(1, Storage::disk('local')->allFiles('face-photos'), 'Foto yang berhasil harus tersimpan.');
     }
 
     public function test_layanan_wajah_yang_mati_menyisakan_berkas_untuk_diulang(): void

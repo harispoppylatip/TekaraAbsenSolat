@@ -166,8 +166,20 @@ class StudentFaceEnrollmentTest extends TestCase
         }
 
         $murid->refresh();
-
         $this->assertSame($wajib, $murid->faceEmbeddings()->count());
+        $this->assertSame(User::EnrollmentInProgress, $murid->enrollmentStatus());
+
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertSee('Kirim dan selesaikan pendaftaran')
+            ->assertSee('Pastikan wajah jelas dan benar');
+
+        $this->actingAs($murid)
+            ->post(route('enrollment.complete'))
+            ->assertRedirect(route('enrollment.done'));
+
+        $murid->refresh();
         $this->assertSame(User::EnrollmentCompleted, $murid->enrollmentStatus());
         $this->assertNotNull($murid->enrolled_at);
     }
@@ -477,7 +489,7 @@ class StudentFaceEnrollmentTest extends TestCase
             ->assertDontSee('lama.jpg');
     }
 
-    private function makeFinishedRow(User $murid, string $batch, string $nama, \Illuminate\Support\Carbon $selesai): void
+    private function makeFinishedRow(User $murid, string $batch, string $nama, Carbon $selesai): void
     {
         $row = new FacePhotoUpload;
         $row->forceFill([
@@ -968,5 +980,80 @@ class StudentFaceEnrollmentTest extends TestCase
             ->get(route('enrollment.show'))
             ->assertOk()
             ->assertSee('Kemajuan pemeriksaan foto');
+    }
+
+    public function test_jamaah_bisa_melihat_foto_mereka_sendiri(): void
+    {
+        Storage::fake('local');
+        $murid = $this->makeUser(User::RoleMurid);
+
+        $path = 'face-photos/'.$murid->id.'/foto1.jpg';
+        Storage::disk('local')->put($path, 'fake-image-bytes');
+
+        $embedding = FaceEmbedding::create([
+            'user_id' => $murid->id,
+            'label' => 'Foto Wajah Depan',
+            'photo_path' => $path,
+            'model' => (string) config('face.model'),
+            'embedding' => array_fill(0, FaceEmbedding::Dimensions, 0.01),
+        ]);
+
+        $this->actingAs($murid)
+            ->get(route('enrollment.photos.show', $embedding))
+            ->assertOk();
+
+        // Di halaman pendaftaran, kolom Foto menampilkan thumbnail
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertSee('<th>Foto</th>', false)
+            ->assertSee(route('enrollment.photos.show', $embedding), false);
+    }
+
+    public function test_jamaah_tidak_bisa_melihat_foto_jamaah_lain(): void
+    {
+        Storage::fake('local');
+        $murid1 = $this->makeUser(User::RoleMurid);
+        $murid2 = $this->makeUser(User::RoleMurid);
+
+        $path = 'face-photos/'.$murid1->id.'/foto1.jpg';
+        Storage::disk('local')->put($path, 'fake-image-bytes');
+
+        $embedding = FaceEmbedding::create([
+            'user_id' => $murid1->id,
+            'label' => 'Foto Murid 1',
+            'photo_path' => $path,
+            'model' => (string) config('face.model'),
+            'embedding' => array_fill(0, FaceEmbedding::Dimensions, 0.01),
+        ]);
+
+        $this->actingAs($murid2)
+            ->get(route('enrollment.photos.show', $embedding))
+            ->assertForbidden();
+    }
+
+    public function test_menghapus_foto_juga_menghapus_berkas_fisik(): void
+    {
+        Storage::fake('local');
+        $murid = $this->makeUser(User::RoleMurid);
+
+        $path = 'face-photos/'.$murid->id.'/foto1.jpg';
+        Storage::disk('local')->put($path, 'fake-image-bytes');
+
+        $embedding = FaceEmbedding::create([
+            'user_id' => $murid->id,
+            'label' => 'Foto Murid',
+            'photo_path' => $path,
+            'model' => (string) config('face.model'),
+            'embedding' => array_fill(0, FaceEmbedding::Dimensions, 0.01),
+        ]);
+
+        $this->assertTrue(Storage::disk('local')->exists($path));
+
+        $this->actingAs($murid)
+            ->delete(route('enrollment.photos.destroy', $embedding))
+            ->assertRedirect();
+
+        $this->assertFalse(Storage::disk('local')->exists($path));
     }
 }

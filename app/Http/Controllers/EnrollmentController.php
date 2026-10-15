@@ -9,7 +9,9 @@ use App\Services\StudentEnrollmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Pendaftaran wajah yang dikerjakan sendiri oleh pemilik akun.
@@ -96,6 +98,34 @@ class EnrollmentController extends Controller
     }
 
     /**
+     * Membuka foto wajah yang tersimpan.
+     *
+     * Berkasnya berada di cakram privat sehingga hanya bisa dilihat oleh
+     * pemilik akun yang bersangkutan, atau oleh admin dan petugas sekolah.
+     */
+    public function showPhoto(Request $request, FaceEmbedding $faceEmbedding): StreamedResponse
+    {
+        $user = $request->user();
+
+        $allowed = $user !== null
+            && ($user->isAdmin() || $user->isPetugas() || (int) $user->getKey() === (int) $faceEmbedding->user_id);
+
+        abort_unless($allowed, 403);
+
+        $path = $faceEmbedding->photo_path;
+
+        abort_if($path === null || ! Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response(
+            $path,
+            'foto-wajah-'.$faceEmbedding->getKey().'.jpg',
+            [
+                'Cache-Control' => 'private, max-age=86400',
+            ]
+        );
+    }
+
+    /**
      * Hapus satu foto wajah milik sendiri.
      */
     public function destroyPhoto(
@@ -176,13 +206,16 @@ class EnrollmentController extends Controller
     public function complete(Request $request, StudentEnrollmentService $enrollment): RedirectResponse
     {
         $user = $request->user();
-        $status = $enrollment->refresh($user);
+        $photo = $enrollment->photoBreakdown($user);
+        $required = $enrollment->requiredPhotos();
 
-        if ($status !== User::EnrollmentCompleted) {
-            return back()->with('error', 'Pendaftaran belum bisa diselesaikan. Pastikan jumlah foto yang lolos sudah mencapai batas minimal dan tidak ada foto yang masih diproses.');
+        if ($photo['usable'] < $required || $enrollment->hasPending($user)) {
+            return back()->with('error', 'Pendaftaran belum bisa diselesaikan. Pastikan jumlah foto yang lolos sudah mencapai '.$required.' foto dan tidak ada foto yang masih diproses.');
         }
 
-        return redirect()->route('enrollment.done')->with('status', 'Pendaftaran wajah Anda selesai.');
+        $enrollment->markCompleted($user);
+
+        return redirect()->route('enrollment.done')->with('status', 'Pendaftaran wajah Anda selesai dan terkunci.');
     }
 
     /**

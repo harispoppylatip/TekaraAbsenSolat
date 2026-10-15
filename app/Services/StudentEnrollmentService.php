@@ -222,7 +222,9 @@ class StudentEnrollmentService
      */
     public function removeAll(User $user): int
     {
-        $jumlah = FaceEmbedding::query()->forUser((int) $user->getKey())->delete();
+        $rows = FaceEmbedding::query()->forUser((int) $user->getKey())->get();
+        $jumlah = $rows->count();
+        $rows->each->delete();
         $this->refresh($user);
 
         return $jumlah;
@@ -264,6 +266,17 @@ class StudentEnrollmentService
     }
 
     /**
+     * Tandai bahwa pemilik akun telah mengonfirmasi dan menyelesaikan pendaftaran.
+     */
+    public function markCompleted(User $user): void
+    {
+        $user->forceFill([
+            'enrollment_status' => User::EnrollmentCompleted,
+            'enrolled_at' => now(),
+        ])->save();
+    }
+
+    /**
      * Perbarui keadaan pendaftaran dari data yang benar benar ada.
      *
      * Keadaannya dihitung ulang, bukan disimpan bertahap, supaya satu sumber
@@ -275,9 +288,24 @@ class StudentEnrollmentService
         $photo = $this->photoBreakdown($user);
         $required = $this->requiredPhotos();
 
+        // Akun yang sudah selesai dikonfirmasi tetap terkunci/selesai,
+        // kecuali seluruh fotonya dibuang habis.
+        if ($user->hasCompletedEnrollment()) {
+            if ($photo['usable'] === 0 && ! $this->hasPending($user)) {
+                $status = User::EnrollmentNotStarted;
+                $this->write($user, $status);
+
+                return $status;
+            }
+
+            return User::EnrollmentCompleted;
+        }
+
+        // Ketika foto sudah mencapai target (misal 5 foto), pendaftaran TIDAK
+        // otomatis terkunci agar pemilik akun bisa memeriksa fotonya di tabel,
+        // menghapus foto yang kurang bagus, lalu menekan tombol konfirmasi.
         $status = match (true) {
             $this->hasPending($user) => User::EnrollmentProcessing,
-            $photo['usable'] >= $required => User::EnrollmentCompleted,
             $photo['usable'] > 0 => User::EnrollmentInProgress,
             $photo['unusable'] > 0 => User::EnrollmentNeedsReenrollment,
             $this->lastBatchFailed($user) => User::EnrollmentRejected,

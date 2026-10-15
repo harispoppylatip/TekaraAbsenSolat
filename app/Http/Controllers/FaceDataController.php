@@ -231,8 +231,9 @@ class FaceDataController extends Controller
 
     public function destroyMember(User $member): RedirectResponse
     {
-        $total = $member->faceEmbeddings()->count();
-        $member->faceEmbeddings()->delete();
+        $rows = $member->faceEmbeddings()->get();
+        $total = $rows->count();
+        $rows->each->delete();
 
         return back()->with('status', $total.' foto wajah '.$member->name.' dihapus. Anggota dan riwayat absennya tetap ada.');
     }

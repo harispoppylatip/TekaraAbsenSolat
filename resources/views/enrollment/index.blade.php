@@ -46,8 +46,10 @@
                 <div class="progress-fill" style="width: {{ $state['percent'] }}%"></div>
             </div>
             <p class="progress-note">
-                @if ($state['finished'])
-                    Semua foto yang dibutuhkan sudah terkumpul dan sudah diperiksa. Wajah Anda siap dipakai absen.
+                @if ($terkunci)
+                    Semua foto yang dibutuhkan sudah terkumpul dan pendaftaran Anda sudah selesai.
+                @elseif ($state['finished'])
+                    Semua foto yang dibutuhkan sudah terkumpul. Periksa foto Anda di bawah, lalu kirim untuk menyelesaikan pendaftaran.
                 @else
                     Kurang {{ $kurang }} foto lagi supaya pendaftaran bisa diselesaikan.
                 @endif
@@ -121,19 +123,20 @@
         <section class="card">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">Foto yang dibutuhkan sudah terkumpul</h2>
+                    <h2 class="section-title">Foto wajah sudah lengkap ({{ $state['usable'] }} dari {{ $state['required'] }} foto)</h2>
                     <p class="section-note">
-                        Periksa dulu hasilnya di bawah. Bila sudah sesuai, tekan Selesaikan pendaftaran supaya
-                        wajah Anda bisa dipakai absen. Setelah diselesaikan, fotonya tidak bisa diubah lagi
-                        tanpa dibuka petugas sekolah.
+                        Periksa kembali foto wajah Anda pada tabel di bawah agar jelas dan benar. Jika sudah sesuai, tekan tombol di bawah untuk mengirim dan mengunci pendaftaran.
                     </p>
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('enrollment.complete') }}">
+            <form method="POST" action="{{ route('enrollment.complete') }}"
+                data-confirm="Pastikan wajah jelas dan benar karena ini akan terkunci jika sudah terkunci tidak bisa diubah kecuali admin membuka. Selesaikan pendaftaran?">
                 @csrf
                 <div class="form-actions">
-                    <button class="btn btn-primary" type="submit">Selesaikan pendaftaran</button>
+                    <button class="btn btn-primary" type="submit">
+                        Kirim dan selesaikan pendaftaran
+                    </button>
                 </div>
             </form>
         </section>

@@ -191,7 +191,8 @@ function setupConfirms() {
             return;
         }
 
-        const message = form.dataset.confirm;
+        const submitter = event.submitter;
+        const message = submitter?.dataset?.confirm || form.dataset.confirm;
 
         if (message && !window.confirm(message)) {
             event.preventDefault();

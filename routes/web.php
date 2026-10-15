@@ -59,6 +59,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/pendaftaran-wajah/foto', [EnrollmentController::class, 'store'])
         ->middleware('throttle:30,1')
         ->name('enrollment.photos.store');
+    Route::get('/pendaftaran-wajah/foto/{faceEmbedding}', [EnrollmentController::class, 'showPhoto'])->name('enrollment.photos.show');
     Route::delete('/pendaftaran-wajah/foto/{faceEmbedding}', [EnrollmentController::class, 'destroyPhoto'])->name('enrollment.photos.destroy');
     Route::delete('/pendaftaran-wajah/foto', [EnrollmentController::class, 'destroyAll'])->name('enrollment.photos.clear');
     Route::post('/pendaftaran-wajah/proses/{batch}/ulang', [EnrollmentController::class, 'retry'])->name('enrollment.retry');

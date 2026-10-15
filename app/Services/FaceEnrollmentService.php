@@ -6,6 +6,7 @@ use App\Models\FaceEmbedding;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -74,15 +75,21 @@ class FaceEnrollmentService
      *
      * @param  array<int, mixed>  $embedding
      */
-    public function store(User $user, array $embedding, ?string $label = null, bool $replace = false): FaceEmbedding
-    {
+    public function store(
+        User $user,
+        array $embedding,
+        ?string $label = null,
+        bool $replace = false,
+        ?string $photoPath = null,
+    ): FaceEmbedding {
         $max = (int) config('face.max_photos_per_user', 20);
 
-        return DB::transaction(function () use ($user, $embedding, $label, $replace, $max): FaceEmbedding {
+        return DB::transaction(function () use ($user, $embedding, $label, $replace, $max, $photoPath): FaceEmbedding {
             $row = FaceEmbedding::create([
                 'user_id' => $user->id,
                 'embedding' => FaceEmbedding::normalizeEmbedding($embedding),
                 'label' => $label,
+                'photo_path' => $photoPath,
                 'model' => (string) config('face.model', FaceEmbedding::DefaultModel),
             ]);
 
@@ -90,7 +97,8 @@ class FaceEnrollmentService
                 FaceEmbedding::query()
                     ->forUser((int) $user->id)
                     ->whereKeyNot($row->getKey())
-                    ->delete();
+                    ->get()
+                    ->each->delete();
             }
 
             $extra = FaceEmbedding::query()
@@ -101,7 +109,10 @@ class FaceEnrollmentService
                 ->all();
 
             if ($extra !== []) {
-                FaceEmbedding::query()->whereKey($extra)->delete();
+                FaceEmbedding::query()
+                    ->whereKey($extra)
+                    ->get()
+                    ->each->delete();
             }
 
             return $row;
@@ -174,7 +185,23 @@ class FaceEnrollmentService
             ];
         }
 
-        $row = $this->store($user, $encoded['encoding'], $this->cleanLabel($label), $replace);
+        $photoPath = null;
+        if ($contents !== '') {
+            $dir = 'face-photos/'.$user->getKey();
+            $filename = Str::random(40).'.jpg';
+            $photoPath = $dir.'/'.$filename;
+            Storage::disk('local')->put($photoPath, $contents);
+        }
+
+        try {
+            $row = $this->store($user, $encoded['encoding'], $this->cleanLabel($label), $replace, $photoPath);
+        } catch (\Throwable $e) {
+            if ($photoPath !== null && Storage::disk('local')->exists($photoPath)) {
+                Storage::disk('local')->delete($photoPath);
+            }
+            throw $e;
+        }
+
         $total = $this->photoCount($user);
         $dropped = $before + 1 - $total;
 
@@ -223,10 +250,15 @@ class FaceEnrollmentService
             return 0;
         }
 
-        return FaceEmbedding::query()
+        $rows = FaceEmbedding::query()
             ->forUser((int) $user->getKey())
             ->whereKeyNot($keep)
-            ->delete();
+            ->get();
+
+        $count = $rows->count();
+        $rows->each->delete();
+
+        return $count;
     }
 
     /**
