@@ -35,6 +35,7 @@ function setupPhotoStaging(form) {
 
     const staged = [];
     const canvas = document.createElement("canvas");
+    const listeners = [];
     let busy = false;
 
     const key = (file) => `${file.name}|${file.size}|${file.lastModified}`;
@@ -87,6 +88,14 @@ function setupPhotoStaging(form) {
             submit.disabled =
                 staged.length === 0 || staged.length > max || busy;
         }
+
+        listeners.forEach((fn) => {
+            try {
+                fn(staged.length);
+            } catch (error) {
+                // Ignore listener errors
+            }
+        });
     };
 
     const add = (files) => {
@@ -137,17 +146,20 @@ function setupPhotoStaging(form) {
             busy = flag;
             sync();
         },
+        onChange(fn) {
+            listeners.push(fn);
+        },
     };
 }
 
 /* ---------- Kamera ---------- */
 
 const AUTO_POSES = [
-    { label: "Lurus", step: "1/5", text: "Hadap lurus ke kamera" },
-    { label: "Serong Kiri", step: "2/5", text: "Tengok sedikit ke kiri" },
-    { label: "Serong Kanan", step: "3/5", text: "Tengok sedikit ke kanan" },
-    { label: "Sedikit ke Atas", step: "4/5", text: "Angkat kepala sedikit ke atas" },
-    { label: "Sedikit ke Bawah", step: "5/5", text: "Tundukkan kepala sedikit ke bawah" },
+    { label: "Lurus", text: "Hadap lurus ke kamera" },
+    { label: "Serong Kiri", text: "Tengok sedikit ke kiri" },
+    { label: "Serong Kanan", text: "Tengok sedikit ke kanan" },
+    { label: "Sedikit ke Atas", text: "Angkat kepala sedikit ke atas" },
+    { label: "Sedikit ke Bawah", text: "Tundukkan kepala sedikit ke bawah" },
 ];
 
 function setupShooter(root, staging) {
@@ -178,6 +190,58 @@ function setupShooter(root, staging) {
         if (status) {
             status.textContent = message;
         }
+    };
+
+    const getQuotaInfo = () => {
+        const required = Number(root.dataset.required || 5);
+        const usable = Number(root.dataset.usable || 0);
+        const needed = Math.max(0, required - usable);
+        const currentStaged = staging.count ? staging.count() : 0;
+        const maxPerSubmit = Number(root.dataset.shoot || 5);
+        const remainingToSubmit = Math.max(0, maxPerSubmit - currentStaged);
+        const remainingNeeded = Math.max(0, needed - currentStaged);
+        const targetCount = Math.min(remainingNeeded, remainingToSubmit, AUTO_POSES.length);
+
+        return {
+            required,
+            usable,
+            needed,
+            currentStaged,
+            maxPerSubmit,
+            remainingNeeded,
+            targetCount,
+        };
+    };
+
+    const updateAutoButtonText = () => {
+        if (!autoButton) return;
+
+        if (isAutoRunning) {
+            autoButton.textContent = "Batal foto otomatis";
+            return;
+        }
+
+        const { required, usable, needed, currentStaged, targetCount } = getQuotaInfo();
+
+        if (usable >= required) {
+            autoButton.textContent = "Foto wajah sudah lengkap";
+            autoButton.disabled = true;
+            return;
+        }
+
+        if (targetCount === 0 && currentStaged > 0) {
+            autoButton.textContent = `Foto siap dikirim (${currentStaged})`;
+            autoButton.disabled = !stream;
+            return;
+        }
+
+        if (targetCount === 5) {
+            autoButton.textContent = "Mulai foto otomatis (5 sudut)";
+        } else {
+            autoButton.textContent = `Mulai foto otomatis (${targetCount} foto lagi)`;
+        }
+
+        autoButton.disabled = !stream;
     };
 
     const triggerFlash = () => {
@@ -211,10 +275,8 @@ function setupShooter(root, staging) {
             guideCountdown.hidden = true;
         }
 
-        if (autoButton) {
-            autoButton.textContent = "Mulai foto otomatis (5 sudut)";
-            autoButton.disabled = !stream;
-        }
+        updateAutoButtonText();
+
         if (shootButton) {
             shootButton.disabled = !stream;
         }
@@ -238,9 +300,7 @@ function setupShooter(root, staging) {
 
         video.srcObject = null;
         shootButton.disabled = true;
-        if (autoButton) {
-            autoButton.disabled = true;
-        }
+        updateAutoButtonText();
         stopButton.disabled = true;
         startButton.disabled = false;
 
@@ -307,16 +367,15 @@ function setupShooter(root, staging) {
         }
 
         shootButton.disabled = false;
-        if (autoButton) {
-            autoButton.disabled = false;
-        }
+        updateAutoButtonText();
         stopButton.disabled = false;
 
         if (placeholder) {
             placeholder.hidden = true;
         }
 
-        say("Kamera menyala. Tekan 'Mulai foto otomatis (5 sudut)' untuk pengambilan otomatis.");
+        const btnLabel = autoButton ? autoButton.textContent : "Mulai foto otomatis";
+        say(`Kamera menyala. Tekan '${btnLabel}' untuk pengambilan otomatis.`);
     };
 
     const takeSnapshot = (customLabel = null) => {
@@ -401,9 +460,19 @@ function setupShooter(root, staging) {
             if (!stream) return;
         }
 
-        const currentCount = staging.count ? staging.count() : 0;
-        if (currentCount >= 5) {
-            say("Sudah ada 5 foto siap dikirim. Buang foto terlebih dahulu jika ingin mengambil ulang.");
+        const { required, usable, needed, currentStaged, maxPerSubmit, targetCount } = getQuotaInfo();
+
+        if (usable >= required) {
+            say(`Foto wajah Anda sudah lengkap (${usable} dari ${required} foto). Tidak perlu mengambil foto lagi.`);
+            return;
+        }
+
+        if (targetCount <= 0) {
+            if (currentStaged >= needed) {
+                say(`Sudah ada ${currentStaged} foto siap dikirim (cukup untuk melengkapi foto yang kurang). Periksa di bawah lalu kirim.`);
+            } else if (currentStaged >= maxPerSubmit) {
+                say(`Jatah foto sekali kirim sudah penuh (${currentStaged} foto). Kirim foto yang ada terlebih dahulu.`);
+            }
             return;
         }
 
@@ -420,13 +489,14 @@ function setupShooter(root, staging) {
             guideOverlay.classList.add("is-active");
         }
 
-        for (let i = 0; i < AUTO_POSES.length; i++) {
+        for (let i = 0; i < targetCount; i++) {
             if (!isAutoRunning) break;
 
             const pose = AUTO_POSES[i];
-            if (guideStep) guideStep.textContent = pose.step;
+            const currentStep = `${i + 1}/${targetCount}`;
+            if (guideStep) guideStep.textContent = currentStep;
             if (guideText) guideText.textContent = pose.text;
-            say(`Langkah ${pose.step}: ${pose.text}`);
+            say(`Langkah ${currentStep}: ${pose.text}`);
 
             if (guideCountdown) {
                 guideCountdown.hidden = false;
@@ -446,14 +516,18 @@ function setupShooter(root, staging) {
                 break;
             }
 
-            if (i < AUTO_POSES.length - 1) {
+            if (i < targetCount - 1) {
                 say(`Bagus! Bersiap untuk pose berikutnya...`);
                 await wait(900);
             }
         }
 
         if (isAutoRunning) {
-            say("Selesai! 5 foto dari 5 sudut berhasil diambil. Periksa pilihan foto di bawah lalu kirim.");
+            if (targetCount === 5) {
+                say("Selesai! 5 foto dari 5 sudut berhasil diambil. Periksa pilihan foto di bawah lalu kirim.");
+            } else {
+                say(`Selesai! ${targetCount} foto berhasil diambil. Periksa pilihan foto di bawah lalu kirim.`);
+            }
             stopAuto();
         }
     };
@@ -475,6 +549,16 @@ function setupShooter(root, staging) {
             }
         });
     }
+
+    staging.onChange(() => {
+        updateAutoButtonText();
+    });
+
+    root.addEventListener("enrollment:quota-changed", () => {
+        updateAutoButtonText();
+    });
+
+    updateAutoButtonText();
 
     window.addEventListener("pagehide", stop);
 }
@@ -629,6 +713,30 @@ function setupQueueWatch(form, staging) {
             locked: Boolean(state.locked),
             batches: batches.map((b) => `${b.id}:${b.finished}:${b.done}`),
         });
+
+        if (state) {
+            document.querySelectorAll("[data-shoot]").forEach((root) => {
+                if (typeof state.usable !== "undefined") {
+                    root.dataset.usable = state.usable;
+                }
+                if (typeof state.required !== "undefined") {
+                    root.dataset.required = state.required;
+                }
+                const req = Number(root.dataset.required || 5);
+                const use = Number(root.dataset.usable || 0);
+                const needed = Math.max(0, req - use);
+                root.dataset.needed = needed;
+
+                const inst = root.closest(".tool-body")?.querySelector("[data-shoot-instruction] strong");
+                if (inst) {
+                    inst.textContent = needed === 5
+                        ? "Mulai foto otomatis (5 sudut)"
+                        : (needed > 0 ? `Mulai foto otomatis (${needed} foto lagi)` : "Foto sudah lengkap");
+                }
+
+                root.dispatchEvent(new CustomEvent("enrollment:quota-changed"));
+            });
+        }
 
         if (stateSignature !== null && stateSignature !== nextSignature) {
             await syncLiveRegionsNow();

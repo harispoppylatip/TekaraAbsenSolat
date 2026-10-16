@@ -244,11 +244,14 @@
                         </summary>
 
                         <div class="tool-body">
-                            <p class="camera-instruction-note">
-                                Panduan cepat: Nyalakan kamera, lalu klik tombol <strong>Mulai foto otomatis (5 sudut)</strong>. Sistem akan menghitung mundur 3 detik untuk setiap arah wajah secara berurutan.
+                            <p class="camera-instruction-note" data-shoot-instruction>
+                                Panduan cepat: Nyalakan kamera, lalu klik tombol <strong>{{ $kurang === 5 ? 'Mulai foto otomatis (5 sudut)' : ($kurang > 0 ? "Mulai foto otomatis ({$kurang} foto lagi)" : 'Foto sudah lengkap') }}</strong>. Sistem akan menghitung mundur 3 detik untuk setiap arah wajah secara berurutan.
                             </p>
 
-                            <div data-shoot="{{ $state['max_per_submit'] }}">
+                            <div data-shoot="{{ $state['max_per_submit'] }}"
+                                data-needed="{{ $kurang }}"
+                                data-required="{{ $state['required'] }}"
+                                data-usable="{{ $state['usable'] }}">
                                 <div class="camera-frame">
                                     <video data-shoot-video playsinline muted></video>
                                     <p class="camera-placeholder" data-shoot-placeholder>
@@ -279,7 +282,7 @@
                                     <div class="form-actions">
                                         <button class="btn btn-secondary" type="button" data-shoot-start>Nyalakan kamera</button>
                                         <button class="btn btn-primary" type="button" data-shoot-auto disabled>
-                                            Mulai foto otomatis (5 sudut)
+                                            {{ $kurang === 5 ? 'Mulai foto otomatis (5 sudut)' : ($kurang > 0 ? "Mulai foto otomatis ({$kurang} foto lagi)" : 'Foto sudah lengkap') }}
                                         </button>
                                         <button class="btn btn-outline" type="button" data-shoot-capture disabled>
                                             Ambil manual

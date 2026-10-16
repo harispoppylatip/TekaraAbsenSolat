@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\FacePhotoUpload;
+use App\Models\User;
 use App\Services\FaceEnrollmentService;
 use App\Services\FacePhotoQueueService;
 use App\Services\StudentEnrollmentService;
@@ -76,7 +77,7 @@ class EncodeFacePhoto implements ShouldQueue
         } else {
             if ($row->status === FacePhotoUpload::StatusBerhasil && ! $row->user->hasCompletedEnrollment()) {
                 $row->user->forceFill([
-                    'enrollment_status' => \App\Models\User::EnrollmentCompleted,
+                    'enrollment_status' => User::EnrollmentCompleted,
                     'enrolled_at' => now(),
                 ])->save();
             }
