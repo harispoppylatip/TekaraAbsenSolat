@@ -1951,46 +1951,347 @@ details.fold-alert {
 
 .guest-body {
     min-height: 100vh;
+    margin: 0;
+    position: relative;
+    overflow-x: hidden;
+    background: #021630 url("/images/login-bg-desktop.jpg") no-repeat center center / cover;
+    background-attachment: fixed;
+    color: var(--on-surface);
+}
+
+.guest-shell {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: flex-start;
+    padding: 18px 20px 32px;
+}
+
+.guest-school-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 3;
+}
+
+.guest-school-emblem {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 10px rgba(0, 12, 32, 0.48));
+    margin-bottom: 6px;
+}
+
+.guest-school-name {
+    font-family: var(--font-heading);
+    font-size: clamp(18px, 2.2vw, 27px);
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: #ffffff;
+    text-transform: uppercase;
+    text-shadow: 0 2px 10px rgba(0, 14, 38, 0.55);
+}
+
+.guest-school-city {
+    margin-top: 2px;
+    font-family: var(--font-heading);
+    font-size: clamp(14px, 1.75vw, 21px);
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: #82ceff;
+    text-transform: uppercase;
+    text-shadow: 0 2px 8px rgba(0, 14, 38, 0.45);
+}
+
+.guest-stage {
+    width: 100%;
+    display: flex;
     justify-content: center;
-    padding: 24px;
-    background: var(--primary);
+    align-items: center;
+    position: relative;
+    z-index: 4;
+    margin: auto 0;
 }
 
 .guest-card {
+    position: relative;
+    overflow: hidden;
     width: 100%;
-    max-width: 420px;
-    background: var(--surface-container);
-    border-radius: var(--radius-lg);
-    padding: 30px 28px;
-    box-shadow: 0 12px 40px rgba(0, 30, 64, 0.28);
+    max-width: 392px;
+    background: linear-gradient(180deg, #ffffff 0%, #f3f7fc 55%, #e8eef7 100%);
+    border-radius: 20px;
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    padding: 20px 26px 25px;
+    box-shadow:
+        0 18px 48px rgba(1, 15, 38, 0.54),
+        0 2px 10px rgba(0, 30, 64, 0.22);
+}
+
+.guest-card-corner {
+    position: absolute;
+    width: 86px;
+    height: 86px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.guest-card-corner.is-tl {
+    top: 0;
+    left: 0;
+}
+
+.guest-card-corner.is-tr {
+    top: 0;
+    right: 0;
+    transform: scaleX(-1);
+}
+
+.guest-card-corner.is-bl {
+    bottom: 0;
+    left: 0;
+    transform: scaleY(-1);
+}
+
+.guest-card-corner.is-br {
+    bottom: 0;
+    right: 0;
+    transform: scale(-1, -1);
+}
+
+.guest-card-badge {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    z-index: 2;
+}
+
+.guest-card-badge-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.guest-card-badge span {
+    font-family: var(--font-heading);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: #072549;
+}
+
+.guest-card-dome {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    margin-top: -2px;
+    margin-bottom: 4px;
+}
+
+.guest-dome-img {
+    width: 94px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 3px 6px rgba(6, 44, 89, 0.2));
 }
 
 .guest-title {
-    font-family: var(--font-heading);
-    font-size: 22px;
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    font-size: 31px;
     font-weight: 700;
-    color: var(--primary);
+    line-height: 1.15;
+    color: #072346;
+    letter-spacing: 0.2px;
+}
+
+.guest-title-flourish {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    margin: 3px 0 6px;
+}
+
+.guest-flourish-svg {
+    width: 184px;
+    height: 15px;
 }
 
 .guest-note {
-    margin-top: 6px;
-    font-size: 13.5px;
-    color: var(--on-surface-variant);
+    position: relative;
+    z-index: 2;
+    margin: 2px auto 0;
+    max-width: 310px;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.45;
+    font-weight: 500;
+    color: #163256;
+}
+
+.guest-flash-wrap {
+    position: relative;
+    z-index: 2;
+    margin-top: 10px;
 }
 
 .guest-form {
-    margin-top: 22px;
+    position: relative;
+    z-index: 2;
+    margin-top: 12px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 13px;
+}
+
+.guest-field-label {
+    color: #0b2545;
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.guest-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.guest-input-icon {
+    position: absolute;
+    left: 13px;
+    width: 20px;
+    height: 20px;
+    color: #4aa3df;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.guest-input-icon svg {
+    width: 19px;
+    height: 19px;
+}
+
+.input-field.guest-input {
+    padding-left: 42px;
+    height: 44px;
+    background: #ffffff;
+    border: 1.5px solid #9fd4f7;
+    border-radius: 10px;
+    box-shadow: 0 0 0 3px rgba(130, 206, 255, 0.18);
+    font-size: 14px;
+    color: #0b2545;
+}
+
+.input-field.guest-input::placeholder {
+    color: #7b8fa8;
+}
+
+.input-field.guest-input:focus {
+    border-color: #2c88d9;
+    box-shadow: 0 0 0 4px rgba(56, 152, 236, 0.28);
+    outline: none;
+}
+
+.guest-check-row {
+    margin-top: 2px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #0b2545;
+}
+
+.guest-check-row input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: #3898ec;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn.guest-submit-btn {
+    margin-top: 4px;
+    height: 46px;
+    border-radius: 999px;
+    border: 1px solid rgba(130, 206, 255, 0.45);
+    background: linear-gradient(90deg, #031933 0%, #092c5e 46%, #1f5bd1 100%);
+    color: #ffffff;
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    box-shadow: 0 8px 20px rgba(7, 40, 92, 0.38);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.btn.guest-submit-btn:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 10px 24px rgba(12, 56, 128, 0.48);
+    text-decoration: none;
+}
+
+.btn.guest-submit-btn:active {
+    transform: translateY(1px);
 }
 
 .guest-foot {
     margin-top: 18px;
     font-size: 12.5px;
     color: var(--on-surface-variant);
+}
+
+/* Responsif Halaman Masuk: Mode Handphone & Tablet Portrait */
+@media (max-width: 768px) {
+    .guest-body {
+        background: #021630 url("/images/login-bg-mobile.jpg") no-repeat top center / 100% 100%;
+        background-attachment: scroll;
+    }
+
+    .guest-shell {
+        padding: 16px 16px 32vh;
+        justify-content: flex-start;
+    }
+
+    .guest-school-header {
+        margin-bottom: 7vh;
+    }
+
+    .guest-school-emblem {
+        width: 66px;
+        height: 66px;
+    }
+
+    .guest-school-name {
+        font-size: 18px;
+        line-height: 1.22;
+    }
+
+    .guest-school-city {
+        font-size: 15px;
+    }
+
+    .guest-stage {
+        margin: 0;
+    }
+
+    .guest-card {
+        max-width: 376px;
+        padding: 20px 20px 24px;
+    }
 }
 
 /* ---------- Cetak ---------- */
