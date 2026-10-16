@@ -17,7 +17,8 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email', 'max:255'],
+            'login' => ['required_without:email', 'nullable', 'string', 'max:255'],
+            'email' => ['required_without:login', 'nullable', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ];
     }
@@ -28,9 +29,14 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'Email wajib diisi.',
-            'email.email' => 'Format email tidak benar.',
+            'login.required_without' => 'NISN atau email wajib diisi.',
+            'email.required_without' => 'NISN atau email wajib diisi.',
             'password.required' => 'Sandi wajib diisi.',
         ];
+    }
+
+    public function loginCredential(): string
+    {
+        return trim((string) ($this->input('login') ?: $this->input('email') ?: ''));
     }
 }

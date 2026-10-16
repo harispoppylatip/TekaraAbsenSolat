@@ -4,7 +4,8 @@
 
 @section('content')
     <p class="guest-title">Absen Solat</p>
-    <p class="guest-note">SMK Istiqomah Muhammadiyah 4. Masuk memakai email dan sandi yang diberikan admin sekolah.</p>
+    <p class="guest-note">SMK Istiqomah Muhammadiyah 4. Masuk memakai NISN atau email dan sandi yang diberikan admin sekolah.
+    </p>
 
     <div style="margin-top: 18px;">
         @include('partials.flash')
@@ -14,15 +15,15 @@
         @csrf
 
         <div class="field">
-            <label class="field-label" for="email">Email</label>
-            <input class="input-field" id="email" name="email" type="email" value="{{ old('email') }}" required
-                autofocus autocomplete="username">
+            <label class="field-label" for="login">NISN atau Email</label>
+            <input class="input-field" id="login" name="login" type="text" value="{{ old('login', old('email')) }}"
+                required autofocus autocomplete="username" placeholder="Masukkan NISN atau email">
         </div>
 
         <div class="field">
             <label class="field-label" for="password">Sandi</label>
             <input class="input-field" id="password" name="password" type="password" required
-                autocomplete="current-password">
+                autocomplete="current-password" placeholder="Masukkan sandi">
         </div>
 
         <div class="check-row">
@@ -33,5 +34,8 @@
         <button class="btn btn-primary btn-block" type="submit">Masuk</button>
     </form>
 
-    <p class="guest-foot">Lupa sandi? Hubungi admin sekolah untuk dibuatkan sandi baru.</p>
+    {{-- <p class="guest-foot">
+        Untuk murid, sandi awal bawaan adalah NISN Anda dan wajib diganti setelah berhasil masuk.<br>
+        Lupa sandi? Hubungi admin sekolah untuk dibuatkan sandi baru.
+    </p> --}}
 @endsection

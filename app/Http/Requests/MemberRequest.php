@@ -24,7 +24,7 @@ class MemberRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'identifier_number' => ['required', 'string', 'max:40', Rule::unique('users', 'identifier_number')->ignore($id)],
-            'email' => ['required', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($id)],
+            'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($id)],
             'role' => ['required', 'string', Rule::in(array_keys(User::roles()))],
             'class_name' => ['nullable', 'string', 'max:60', 'required_if:role,'.User::RoleMurid],
             'phone_number' => ['nullable', 'string', 'max:30'],
@@ -43,7 +43,6 @@ class MemberRequest extends FormRequest
             'name.required' => 'Nama anggota wajib diisi.',
             'identifier_number.required' => 'Nomor induk wajib diisi, karena nomor ini dipakai alat dan absen wajah.',
             'identifier_number.unique' => 'Nomor induk itu sudah dipakai anggota lain.',
-            'email.required' => 'Email wajib diisi untuk masuk ke aplikasi.',
             'email.email' => 'Format email tidak benar.',
             'email.unique' => 'Email itu sudah dipakai anggota lain.',
             'role.required' => 'Peran wajib dipilih.',
@@ -58,6 +57,7 @@ class MemberRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
+            'email' => filled($this->input('email')) ? trim((string) $this->input('email')) : null,
             'can_scan_face' => $this->boolean('can_scan_face'),
         ]);
     }

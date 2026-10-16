@@ -44,9 +44,10 @@
                     </div>
 
                     <div class="field">
-                        <label class="field-label" for="email">Surel untuk masuk</label>
+                        <label class="field-label" for="email">Surel / Email (Opsional)</label>
                         <input class="input-field" type="email" id="email" name="email"
-                            value="{{ old('email', $member->email) }}" required>
+                            value="{{ old('email', $member->email) }}">
+                        <p class="field-hint">Boleh dikosongkan. Anggota tetap bisa masuk menggunakan nomor induk / NISN.</p>
                         @error('email')
                             <p class="field-error">{{ $message }}</p>
                         @enderror

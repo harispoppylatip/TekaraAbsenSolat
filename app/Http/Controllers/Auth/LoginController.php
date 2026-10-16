@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class LoginController extends Controller
@@ -18,17 +20,29 @@ class LoginController extends Controller
 
     public function store(LoginRequest $request): RedirectResponse
     {
-        $credentials = $request->only('email', 'password');
+        $credential = $request->loginCredential();
+        $password = (string) $request->input('password');
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        $user = User::query()
+            ->where(function ($query) use ($credential) {
+                $query->whereRaw('LOWER(email) = ?', [mb_strtolower($credential)])
+                    ->orWhere('identifier_number', $credential)
+                    ->orWhere('email', $credential);
+            })
+            ->first();
+
+        if (! $user || ! Hash::check($password, (string) $user->password)) {
+            $errorKey = $request->filled('login') ? 'login' : 'email';
+
             return back()
-                ->withInput($request->only('email'))
-                ->withErrors(['email' => 'Email atau sandi tidak cocok.']);
+                ->withInput($request->only('login', 'email'))
+                ->withErrors([$errorKey => 'NISN atau Email atau sandi tidak cocok.']);
         }
+
+        Auth::login($user, $request->boolean('remember'));
 
         $request->session()->regenerate();
 
-        $user = $request->user();
         $user->forceFill(['last_login_at' => now()])->save();
 
         return redirect()

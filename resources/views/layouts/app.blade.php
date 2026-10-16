@@ -1,5 +1,4 @@
 @php($menuGroups = \App\Support\Menu::groups(auth()->user()))
-@php($quickMenu = \App\Support\Menu::quick(auth()->user()))
 <!DOCTYPE html>
 <html lang="id">
 
@@ -77,15 +76,6 @@
             </main>
         </div>
     </div>
-
-    @if ($quickMenu !== [])
-        <nav class="bottomnav" aria-label="Menu ringkas">
-            @foreach ($quickMenu as $item)
-                <a class="bottomnav-link @if (request()->routeIs($item['active'])) is-active @endif"
-                    href="{{ route($item['route']) }}">{{ $item['label'] }}</a>
-            @endforeach
-        </nav>
-    @endif
 
     @stack('scripts')
 </body>

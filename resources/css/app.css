@@ -323,10 +323,6 @@ div[data-live]:empty {
     z-index: 55;
 }
 
-.bottomnav {
-    display: none;
-}
-
 /* ---------- Kartu dan bagian ---------- */
 
 .card {
@@ -669,6 +665,11 @@ select.select-field {
     border-radius: var(--radius-sm);
 }
 
+.proof-link {
+    display: inline-block;
+    flex-shrink: 0;
+}
+
 .proof-link:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
@@ -678,6 +679,10 @@ select.select-field {
     display: block;
     width: 56px;
     height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
     object-fit: cover;
     border-radius: var(--radius-sm);
     border: 1px solid var(--outline-variant);
@@ -1993,7 +1998,6 @@ details.fold-alert {
 @media print {
     .sidebar,
     .topbar,
-    .bottomnav,
     .no-print,
     .pagination-wrap {
         display: none !important;
@@ -2100,39 +2104,6 @@ details.fold-alert {
     .stats-grid {
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
-
-    .app-shell {
-        padding-bottom: 66px;
-    }
-
-    .bottomnav {
-        display: flex;
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 50;
-        background: var(--surface-container);
-        box-shadow: 0 -1px 0 var(--outline-variant);
-        padding: 6px 4px;
-        justify-content: space-around;
-    }
-
-    .bottomnav-link {
-        flex: 1;
-        text-align: center;
-        padding: 8px 4px;
-        border-radius: var(--radius-sm);
-        font-size: 12.5px;
-        font-weight: 500;
-        color: var(--on-surface-variant);
-    }
-
-    .bottomnav-link.is-active {
-        color: var(--primary);
-        font-weight: 600;
-        background: var(--surface-variant);
-    }
 }
 
 /* ---------- Ponsel sempit ---------- */
@@ -2152,5 +2123,7 @@ details.fold-alert {
     .proof-thumb {
         width: 44px;
         height: 44px;
+        min-width: 44px;
+        min-height: 44px;
     }
 }

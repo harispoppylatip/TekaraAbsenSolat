@@ -94,6 +94,29 @@ class AuthTest extends TestCase
             ->assertSee('Ganti dulu sebelum memakai halaman lain');
     }
 
+    public function test_murid_bisa_masuk_memakai_nisn_dan_sandi_bawaan_nisn(): void
+    {
+        $murid = $this->makeUser(User::RoleMurid, [
+            'identifier_number' => 'NISN-998877',
+            'password' => 'NISN-998877',
+            'password_changed_at' => null,
+        ]);
+
+        $this->post(route('login.store'), [
+            'login' => 'NISN-998877',
+            'password' => 'NISN-998877',
+        ])->assertRedirect(route('murid.riwayat'));
+
+        $this->assertAuthenticatedAs($murid);
+
+        // Langsung dipaksa ganti sandi pada kunjungan berikutnya
+        $this->followingRedirects()
+            ->actingAs($murid)
+            ->get(route('murid.riwayat'))
+            ->assertOk()
+            ->assertSee('Ganti dulu sebelum memakai halaman lain');
+    }
+
     public function test_murid_masuk_dan_melihat_riwayat_absen_sendiri(): void
     {
         $murid = $this->makeUser(User::RoleMurid);

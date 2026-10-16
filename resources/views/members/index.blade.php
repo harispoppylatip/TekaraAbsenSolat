@@ -34,6 +34,7 @@
                 </div>
 
                 <div class="search-toolbar-aside">
+                    <a class="btn btn-outline btn-small" href="{{ route('members.import') }}">Impor CSV</a>
                     <a class="btn btn-primary btn-small" href="{{ route('members.create') }}">+ Tambah anggota</a>
                 </div>
             </div>
@@ -158,7 +159,7 @@
                                 <tr>
                                     <td>
                                         <span class="cell-strong">{{ $member->name }}</span>
-                                        <span class="cell-note">{{ $member->email }}</span>
+                                        <span class="cell-note">{{ $member->email ?: 'Tanpa surel' }}</span>
                                         @if ($member->can_scan_face)
                                             <span class="cell-note">Boleh memindai wajah di halaman absen wajah</span>
                                         @endif

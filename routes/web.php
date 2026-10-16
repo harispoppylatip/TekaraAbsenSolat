@@ -40,6 +40,7 @@ Route::post('/keluar', [LoginController::class, 'destroy'])
 Route::middleware('auth')->group(function () {
     Route::get('/ganti-sandi', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('/ganti-sandi', [PasswordController::class, 'update'])->name('password.update');
+    Route::put('/profil/email', [PasswordController::class, 'updateEmail'])->name('profile.email');
 
     Route::get('/ringkasan', DashboardController::class)
         ->middleware('role:admin,petugas')
@@ -77,6 +78,9 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/anggota', [MemberController::class, 'index'])->name('members.index');
+        Route::get('/anggota/impor', [MemberController::class, 'importForm'])->name('members.import');
+        Route::post('/anggota/impor', [MemberController::class, 'import'])->name('members.import.store');
+        Route::get('/anggota/impor/template', [MemberController::class, 'downloadTemplate'])->name('members.import.template');
         Route::get('/anggota/tambah', [MemberController::class, 'create'])->name('members.create');
         Route::post('/anggota', [MemberController::class, 'store'])->name('members.store');
         Route::get('/anggota/{member}/ubah', [MemberController::class, 'edit'])->name('members.edit');
