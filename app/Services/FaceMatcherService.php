@@ -169,11 +169,18 @@ class FaceMatcherService
 
         FaceEmbedding::query()
             ->with('user')
+            ->whereHas('user', fn ($query) => $query->where('enrollment_status', User::EnrollmentCompleted))
             ->chunkById(500, function ($rows) use ($embedding, $model, $enforce, &$groups): void {
                 foreach ($rows as $row) {
                     $stored = $row->embedding;
 
                     if ($row->user === null || ! is_array($stored) || count($stored) !== count($embedding)) {
+                        $this->skipped++;
+
+                        continue;
+                    }
+
+                    if (! $row->user->hasCompletedEnrollment()) {
                         $this->skipped++;
 
                         continue;

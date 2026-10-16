@@ -80,6 +80,8 @@ class FaceMatchingTest extends TestCase
      */
     private function attach(User $member, array $distances, ?string $model = null): void
     {
+        $member->forceFill(['enrollment_status' => User::EnrollmentCompleted, 'enrolled_at' => now()])->save();
+
         foreach ($distances as $distance) {
             FaceEmbedding::create([
                 'user_id' => $member->getKey(),

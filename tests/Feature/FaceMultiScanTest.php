@@ -74,7 +74,11 @@ class FaceMultiScanTest extends TestCase
      */
     private function memberOn(int $index, string $name, float $value = 0.2): User
     {
-        $member = $this->makeUser(User::RoleMurid, ['name' => $name]);
+        $member = $this->makeUser(User::RoleMurid, [
+            'name' => $name,
+            'enrollment_status' => User::EnrollmentCompleted,
+            'enrolled_at' => now(),
+        ]);
 
         FaceEmbedding::create([
             'user_id' => $member->getKey(),

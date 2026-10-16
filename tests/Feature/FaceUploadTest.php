@@ -307,7 +307,12 @@ class FaceUploadTest extends TestCase
     public function test_alat_mengambil_daftar_angka_wajah(): void
     {
         $this->activeDevice();
-        $member = $this->makeUser(User::RoleMurid, ['identifier_number' => '2005221', 'class_name' => 'X TKJ 1']);
+        $member = $this->makeUser(User::RoleMurid, [
+            'identifier_number' => '2005221',
+            'class_name' => 'X TKJ 1',
+            'enrollment_status' => User::EnrollmentCompleted,
+            'enrolled_at' => now(),
+        ]);
         $this->fakeFaceService();
 
         FaceEmbedding::create([

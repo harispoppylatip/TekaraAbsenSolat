@@ -195,6 +195,13 @@ class FaceEnrollmentService
 
         try {
             $row = $this->store($user, $encoded['encoding'], $this->cleanLabel($label), $replace, $photoPath);
+
+            if (! $checkQuality && ! $user->hasCompletedEnrollment()) {
+                $user->forceFill([
+                    'enrollment_status' => User::EnrollmentCompleted,
+                    'enrolled_at' => now(),
+                ])->save();
+            }
         } catch (\Throwable $e) {
             if ($photoPath !== null && Storage::disk('local')->exists($photoPath)) {
                 Storage::disk('local')->delete($photoPath);

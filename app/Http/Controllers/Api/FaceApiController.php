@@ -105,10 +105,11 @@ class FaceApiController extends Controller
         }
 
         $rows = FaceEmbedding::query()
-            ->with('user:id,name,identifier_number,class_name')
+            ->with('user:id,name,identifier_number,class_name,enrollment_status')
+            ->whereHas('user', fn ($query) => $query->where('enrollment_status', User::EnrollmentCompleted))
             ->orderBy('user_id')
             ->get()
-            ->filter(fn (FaceEmbedding $row) => $row->user !== null)
+            ->filter(fn (FaceEmbedding $row) => $row->user !== null && $row->user->hasCompletedEnrollment())
             ->map(fn (FaceEmbedding $row): array => [
                 'user_id' => $row->user_id,
                 'name' => $row->user->name,

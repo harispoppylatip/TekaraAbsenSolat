@@ -29,7 +29,10 @@ class DeviceRefusalTest extends TestCase
 
     private function enrolledMember(): User
     {
-        $member = $this->makeUser(User::RoleMurid);
+        $member = $this->makeUser(User::RoleMurid, [
+            'enrollment_status' => User::EnrollmentCompleted,
+            'enrolled_at' => now(),
+        ]);
 
         FaceEmbedding::create([
             'user_id' => $member->id,

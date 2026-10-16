@@ -904,9 +904,7 @@ class StudentFaceEnrollmentTest extends TestCase
             ->post(route('enrollment.photos.store'), ['photos' => [$this->photo()]])
             ->assertRedirect();
 
-        // Sesi dibuka lewat layanan sesi seperti petugas sungguhan, bukan
-        // dengan mengubah kolomnya langsung, supaya keadaannya sama dengan
-        // keadaan saat kamera absen dipakai.
+        // Sesi dibuka lewat layanan sesi seperti petugas sungguhan
         $admin = $this->makeUser(User::RoleAdmin);
         $sesi = $this->makeSession('zuhur');
 
@@ -915,6 +913,25 @@ class StudentFaceEnrollmentTest extends TestCase
 
         $this->fakeFaceService(encoding: $angka);
 
+        // Sebelum menekan kirim & selesaikan pendaftaran, wajah TIDAK terbaca saat scan absen
+        $this->actingAs($petugas)
+            ->post(route('attendance.wajah.scan'), ['photo' => UploadedFile::fake()->image('absen.jpg')])
+            ->assertOk()
+            ->assertJson(['ok' => false])
+            ->assertJsonPath('faces.0.status', 'unknown')
+            ->assertJsonPath('faces.0.attendance.recorded', false);
+
+        $this->assertDatabaseMissing('solat_attendance_logs', [
+            'user_id' => $murid->id,
+            'solat_session_id' => $sesi->refresh()->id,
+        ]);
+
+        // Murid menyelesaikan dan mengunci pendaftaran wajahnya
+        app(StudentEnrollmentService::class)->markCompleted($murid);
+
+        $this->fakeFaceService(encoding: $angka);
+
+        // Setelah dikonfirmasi, wajah murid langsung terbaca dan kehadiran tercatat
         $this->actingAs($petugas)
             ->post(route('attendance.wajah.scan'), ['photo' => UploadedFile::fake()->image('absen.jpg')])
             ->assertOk()

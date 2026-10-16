@@ -63,15 +63,24 @@ class EncodeFacePhoto implements ShouldQueue
     }
 
     /**
-     * Perbarui keadaan pendaftaran pemilik foto, hanya untuk kiriman mandiri.
+     * Perbarui keadaan pendaftaran pemilik foto.
      */
     private function refreshEnrollment(FacePhotoUpload $row): void
     {
-        if (! $row->self_enrolled || $row->user === null) {
+        if ($row->user === null) {
             return;
         }
 
-        app(StudentEnrollmentService::class)->refresh($row->user);
+        if ($row->self_enrolled) {
+            app(StudentEnrollmentService::class)->refresh($row->user);
+        } else {
+            if ($row->status === FacePhotoUpload::StatusBerhasil && ! $row->user->hasCompletedEnrollment()) {
+                $row->user->forceFill([
+                    'enrollment_status' => \App\Models\User::EnrollmentCompleted,
+                    'enrolled_at' => now(),
+                ])->save();
+            }
+        }
     }
 
     /**
