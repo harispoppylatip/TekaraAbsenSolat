@@ -1055,4 +1055,16 @@ class StudentFaceEnrollmentTest extends TestCase
 
         $this->assertFalse(Storage::disk('local')->exists($path));
     }
+
+    public function test_kemajuan_pemeriksaan_foto_disembunyikan_bila_tidak_ada_foto_yang_diperiksa_dan_header_punya_live_region(): void
+    {
+        $murid = $this->makeUser(User::RoleMurid);
+
+        $this->actingAs($murid)
+            ->get(route('enrollment.show'))
+            ->assertOk()
+            ->assertSee('data-live="enrollment-header"', false)
+            ->assertDontSee('Kemajuan pemeriksaan foto')
+            ->assertDontSee('Tidak ada foto yang sedang diperiksa.');
+    }
 }

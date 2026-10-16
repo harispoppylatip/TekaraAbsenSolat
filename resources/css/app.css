@@ -305,6 +305,10 @@ div[data-live] {
     min-width: 0;
 }
 
+div[data-live]:empty {
+    display: none;
+}
+
 .page-note {
     color: var(--on-surface-variant);
     font-size: 14px;
@@ -796,6 +800,171 @@ select.select-field {
     align-items: center;
 }
 
+/* ---------- Bilah Pencarian & Saringan Terpadu (Modern, Simpel & Rapi) ---------- */
+
+.search-toolbar {
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius);
+}
+
+.search-toolbar-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.search-toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.search-input-box {
+    position: relative;
+    flex: 1 1 240px;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+}
+
+.search-box-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--on-surface-variant);
+    pointer-events: none;
+    opacity: 0.75;
+}
+
+.search-box-input {
+    padding-left: 38px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    font-size: 14px !important;
+    height: 40px;
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm);
+}
+
+.search-box-input:focus {
+    background: var(--surface-container);
+    border-color: var(--primary-container);
+}
+
+.search-toolbar-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.search-toolbar-aside {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Saringan lipat (collapsible filter drawer) */
+.search-filter-drawer {
+    border-top: 1px solid var(--outline-variant);
+    padding-top: 10px;
+    margin-top: 4px;
+}
+
+.search-filter-toggle {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface-variant);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    transition: color 0.15s ease;
+}
+
+.search-filter-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.search-filter-toggle::after {
+    content: "▾";
+    font-size: 11px;
+    display: inline-block;
+    transition: transform 0.15s ease;
+}
+
+.search-filter-drawer[open] > .search-filter-toggle::after {
+    transform: rotate(180deg);
+}
+
+.search-filter-drawer[open] > .search-filter-toggle {
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.search-filter-toggle:hover {
+    color: var(--on-surface);
+}
+
+.filter-count-badge {
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 12px;
+}
+
+.search-filter-panel {
+    background: var(--surface-variant);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.search-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--outline-variant);
+}
+
+/* Kelompok tanggal inline */
+.date-range-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.date-range-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+}
+
+.date-range-input {
+    width: auto !important;
+    min-width: 130px;
+    height: 40px;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    font-size: 13.5px !important;
+    background: var(--surface);
+}
+
 /* ---------- Tautan halaman ---------- */
 
 .pagination-wrap {
@@ -1061,10 +1230,24 @@ select.select-field {
 }
 
 .camera-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
     color: rgba(255, 255, 255, 0.8);
     font-size: 14px;
     text-align: center;
     padding: 20px;
+    pointer-events: none;
+}
+
+.camera-placeholder[hidden],
+.camera-guide-overlay[hidden],
+.camera-guide-countdown[hidden],
+.camera-flash[hidden] {
+    display: none;
 }
 
 /* ---------- Panduan otomatis kamera pendaftaran wajah ---------- */
@@ -1456,6 +1639,102 @@ select.select-field {
     display: inline;
 }
 
+details.fold-alert {
+    display: block;
+}
+
+.fold-alert > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 14px;
+}
+
+.fold-alert > summary::-webkit-details-marker {
+    display: none;
+}
+
+.fold-alert-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fold-alert-hint {
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+}
+
+.fold-alert-close,
+.fold-alert[open] .fold-alert-open {
+    display: none;
+}
+
+.fold-alert[open] .fold-alert-close {
+    display: inline;
+}
+
+.fold-alert-body {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(15, 23, 42, 0.14);
+    line-height: 1.55;
+}
+
+.fold-alert-body p {
+    margin: 0;
+}
+
+.fold-note {
+    margin-top: 4px;
+    font-size: 13.5px;
+    color: var(--on-surface-variant);
+}
+
+.fold-note > summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--primary-container);
+}
+
+.fold-note > summary::-webkit-details-marker {
+    display: none;
+}
+
+.fold-note-close,
+.fold-note[open] .fold-note-open {
+    display: none;
+}
+
+.fold-note[open] .fold-note-close {
+    display: inline;
+}
+
+.fold-note-body {
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm);
+    line-height: 1.55;
+    color: var(--on-surface-variant);
+}
+
+.fold-note-body p {
+    margin: 0;
+}
+
 /*
    Blok kemajuan dipakai di dua tempat pada halaman yang sama: di bagian atas
    sebagai ringkasan, dan di dalam bagian kemajuan. Bentuknya disamakan supaya
@@ -1789,6 +2068,33 @@ select.select-field {
 
     .filter-bar {
         grid-template-columns: 1fr;
+    }
+
+    .search-toolbar-aside {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .search-toolbar-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input-box {
+        width: 100%;
+    }
+
+    .search-toolbar-buttons {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .date-range-inline {
+        width: 100%;
+    }
+
+    .date-range-input {
+        flex: 1;
     }
 
     .stats-grid {

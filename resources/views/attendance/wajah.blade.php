@@ -9,14 +9,25 @@
     @endphp
 
     @if ($activeSession === null && !$testOpen)
-        <div class="alert alert-warning">
-            <strong>Belum ada sesi yang dibuka</strong>
-            <p>
-                Sesi biasanya dibuka sendiri {{ $earlyOpenMinutes }} menit sebelum jam waktu solat. Bila belum
-                terbuka, periksa penjadwal aplikasi atau buka sesinya di halaman Sesi Absen. Selama belum ada sesi
-                yang dibuka, absen dari kamera ini akan ditolak.
-            </p>
-        </div>
+        <details class="alert alert-warning fold-alert" data-record="alert-belum-ada-sesi">
+            <summary>
+                <span class="fold-alert-head">
+                    <strong>Belum ada sesi yang dibuka</strong>
+                    <span>Absen baru diterima saat sesi waktu solat atau mode uji coba dibuka.</span>
+                </span>
+                <span class="fold-alert-hint">
+                    <span class="fold-alert-open">Lihat rincian</span>
+                    <span class="fold-alert-close">Tutup rincian</span>
+                </span>
+            </summary>
+            <div class="fold-alert-body">
+                <p>
+                    Sesi biasanya dibuka sendiri {{ $earlyOpenMinutes }} menit sebelum jam waktu solat. Bila belum
+                    terbuka, periksa penjadwal aplikasi atau buka sesinya di halaman Sesi Absen. Selama belum ada sesi
+                    yang dibuka, absen dari kamera ini akan ditolak.
+                </p>
+            </div>
+        </details>
     @elseif (!$serviceReady)
         <div class="alert alert-warning">
             <strong>Layanan wajah tidak menyala</strong>
@@ -38,19 +49,30 @@
     @endif
 
     @if ($testOpen)
-        <div class="alert alert-info">
-            <strong>Mode uji coba menyala</strong>
-            <p>
-                Absen yang masuk pada mode ini dicatat sebagai percobaan, tidak dihitung pada rekap, riwayat, maupun
-                ringkasan. Petugas dan anggota yang ditugaskan memindai wajah boleh ikut mencoba, dan orang yang sama
-                baru bisa dicoba lagi setelah {{ $testCooldownMinutes }} menit.
-                @if ($activeSession !== null)
-                    Sebuah sesi waktu solat juga sedang dibuka, jadi absen masuk ke sesi
-                    {{ $activeSession->prayerLabel() }}, bukan sebagai percobaan.
-                @endif
-                Admin mematikan mode ini di halaman Sesi Absen.
-            </p>
-        </div>
+        <details class="alert alert-info fold-alert" data-record="alert-mode-uji-coba">
+            <summary>
+                <span class="fold-alert-head">
+                    <strong>Mode uji coba menyala</strong>
+                    <span>Absen dicatat sebagai percobaan dan tidak masuk rekap (jeda {{ $testCooldownMinutes }} menit per orang).</span>
+                </span>
+                <span class="fold-alert-hint">
+                    <span class="fold-alert-open">Lihat rincian</span>
+                    <span class="fold-alert-close">Tutup rincian</span>
+                </span>
+            </summary>
+            <div class="fold-alert-body">
+                <p>
+                    Absen yang masuk pada mode ini dicatat sebagai percobaan, tidak dihitung pada rekap, riwayat, maupun
+                    ringkasan. Petugas dan anggota yang ditugaskan memindai wajah boleh ikut mencoba, dan orang yang sama
+                    baru bisa dicoba lagi setelah {{ $testCooldownMinutes }} menit.
+                    @if ($activeSession !== null)
+                        Sebuah sesi waktu solat juga sedang dibuka, jadi absen masuk ke sesi
+                        {{ $activeSession->prayerLabel() }}, bukan sebagai percobaan.
+                    @endif
+                    Admin mematikan mode ini di halaman Sesi Absen.
+                </p>
+            </div>
+        </details>
     @endif
 
     {{-- Kamera dibiarkan di luar wilayah yang menyegarkan diri sendiri. Kalau ikut
@@ -61,10 +83,21 @@
                 <div>
                     <h2 class="section-title">Kamera absen</h2>
                     <p class="section-note">
-                        Kamera menangkap gambar setiap dua detik dan memeriksa seluruh wajah yang terlihat. Setiap
-                        orang punya kotak dan namanya sendiri, dan satu orang hanya dicatat satu kali pada setiap
-                        sesi.
+                        Memindai wajah otomatis setiap 2 detik (1 kali catat per sesi).
                     </p>
+                    <details class="fold-note">
+                        <summary>
+                            <span class="fold-note-open">Lihat cara kerja</span>
+                            <span class="fold-note-close">Tutup penjelasan</span>
+                        </summary>
+                        <div class="fold-note-body">
+                            <p>
+                                Kamera menangkap gambar setiap dua detik dan memeriksa seluruh wajah yang terlihat. Setiap
+                                orang punya kotak dan namanya sendiri, dan satu orang hanya dicatat satu kali pada setiap
+                                sesi.
+                            </p>
+                        </div>
+                    </details>
                 </div>
             </div>
 

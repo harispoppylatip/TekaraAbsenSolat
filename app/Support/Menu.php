@@ -67,6 +67,7 @@ class Menu
                 'label' => 'Sistem',
                 'items' => [
                     ['label' => 'Perangkat', 'route' => 'devices.index', 'active' => 'devices.*', 'roles' => [User::RoleAdmin]],
+                    ['label' => 'Pengaturan', 'route' => 'settings.index', 'active' => 'settings.*', 'roles' => [User::RoleAdmin]],
                 ],
             ],
         ];

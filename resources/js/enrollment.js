@@ -489,17 +489,26 @@ function setupQueueWatch(form, staging) {
     }
 
     let terakhir = null;
+    let stateSignature = null;
     // Penanda waktu batch selesai untuk auto-dismiss setelah 15 detik
     const batchDismissTimers = {};
 
     const dismissBatchArticle = (batchId) => {
         const article = document.querySelector(`[data-batch="${batchId}"]`);
         if (article) {
+            const card = article.closest("[data-progress-card]");
             article.style.transition = "opacity 0.5s";
             article.style.opacity = "0";
             setTimeout(() => {
                 if (article.parentNode) {
                     article.parentNode.removeChild(article);
+                }
+                if (
+                    card &&
+                    card.querySelectorAll("[data-batch]").length === 0 &&
+                    card.parentNode
+                ) {
+                    card.parentNode.removeChild(card);
                 }
             }, 500);
         }
@@ -520,6 +529,55 @@ function setupQueueWatch(form, staging) {
         if (batchDismissTimers[batchId]) {
             clearTimeout(batchDismissTimers[batchId]);
             delete batchDismissTimers[batchId];
+        }
+    };
+
+    const syncLiveRegionsNow = async () => {
+        const regions = Array.from(document.querySelectorAll("[data-live]"));
+        if (regions.length === 0) {
+            return;
+        }
+
+        try {
+            const response = await fetch(window.location.href, {
+                headers: {
+                    "X-Live-Refresh": "1",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                credentials: "same-origin",
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const html = await response.text();
+            const parsed = new DOMParser().parseFromString(html, "text/html");
+
+            regions.forEach((region) => {
+                const key = region.dataset.live;
+                const incoming = parsed.querySelector(`[data-live="${key}"]`);
+
+                if (!incoming || incoming.innerHTML === region.innerHTML) {
+                    return;
+                }
+
+                const openMap = {};
+                region.querySelectorAll("details").forEach((el, idx) => {
+                    openMap[el.dataset.record || `idx-${idx}`] = el.open;
+                });
+
+                region.innerHTML = incoming.innerHTML;
+
+                region.querySelectorAll("details").forEach((el, idx) => {
+                    const k = el.dataset.record || `idx-${idx}`;
+                    if (openMap[k]) {
+                        el.open = true;
+                    }
+                });
+            });
+        } catch (error) {
+            // Abaikan kegagalan jaringan sementara
         }
     };
 
@@ -544,19 +602,38 @@ function setupQueueWatch(form, staging) {
             return;
         }
 
-        const pending = Boolean(data && data.state && data.state.pending);
+        const state = (data && data.state) || {};
+        const pending = Boolean(state.pending);
+        const batches = Array.isArray(data && data.batches)
+            ? data.batches
+            : Array.isArray(state.batches)
+              ? state.batches
+              : [];
 
         // Periksa setiap batch: yang baru selesai (done=true) jadwalkan auto-dismiss;
         // yang masih berjalan batalkan auto-dismiss agar tidak dihapus lebih awal.
-        if (data && data.state && Array.isArray(data.state.batches)) {
-            data.state.batches.forEach((batch) => {
-                if (batch.done) {
-                    scheduleAutoDismiss(batch.id);
-                } else {
-                    cancelAutoDismiss(batch.id);
-                }
-            });
+        batches.forEach((batch) => {
+            if (batch.done) {
+                scheduleAutoDismiss(batch.id);
+            } else {
+                cancelAutoDismiss(batch.id);
+            }
+        });
+
+        const nextSignature = JSON.stringify({
+            status: state.status,
+            usable: state.usable,
+            total: state.total,
+            pending: pending,
+            finished: Boolean(state.finished),
+            locked: Boolean(state.locked),
+            batches: batches.map((b) => `${b.id}:${b.finished}:${b.done}`),
+        });
+
+        if (stateSignature !== null && stateSignature !== nextSignature) {
+            await syncLiveRegionsNow();
         }
+        stateSignature = nextSignature;
 
         if (pending === terakhir) {
             return;

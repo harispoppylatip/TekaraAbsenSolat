@@ -27,23 +27,17 @@
             </div>
         </div>
 
-        <div class="filter-bar">
-            <form method="GET" action="{{ route('sessions.index') }}">
-                <div class="field">
-                    <label class="field-label" for="date">Tanggal sesi</label>
-                    <input class="input-field" type="date" id="date" name="date"
-                        value="{{ $date->toDateString() }}" data-auto-submit>
-                </div>
+        <div class="search-toolbar-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--outline-variant);">
+            <form method="GET" action="{{ route('sessions.index') }}" class="date-range-inline">
+                <span class="date-range-label">Tanggal sesi:</span>
+                <input class="input-field date-range-input" type="date" id="date" name="date"
+                    value="{{ $date->toDateString() }}" data-auto-submit>
             </form>
 
-            <form method="POST" action="{{ route('sessions.generate') }}">
+            <form method="POST" action="{{ route('sessions.generate') }}" style="display: inline-flex; align-items: center;">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date->toDateString() }}">
-
-                <div class="field">
-                    <label class="field-label" for="generate">Buat sesi dari daftar waktu solat</label>
-                    <button class="btn btn-primary" id="generate" type="submit">Buat sesi tanggal ini</button>
-                </div>
+                <button class="btn btn-primary btn-small" id="generate" type="submit">Buat sesi tanggal ini</button>
             </form>
         </div>
     </section>
@@ -83,11 +77,22 @@
                     <div>
                         <h2 class="section-title">Mode uji coba absen</h2>
                         <p class="section-note">
-                            Mode uji coba membuka satu sesi khusus untuk mencoba kamera absen wajah tanpa membuka sesi
-                            waktu solat yang sungguhan. Percobaan yang masuk tidak dihitung pada rekap, riwayat, maupun
-                            ringkasan, dan orang yang sama baru boleh dicoba lagi setelah
-                            {{ $testCooldownMinutes }} menit. Sengaja disediakan supaya absen boleh diuji kapan saja.
+                            Uji kamera absen wajah kapan saja tanpa membuka sesi waktu solat (jeda {{ $testCooldownMinutes }} menit per orang).
                         </p>
+                        <details class="fold-note" data-record="info-mode-uji-coba-sesi">
+                            <summary>
+                                <span class="fold-note-open">Lihat rincian</span>
+                                <span class="fold-note-close">Tutup rincian</span>
+                            </summary>
+                            <div class="fold-note-body">
+                                <p>
+                                    Mode uji coba membuka satu sesi khusus untuk mencoba kamera absen wajah tanpa membuka sesi
+                                    waktu solat yang sungguhan. Percobaan yang masuk tidak dihitung pada rekap, riwayat, maupun
+                                    ringkasan, dan orang yang sama baru boleh dicoba lagi setelah
+                                    {{ $testCooldownMinutes }} menit. Sengaja disediakan supaya absen boleh diuji kapan saja.
+                                </p>
+                            </div>
+                        </details>
                     </div>
 
                     <div class="section-actions">

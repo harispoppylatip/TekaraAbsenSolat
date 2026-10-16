@@ -16,40 +16,24 @@
     $terkunci = $state['locked'];
 @endphp
 
-<section class="card">
-    <div class="section-head">
-        <div>
-            <h2 class="section-title">Kemajuan pemeriksaan foto</h2>
-            <p class="section-note">
-                @if ($state['pending'])
-                    Ada foto yang masih diperiksa. Bagian ini akan berubah sendiri setelah pemeriksaannya
-                    selesai.
-                @elseif ($jumlah >= $wajib)
-                    Semua foto yang dibutuhkan sudah lolos pemeriksaan.
-                @else
-                    {{ $jumlah }} dari {{ $wajib }} foto sudah lolos pemeriksaan.
-                @endif
-            </p>
+@if ($state['batches'] !== [])
+    <section class="card" data-progress-card>
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Kemajuan pemeriksaan foto</h2>
+                <p class="section-note">
+                    @if ($state['pending'])
+                        Ada foto yang masih diperiksa. Bagian ini akan berubah sendiri setelah pemeriksaannya
+                        selesai.
+                    @elseif ($jumlah >= $wajib)
+                        Semua foto yang dibutuhkan sudah lolos pemeriksaan.
+                    @else
+                        {{ $jumlah }} dari {{ $wajib }} foto sudah lolos pemeriksaan.
+                    @endif
+                </p>
+            </div>
         </div>
-    </div>
 
-    <div class="progress-block">
-        <p class="progress-value">{{ $jumlah }} dari {{ $wajib }} foto</p>
-        <div class="progress-track">
-            <div class="progress-fill" style="width: {{ $state['percent'] }}%"></div>
-        </div>
-        @if ($state['unusable'] > 0)
-            <p class="progress-note">
-                {{ $state['unusable'] }} foto lama tidak dihitung karena dihitung mesin versi sebelumnya.
-            </p>
-        @endif
-    </div>
-
-    @if ($state['batches'] === [])
-        <p class="empty-state">
-            {{ $state['has_photos'] ? 'Tidak ada foto yang sedang diperiksa.' : 'Belum ada foto yang dikirim dari halaman ini.' }}
-        </p>
-    @else
         @foreach ($state['batches'] as $batch)
             @php
                 $tone = $batch['done'] ? ($batch['failed'] > 0 ? 'sebagian' : 'selesai') : 'berjalan';
@@ -121,8 +105,8 @@
                 @endif
             </article>
         @endforeach
-    @endif
-</section>
+    </section>
+@endif
 
 @if ($state['has_photos'])
     <section class="card">

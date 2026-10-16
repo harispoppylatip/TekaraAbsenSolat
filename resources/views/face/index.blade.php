@@ -155,30 +155,27 @@
         </div>
     </section>
 
-    <section class="card">
-        <div class="section-head">
-            <div>
-                <h2 class="section-title">Cari anggota</h2>
-                <p class="section-note">Daftar di bawah memuat {{ \App\Http\Controllers\FaceDataController::PerPage }}
-                    anggota setiap halaman.</p>
-            </div>
-        </div>
-
-        <form method="GET" action="{{ route('face.index') }}">
-            <div class="filter-bar">
-                <div class="field">
-                    <label class="field-label" for="q">Nama, nomor induk, atau surel</label>
-                    <input class="input-field" type="search" id="q" name="q" value="{{ $term }}"
-                        placeholder="Contoh: Ahmad atau 2005221">
+    <div class="search-toolbar card">
+        <form method="GET" action="{{ route('face.index') }}" class="search-toolbar-form">
+            <div class="search-toolbar-row">
+                <div class="search-input-box">
+                    <svg class="search-box-icon" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input class="input-field search-box-input" type="search" id="q" name="q" value="{{ $term }}"
+                        placeholder="Cari nama, nomor induk, atau surel...">
                 </div>
 
-                <div class="filter-actions">
-                    <button class="btn btn-primary" type="submit">Cari</button>
-                    <a class="btn btn-text" href="{{ route('face.index') }}">Bersihkan</a>
+                <div class="search-toolbar-buttons">
+                    <button class="btn btn-primary btn-small" type="submit">Cari</button>
+                    @if(filled($term))
+                        <a class="btn btn-text btn-small" href="{{ route('face.index') }}">Bersihkan</a>
+                    @endif
                 </div>
             </div>
         </form>
-    </section>
+    </div>
 
     <div data-live="wajah">
         <section class="stats-grid">

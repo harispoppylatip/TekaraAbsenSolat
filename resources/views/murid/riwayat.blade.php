@@ -24,23 +24,20 @@
             </div>
         </div>
 
-        <form method="GET" action="{{ route('murid.riwayat') }}">
-            <div class="filter-bar">
-                <div class="field">
-                    <label class="field-label" for="from">Dari tanggal</label>
-                    <input class="input-field" type="date" id="from" name="from"
+        <form method="GET" action="{{ route('murid.riwayat') }}" class="search-toolbar-form" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--outline-variant);">
+            <div class="search-toolbar-row">
+                <div class="date-range-inline">
+                    <span class="date-range-label">Dari</span>
+                    <input class="input-field date-range-input" type="date" id="from" name="from"
                         value="{{ $from->toDateString() }}">
-                </div>
-
-                <div class="field">
-                    <label class="field-label" for="to">Sampai tanggal</label>
-                    <input class="input-field" type="date" id="to" name="to"
+                    <span class="date-range-label">sampai</span>
+                    <input class="input-field date-range-input" type="date" id="to" name="to"
                         value="{{ $to->toDateString() }}">
                 </div>
 
-                <div class="filter-actions">
-                    <button class="btn btn-primary" type="submit">Terapkan</button>
-                    <a class="btn btn-text" href="{{ route('murid.riwayat') }}">Tiga puluh hari terakhir</a>
+                <div class="search-toolbar-buttons">
+                    <button class="btn btn-primary btn-small" type="submit">Terapkan</button>
+                    <a class="btn btn-text btn-small" href="{{ route('murid.riwayat') }}">Tiga puluh hari terakhir</a>
                 </div>
             </div>
         </form>

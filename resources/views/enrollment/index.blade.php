@@ -20,127 +20,129 @@
         keterangan, bukan sebagai kolom yang bisa diubah: tidak ada jalan
         mendaftarkan wajah untuk akun orang lain.
     --}}
-    <section class="card">
-        <div class="section-head">
-            <div>
-                <h2 class="section-title">{{ $user->name }}</h2>
-                <p class="section-note">
-                    Nomor induk {{ $user->identifier_number ?: 'belum ada' }}
-                    @if ($user->class_name)
-                        , kelas {{ $user->class_name }}
+    <div data-live="enrollment-header">
+        <section class="card">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">{{ $user->name }}</h2>
+                    <p class="section-note">
+                        Nomor induk {{ $user->identifier_number ?: 'belum ada' }}
+                        @if ($user->class_name)
+                            , kelas {{ $user->class_name }}
+                        @endif
+                        , peran {{ $user->roleLabel() }}.
+                        Keadaan wajah Anda sekarang: <strong>{{ $state['label'] }}</strong>.
+                    </p>
+                </div>
+
+                <div class="section-actions">
+                    <a class="btn btn-outline btn-small" href="{{ route('password.edit') }}">Ganti sandi</a>
+                    <a class="btn btn-text btn-small" href="{{ route($user->homeRoute()) }}">Kembali</a>
+                </div>
+            </div>
+
+            <div class="progress-block">
+                <p class="progress-value">{{ $state['usable'] }} dari {{ $state['required'] }} foto</p>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {{ $state['percent'] }}%"></div>
+                </div>
+                <p class="progress-note">
+                    @if ($terkunci)
+                        Semua foto yang dibutuhkan sudah terkumpul dan pendaftaran Anda sudah selesai.
+                    @elseif ($state['finished'])
+                        Semua foto yang dibutuhkan sudah terkumpul. Periksa foto Anda di bawah, lalu kirim untuk menyelesaikan pendaftaran.
+                    @else
+                        Kurang {{ $kurang }} foto lagi supaya pendaftaran bisa diselesaikan.
                     @endif
-                    , peran {{ $user->roleLabel() }}.
-                    Keadaan wajah Anda sekarang: <strong>{{ $state['label'] }}</strong>.
                 </p>
             </div>
 
-            <div class="section-actions">
-                <a class="btn btn-outline btn-small" href="{{ route('password.edit') }}">Ganti sandi</a>
-                <a class="btn btn-text btn-small" href="{{ route($user->homeRoute()) }}">Kembali</a>
-            </div>
-        </div>
+            @if ($state['unusable'] > 0)
+                {{-- Terjadi pada akun yang wajahnya didaftarkan memakai mesin versi
+                     lama. Angkanya masih tersimpan tetapi tidak bisa dibandingkan
+                     dengan foto baru, jadi pemiliknya perlu tahu mengapa jumlah foto
+                     terlihat ada padahal belum dihitung. --}}
+                <div class="alert alert-warning">
+                    <strong>Ada {{ $state['unusable'] }} foto lama yang tidak bisa dipakai</strong>
+                    <p>
+                        Foto itu dihitung mesin versi sebelumnya, jadi angkanya tidak bisa dibandingkan dengan foto
+                        baru. Foto seperti itu tidak akan dipakai saat absen. Kirim foto baru sampai jumlahnya
+                        cukup, atau hapus foto lama itu di bagian bawah halaman ini.
+                    </p>
+                </div>
+            @endif
 
-        <div class="progress-block">
-            <p class="progress-value">{{ $state['usable'] }} dari {{ $state['required'] }} foto</p>
-            <div class="progress-track">
-                <div class="progress-fill" style="width: {{ $state['percent'] }}%"></div>
-            </div>
-            <p class="progress-note">
-                @if ($terkunci)
-                    Semua foto yang dibutuhkan sudah terkumpul dan pendaftaran Anda sudah selesai.
-                @elseif ($state['finished'])
-                    Semua foto yang dibutuhkan sudah terkumpul. Periksa foto Anda di bawah, lalu kirim untuk menyelesaikan pendaftaran.
-                @else
-                    Kurang {{ $kurang }} foto lagi supaya pendaftaran bisa diselesaikan.
-                @endif
-            </p>
-        </div>
+            @if ($terkunci)
+                {{--
+                    Akun yang pendaftarannya sudah selesai TIDAK boleh mengubah
+                    wajahnya sendiri. Alasannya ditulis apa adanya supaya tidak
+                    terbaca sebagai kerusakan: wajah yang sudah dipakai absen
+                    setiap hari tidak boleh berubah tanpa sepengetahuan sekolah,
+                    jadi pembukaannya harus lewat petugas.
+                --}}
+                <div class="alert alert-info">
+                    <strong>Pendaftaran wajah Anda sudah selesai dan terkunci</strong>
+                    <p>
+                        Karena wajah Anda sudah dipakai untuk absen, fotonya tidak bisa lagi ditambah, diganti,
+                        atau dihapus dari halaman ini. Bila memang perlu diganti, minta petugas sekolah membuka
+                        pendaftaran ulang dari halaman Data Wajah. Setelah dibuka, halaman ini bisa dipakai lagi
+                        seperti biasa.
+                    </p>
+                </div>
+            @endif
 
-        @if ($state['unusable'] > 0)
-            {{-- Terjadi pada akun yang wajahnya didaftarkan memakai mesin versi
-                 lama. Angkanya masih tersimpan tetapi tidak bisa dibandingkan
-                 dengan foto baru, jadi pemiliknya perlu tahu mengapa jumlah foto
-                 terlihat ada padahal belum dihitung. --}}
-            <div class="alert alert-warning">
-                <strong>Ada {{ $state['unusable'] }} foto lama yang tidak bisa dipakai</strong>
-                <p>
-                    Foto itu dihitung mesin versi sebelumnya, jadi angkanya tidak bisa dibandingkan dengan foto
-                    baru. Foto seperti itu tidak akan dipakai saat absen. Kirim foto baru sampai jumlahnya
-                    cukup, atau hapus foto lama itu di bagian bawah halaman ini.
-                </p>
-            </div>
-        @endif
+            @if ($state['pending'])
+                <div class="alert alert-info" data-shoot-busy>
+                    <strong>Foto Anda sedang diperiksa</strong>
+                    <p>
+                        Pemeriksaan satu foto memerlukan beberapa detik. Halaman ini memutakhirkan dirinya sendiri,
+                        jadi biarkan terbuka sampai bagian kemajuan di bawah selesai. Kirim foto berikutnya setelah
+                        yang ini selesai.
+                    </p>
+                </div>
+            @endif
+        </section>
 
         @if ($terkunci)
-            {{--
-                Akun yang pendaftarannya sudah selesai TIDAK boleh mengubah
-                wajahnya sendiri. Alasannya ditulis apa adanya supaya tidak
-                terbaca sebagai kerusakan: wajah yang sudah dipakai absen
-                setiap hari tidak boleh berubah tanpa sepengetahuan sekolah,
-                jadi pembukaannya harus lewat petugas.
-            --}}
-            <div class="alert alert-info">
-                <strong>Pendaftaran wajah Anda sudah selesai dan terkunci</strong>
-                <p>
-                    Karena wajah Anda sudah dipakai untuk absen, fotonya tidak bisa lagi ditambah, diganti,
-                    atau dihapus dari halaman ini. Bila memang perlu diganti, minta petugas sekolah membuka
-                    pendaftaran ulang dari halaman Data Wajah. Setelah dibuka, halaman ini bisa dipakai lagi
-                    seperti biasa.
-                </p>
-            </div>
-        @endif
-
-        @if ($state['pending'])
-            <div class="alert alert-info" data-shoot-busy>
-                <strong>Foto Anda sedang diperiksa</strong>
-                <p>
-                    Pemeriksaan satu foto memerlukan beberapa detik. Halaman ini memutakhirkan dirinya sendiri,
-                    jadi biarkan terbuka sampai bagian kemajuan di bawah selesai. Kirim foto berikutnya setelah
-                    yang ini selesai.
-                </p>
-            </div>
-        @endif
-    </section>
-
-    @if ($terkunci)
-        <section class="card">
-            <div class="section-head">
-                <div>
-                    <h2 class="section-title">Wajah Anda sudah terdaftar</h2>
-                    <p class="section-note">
-                        {{ $state['usable'] }} foto wajah tersimpan untuk akun Anda. Saat absen, berdirilah di
-                        depan kamera dengan wajah terlihat jelas. Bila wajahnya tidak dikenali, minta petugas
-                        sekolah mencatat kehadiran Anda secara manual.
-                    </p>
+            <section class="card">
+                <div class="section-head">
+                    <div>
+                        <h2 class="section-title">Wajah Anda sudah terdaftar</h2>
+                        <p class="section-note">
+                            {{ $state['usable'] }} foto wajah tersimpan untuk akun Anda. Saat absen, berdirilah di
+                            depan kamera dengan wajah terlihat jelas. Bila wajahnya tidak dikenali, minta petugas
+                            sekolah mencatat kehadiran Anda secara manual.
+                        </p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-actions">
-                <a class="btn btn-primary" href="{{ route($user->homeRoute()) }}">Lihat riwayat absen saya</a>
-            </div>
-        </section>
-    @elseif ($state['finished'])
-        <section class="card">
-            <div class="section-head">
-                <div>
-                    <h2 class="section-title">Foto wajah sudah lengkap ({{ $state['usable'] }} dari {{ $state['required'] }} foto)</h2>
-                    <p class="section-note">
-                        Periksa kembali foto wajah Anda pada tabel di bawah agar jelas dan benar. Jika sudah sesuai, tekan tombol di bawah untuk mengirim dan mengunci pendaftaran.
-                    </p>
-                </div>
-            </div>
-
-            <form method="POST" action="{{ route('enrollment.complete') }}"
-                data-confirm="Pastikan wajah jelas dan benar karena ini akan terkunci jika sudah terkunci tidak bisa diubah kecuali admin membuka. Selesaikan pendaftaran?">
-                @csrf
                 <div class="form-actions">
-                    <button class="btn btn-primary" type="submit">
-                        Kirim dan selesaikan pendaftaran
-                    </button>
+                    <a class="btn btn-primary" href="{{ route($user->homeRoute()) }}">Lihat riwayat absen saya</a>
                 </div>
-            </form>
-        </section>
-    @endif
+            </section>
+        @elseif ($state['finished'])
+            <section class="card">
+                <div class="section-head">
+                    <div>
+                        <h2 class="section-title">Foto wajah sudah lengkap ({{ $state['usable'] }} dari {{ $state['required'] }} foto)</h2>
+                        <p class="section-note">
+                            Periksa kembali foto wajah Anda pada tabel di bawah agar jelas dan benar. Jika sudah sesuai, tekan tombol di bawah untuk mengirim dan mengunci pendaftaran.
+                        </p>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ route('enrollment.complete') }}"
+                    data-confirm="Pastikan wajah jelas dan benar karena ini akan terkunci jika sudah terkunci tidak bisa diubah kecuali admin membuka. Selesaikan pendaftaran?">
+                    @csrf
+                    <div class="form-actions">
+                        <button class="btn btn-primary" type="submit">
+                            Kirim dan selesaikan pendaftaran
+                        </button>
+                    </div>
+                </form>
+            </section>
+        @endif
+    </div>
 
     {{--
         Panduan variasi foto yang harus ada. Dilipat secara bawaan agar pengguna

@@ -14,6 +14,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Murid\HistoryController;
 use App\Http\Controllers\PrayerTimeController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SolatSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -102,6 +103,14 @@ Route::middleware('auth')->group(function () {
         Route::put('/perangkat/{device}/daftar', [DeviceController::class, 'register'])->name('devices.register');
         Route::put('/perangkat/{device}/status', [DeviceController::class, 'status'])->name('devices.status');
         Route::delete('/perangkat/{device}', [DeviceController::class, 'destroy'])->name('devices.destroy');
+
+        Route::get('/pengaturan', [SettingController::class, 'index'])->name('settings.index');
+        Route::delete('/pengaturan/riwayat-absen', [SettingController::class, 'clearAttendance'])->name('settings.clear-attendance');
+        Route::delete('/pengaturan/sesi-absen', [SettingController::class, 'clearSessions'])->name('settings.clear-sessions');
+        Route::delete('/pengaturan/data-wajah', [SettingController::class, 'clearFaces'])->name('settings.clear-faces');
+        Route::delete('/pengaturan/anggota', [SettingController::class, 'clearMembers'])->name('settings.clear-members');
+        Route::delete('/pengaturan/perangkat', [SettingController::class, 'clearDevices'])->name('settings.clear-devices');
+        Route::delete('/pengaturan/semua-data', [SettingController::class, 'clearAll'])->name('settings.clear-all');
     });
 
     Route::middleware('role:admin,petugas')->group(function () {
