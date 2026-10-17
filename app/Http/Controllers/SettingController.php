@@ -10,14 +10,18 @@ use App\Models\SolatSession;
 use App\Models\User;
 use App\Services\FacePhotoQueueService;
 use App\Services\SolatProofService;
+use App\Services\SystemBackupService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use RuntimeException;
 
 /**
- * Halaman pengaturan dan pembersihan data sistem khusus Administrator.
+ * Halaman pengaturan, cadangan (backup & restore), dan pembersihan data sistem khusus Administrator.
  *
  * Setiap aksi penghapusan membersihkan baik baris basis data maupun berkas
  * fisik di cakram privat (foto bukti absen, foto wajah, dan antrean unggahan)
@@ -25,8 +29,10 @@ use Illuminate\View\View;
  */
 class SettingController extends Controller
 {
-    public function index(): View
+    public function index(SystemBackupService $backup): View
     {
+        $storageSummary = $backup->storageSummary();
+
         return view('settings.index', [
             'attendanceCount' => SolatAttendanceLog::query()->count(),
             'sessionCount' => SolatSession::query()->count(),
@@ -35,7 +41,67 @@ class SettingController extends Controller
             'memberCount' => User::query()->where('role', '!=', User::RoleAdmin)->count(),
             'adminCount' => User::query()->where('role', User::RoleAdmin)->count(),
             'deviceCount' => Device::query()->count(),
+            'photoFileCount' => $storageSummary['file_count'],
+            'photoTotalBytes' => $storageSummary['total_bytes'],
         ]);
+    }
+
+    /**
+     * Unduh cadangan lengkap (.zip) berisi seluruh tabel database dan seluruh folder foto anak-anak.
+     */
+    public function downloadBackup(SystemBackupService $backup): Response
+    {
+        $zipBinary = $backup->createBackupZipBinary();
+        $filename = 'backup-absen-solat-'.now()->format('Y-m-d-His').'.zip';
+
+        return response($zipBinary, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($zipBinary),
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
+    }
+
+    /**
+     * Pulihkan seluruh basis data dan berkas foto dari berkas .zip cadangan yang diunggah.
+     */
+    public function restoreBackup(Request $request, SystemBackupService $backup): RedirectResponse
+    {
+        $request->validate([
+            'backup_file' => ['required', 'file', 'mimes:zip', 'max:512000'],
+            'confirm_restore' => ['accepted'],
+        ], [
+            'backup_file.required' => 'Pilih berkas cadangan (.zip) dari komputer atau HP Anda terlebih dahulu.',
+            'backup_file.file' => 'Berkas cadangan tidak valid.',
+            'backup_file.mimes' => 'Berkas cadangan harus berformat .zip hasil unduhan dari menu Backup.',
+            'backup_file.max' => 'Ukuran berkas cadangan melebihi batas maksimum (500 MB).',
+            'confirm_restore.accepted' => 'Centang kotak persetujuan sebelum memulihkan data.',
+        ]);
+
+        $uploadedFile = $request->file('backup_file');
+        $zipBytes = (string) file_get_contents($uploadedFile->getRealPath());
+
+        try {
+            $result = $backup->restoreFromZipBinary($zipBytes, $request->user());
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        Auth::login($result['admin_user']);
+        $request->session()->regenerate();
+
+        $tables = $result['tables'];
+        $totalUsers = $tables['users'] ?? 0;
+        $totalLogs = $tables['solat_attendance_logs'] ?? 0;
+        $totalFaces = $tables['face_embeddings'] ?? 0;
+        $totalPhotos = $result['photos'];
+
+        return redirect()
+            ->route('settings.index')
+            ->with(
+                'status',
+                "Pemulihan data berhasil! {$totalUsers} akun pengguna, {$totalFaces} data sidik wajah, {$totalLogs} riwayat kehadiran, dan {$totalPhotos} berkas foto telah dikembalikan seperti semula.",
+            );
     }
 
     /**

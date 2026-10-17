@@ -1,9 +1,83 @@
 @extends('layouts.app')
 
-@section('title', 'Pengaturan & Pembersihan Data')
-@section('note', 'Kelola pembersihan riwayat absen, data wajah, sesi, atau reset data sistem')
+@section('title', 'Pengaturan, Cadangan & Pembersihan Data')
+@section('note', 'Unduh cadangan lengkap (database & seluruh foto), pulihkan data, atau bersihkan data sistem')
 
 @section('content')
+    @php
+        $formattedSize = $photoTotalBytes >= 1048576
+            ? number_format($photoTotalBytes / 1048576, 2, ',', '.').' MB'
+            : number_format(max($photoTotalBytes / 1024, 0), 1, ',', '.').' KB';
+    @endphp
+
+    <section class="card">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Cadangan & Pemulihan Sistem (Backup & Restore)</h2>
+                <p class="section-note">
+                    Simpan seluruh data website (akun murid/guru, jadwal, sesi, riwayat absen, sidik wajah, beserta
+                    folder foto anak-anak) ke dalam 1 berkas <strong>.zip</strong> untuk disimpan di komputer, flashdisk,
+                    atau Google Drive.
+                </p>
+            </div>
+        </div>
+
+        <div class="variation-list">
+            <div class="variation-item">
+                <p class="variation-title">1. Simpan Cadangan Lengkap (Download Backup .zip)</p>
+                <p class="variation-hint">
+                    Satu klik untuk mengunduh seluruh isi database ({{ $memberCount + $adminCount }} akun,
+                    {{ $sessionCount }} sesi, {{ $attendanceCount }} riwayat absen, {{ $faceCount }} sidik wajah)
+                    sekaligus {{ $photoFileCount }} berkas foto anak-anak ({{ $formattedSize }}) dalam satu berkas
+                    <strong>.zip</strong>.
+                </p>
+                <div class="form-actions mt-top">
+                    <a class="btn btn-primary" href="{{ route('settings.backup.download') }}">
+                        Unduh Backup Lengkap (.zip)
+                    </a>
+                </div>
+            </div>
+
+            <div class="variation-item">
+                <p class="variation-title">2. Kembalikan Data dari Cadangan (Restore Backup .zip)</p>
+                <p class="variation-hint">
+                    Pindah server atau tidak sengaja menghapus data? Pilih berkas <strong>.zip</strong> hasil unduhan
+                    backup di atas untuk mengembalikan seluruh database dan folder foto anak-anak persis seperti semula.
+                </p>
+
+                <form class="mt-top" method="POST" action="{{ route('settings.backup.restore') }}"
+                    enctype="multipart/form-data"
+                    data-confirm="PERINGATAN: Memulihkan cadangan akan mengganti data dan foto saat ini dengan isi dari berkas .zip yang Anda pilih. Lanjutkan pemulihan data?">
+                    @csrf
+
+                    <div class="field">
+                        <label class="field-label" for="backup_file">Pilih Berkas Cadangan (.zip)</label>
+                        <input class="input-field" type="file" id="backup_file" name="backup_file" accept=".zip,application/zip" required>
+                        @error('backup_file')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="field">
+                        <label class="checkbox-row" for="confirm_restore">
+                            <input type="checkbox" id="confirm_restore" name="confirm_restore" value="1" required>
+                            <span>Saya mengerti bahwa data saat ini akan digantikan oleh data dari berkas cadangan (.zip) ini.</span>
+                        </label>
+                        @error('confirm_restore')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" type="submit">
+                            Pulihkan Data Sekarang
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
     <details class="alert alert-warning fold-alert" data-record="peringatan-pengaturan">
         <summary>
             <span class="fold-alert-head">
@@ -18,8 +92,8 @@
         <div class="fold-alert-body">
             <p>
                 Data yang dihapus dari halaman ini langsung dibersihkan dari basis data maupun folder penyimpanan privat
-                (foto bukti absen dan foto pendaftaran wajah). Pastikan Anda sudah mengunduh rekap kehadiran di halaman
-                Rekap Kehadiran bila datanya masih diperlukan untuk laporan sekolah.
+                (foto bukti absen dan foto pendaftaran wajah). Sangat disarankan menekan tombol
+                <strong>Unduh Backup Lengkap (.zip)</strong> di atas terlebih dahulu sebelum menghapus data.
             </p>
         </div>
     </details>
@@ -38,9 +112,9 @@
         </div>
 
         <div class="stat-card">
-            <p class="stat-label">Data Wajah</p>
-            <p class="stat-value">{{ $faceCount }}</p>
-            <p class="stat-note">Foto wajah terdaftar ({{ $queueCount }} di antrean)</p>
+            <p class="stat-label">Data & Berkas Foto</p>
+            <p class="stat-value">{{ $photoFileCount }}</p>
+            <p class="stat-note">{{ $faceCount }} wajah terdaftar ({{ $formattedSize }})</p>
         </div>
 
         <div class="stat-card">

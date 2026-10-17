@@ -109,6 +109,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/perangkat/{device}', [DeviceController::class, 'destroy'])->name('devices.destroy');
 
         Route::get('/pengaturan', [SettingController::class, 'index'])->name('settings.index');
+        Route::get('/pengaturan/backup', [SettingController::class, 'downloadBackup'])->name('settings.backup.download');
+        Route::post('/pengaturan/backup/pulihkan', [SettingController::class, 'restoreBackup'])->name('settings.backup.restore');
         Route::delete('/pengaturan/riwayat-absen', [SettingController::class, 'clearAttendance'])->name('settings.clear-attendance');
         Route::delete('/pengaturan/sesi-absen', [SettingController::class, 'clearSessions'])->name('settings.clear-sessions');
         Route::delete('/pengaturan/data-wajah', [SettingController::class, 'clearFaces'])->name('settings.clear-faces');
