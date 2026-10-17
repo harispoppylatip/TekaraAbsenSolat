@@ -1275,9 +1275,7 @@ select.select-field {
     border: 2px dashed rgba(255, 255, 255, 0.8);
     border-radius: 50% / 60%;
     box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.35);
-    transition:
-        border-color 0.25s ease,
-        transform 0.25s ease;
+    transition: border-color 0.25s ease, transform 0.25s ease;
 }
 
 .camera-guide-overlay.is-active .camera-guide-oval {
@@ -1956,8 +1954,7 @@ details.fold-alert {
     margin: 0;
     position: relative;
     overflow-x: hidden;
-    background: #021630 url("/images/login-bg-desktop.webp") no-repeat center
-        center / cover;
+    background: #021630 url("/images/login-bg-desktop.webp") no-repeat center center / cover;
     background-attachment: fixed;
     color: var(--on-surface);
 }
@@ -2213,10 +2210,7 @@ details.fold-alert {
     font-weight: 700;
     letter-spacing: 0.3px;
     box-shadow: 0 8px 20px rgba(7, 40, 92, 0.38);
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease,
-        filter 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .btn.guest-submit-btn:hover {
@@ -2238,8 +2232,7 @@ details.fold-alert {
 /* Responsif Halaman Masuk: Mode Handphone & Tablet Portrait */
 @media (max-width: 768px) {
     .guest-body {
-        background: #021630 url("/images/login-bg-mobile.webp") no-repeat top
-            center / cover;
+        background: #021630 url("/images/login-bg-mobile.webp") no-repeat top center / cover;
         background-attachment: scroll;
     }
 
