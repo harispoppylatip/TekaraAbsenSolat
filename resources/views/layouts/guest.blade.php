@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Masuk') · {{ config('app.name') }}</title>
+    <link rel="icon" type="image/webp" href="{{ asset('images/logo-smkim4.webp') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
@@ -35,7 +37,7 @@
 
     <div class="guest-shell">
         <header class="guest-school-header">
-            <img class="guest-school-emblem" src="{{ asset('images/logo-smkim4.png') }}" alt="Logo SMK Istiqomah Muhammadiyah 4 Samarinda">
+            <img class="guest-school-emblem" src="{{ asset('images/logo-smkim4.webp') }}" alt="Logo SMK Istiqomah Muhammadiyah 4 Samarinda">
             <h1 class="guest-school-name">SMK ISTIQOMAH MUHAMMADIYAH 4</h1>
             <p class="guest-school-city">SMKIM4 SAMARINDA</p>
         </header>

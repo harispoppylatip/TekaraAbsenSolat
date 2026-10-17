@@ -9,15 +9,9 @@
     <svg class="guest-card-corner is-bl" aria-hidden="true"><use href="#card-mandala-corner" /></svg>
     <svg class="guest-card-corner is-br" aria-hidden="true"><use href="#card-mandala-corner" /></svg>
 
-    {{-- Lencana kecil SMKIM4 di pojok kanan atas kartu --}}
-    <div class="guest-card-badge" aria-hidden="true">
-        <img class="guest-card-badge-icon" src="{{ asset('images/logo-smkim4.png') }}" alt="">
-        <span>SMKIM4</span>
-    </div>
-
     {{-- Ikon kubah masjid biru-emas di tengah atas kartu --}}
     <div class="guest-card-dome" aria-hidden="true">
-        <img class="guest-dome-img" src="{{ asset('images/login-dome.png') }}" alt="">
+        <img class="guest-dome-img" src="{{ asset('images/login-dome.webp') }}" alt="">
     </div>
 
     <p class="guest-title">Absen Solat</p>

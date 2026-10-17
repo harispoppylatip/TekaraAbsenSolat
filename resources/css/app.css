@@ -1275,7 +1275,9 @@ select.select-field {
     border: 2px dashed rgba(255, 255, 255, 0.8);
     border-radius: 50% / 60%;
     box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.35);
-    transition: border-color 0.25s ease, transform 0.25s ease;
+    transition:
+        border-color 0.25s ease,
+        transform 0.25s ease;
 }
 
 .camera-guide-overlay.is-active .camera-guide-oval {
@@ -1954,7 +1956,8 @@ details.fold-alert {
     margin: 0;
     position: relative;
     overflow-x: hidden;
-    background: #021630 url("/images/login-bg-desktop.jpg") no-repeat center center / cover;
+    background: #021630 url("/images/login-bg-desktop.webp") no-repeat center
+        center / cover;
     background-attachment: fixed;
     color: var(--on-surface);
 }
@@ -2062,31 +2065,6 @@ details.fold-alert {
     bottom: 0;
     right: 0;
     transform: scale(-1, -1);
-}
-
-.guest-card-badge {
-    position: absolute;
-    top: 12px;
-    right: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-    z-index: 2;
-}
-
-.guest-card-badge-icon {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
-}
-
-.guest-card-badge span {
-    font-family: var(--font-heading);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.3px;
-    color: #072549;
 }
 
 .guest-card-dome {
@@ -2235,7 +2213,10 @@ details.fold-alert {
     font-weight: 700;
     letter-spacing: 0.3px;
     box-shadow: 0 8px 20px rgba(7, 40, 92, 0.38);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        filter 0.15s ease;
 }
 
 .btn.guest-submit-btn:hover {
@@ -2257,17 +2238,18 @@ details.fold-alert {
 /* Responsif Halaman Masuk: Mode Handphone & Tablet Portrait */
 @media (max-width: 768px) {
     .guest-body {
-        background: #021630 url("/images/login-bg-mobile.jpg") no-repeat top center / 100% 100%;
+        background: #021630 url("/images/login-bg-mobile.webp") no-repeat top
+            center / cover;
         background-attachment: scroll;
     }
 
     .guest-shell {
-        padding: 16px 16px 32vh;
+        padding: 20px 16px 32px;
         justify-content: flex-start;
     }
 
     .guest-school-header {
-        margin-bottom: 7vh;
+        margin-bottom: 18px;
     }
 
     .guest-school-emblem {
@@ -2285,7 +2267,7 @@ details.fold-alert {
     }
 
     .guest-stage {
-        margin: 0;
+        margin: auto 0;
     }
 
     .guest-card {
