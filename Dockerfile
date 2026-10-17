@@ -101,7 +101,7 @@ RUN set -eux; \
 # ekstensi yang hilang, bukan setelah wadah berjalan lalu mati diam-diam.
 RUN set -eux; \
     php -r 'if (PHP_VERSION_ID < 80401) { fwrite(STDERR, "PHP ".PHP_VERSION." lebih tua dari 8.4.1 yang dituntut composer.lock.\n"); exit(1); }'; \
-    for e in ctype dom fileinfo filter hash iconv json libxml mbstring openssl pcre phar session tokenizer xml xmlwriter; do \
+    for e in ctype dom fileinfo filter hash iconv json libxml mbstring openssl pcre phar session tokenizer xml xmlwriter zlib; do \
         php -m | grep -qix "$e" || { echo "Ekstensi PHP hilang: $e"; exit 1; }; \
     done; \
     php -m | grep -qix 'Zend OPcache' || { echo "opcache tidak aktif"; exit 1; }; \
