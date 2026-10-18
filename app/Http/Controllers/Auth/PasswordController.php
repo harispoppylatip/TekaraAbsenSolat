@@ -72,6 +72,6 @@ class PasswordController extends Controller
             'email' => $newEmail,
         ])->save();
 
-        return back()->with('status', $newEmail ? 'Alamat surel Anda berhasil diperbarui.' : 'Alamat surel Anda dikosongkan.');
+        return back()->with('status', $newEmail ? 'Alamat email Anda berhasil diperbarui.' : 'Alamat email Anda dikosongkan.');
     }
 }

@@ -572,17 +572,33 @@ function initCamera(root) {
         }
     }
 
-    function addLine(message, ok, photoUrl) {
+    function addLine(message, ok, photoUrl, memberKey = null, isTest = false) {
         if (!report) {
             return;
         }
 
-        const line = document.createElement("p");
         const time = new Date().toLocaleTimeString("id-ID", {
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
         });
+
+        // Di mode uji coba, jika orang yang sama sudah tercatat di laporan kamera,
+        // timpa kartu lama alih-alih membuat kartu baru.
+        let line = null;
+        if (isTest && memberKey) {
+            line = report.querySelector(`[data-member-key="${memberKey}"]`);
+        }
+
+        const isNew = !line;
+        if (isNew) {
+            line = document.createElement("p");
+            if (memberKey) {
+                line.dataset.memberKey = String(memberKey);
+            }
+        } else {
+            line.innerHTML = "";
+        }
 
         line.className = `report-line ${ok ? "is-saved" : "is-failed"}`;
         line.textContent = `${time} ${message}`;
@@ -843,24 +859,30 @@ function initCamera(root) {
                 (face) => face.attendance && face.attendance.recorded,
             );
 
+            const isTest = Boolean(data.session && data.session.is_test);
+
             // Setiap orang dilaporkan pada barisnya sendiri supaya kehadiran
             // satu orang tidak menutupi kabar orang lain. Pesannya diambil dari
             // server, jadi keterangan seperti "data ini tidak dihitung pada
             // rekap" pada mode uji coba ikut terbaca.
             if (berhasil.length > 0) {
-                const pesan = berhasil
-                    .map((face) => {
-                        const catatan =
-                            (face.attendance && face.attendance.message) || "";
-
-                        return catatan !== ""
+                berhasil.forEach((face) => {
+                    const catatan =
+                        (face.attendance && face.attendance.message) || "";
+                    const pesan =
+                        catatan !== ""
                             ? catatan
                             : `${faceLabel(face)} tercatat.`;
-                    })
-                    .join(" ");
+                    const memberKey =
+                        face.member && face.member.id
+                            ? `user-${face.member.id}`
+                            : (face.log_id ? `log-${face.log_id}` : `label-${faceLabel(face)}`);
 
-                addLine(pesan, true, data.proof_url || "");
+                    addLine(pesan, true, data.proof_url || "", memberKey, isTest);
+                });
+
                 lastMessage = "";
+                refreshLiveRegions();
 
                 return;
             }

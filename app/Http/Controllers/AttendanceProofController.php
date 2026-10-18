@@ -30,8 +30,12 @@ class AttendanceProofController extends Controller
 
         abort_if($path === null || ! $proofs->exists($path), 404);
 
+        $cacheControl = $request->filled('v')
+            ? 'private, max-age=86400, must-revalidate'
+            : 'private, no-cache, must-revalidate';
+
         return Storage::disk(SolatProofService::Disk)->response($path, 'bukti-absen-'.$log->getKey().'.jpg', [
-            'Cache-Control' => 'private, max-age=604800',
+            'Cache-Control' => $cacheControl,
         ]);
     }
 }

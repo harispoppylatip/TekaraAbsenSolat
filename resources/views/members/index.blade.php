@@ -23,7 +23,7 @@
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
                     <input class="input-field search-box-input" type="search" id="q" name="q" value="{{ $filters['q'] }}"
-                        placeholder="Cari nama, nomor induk, atau surel...">
+                        placeholder="Cari nama, nomor induk, atau email...">
                 </div>
 
                 <div class="search-toolbar-buttons">
@@ -159,7 +159,7 @@
                                 <tr>
                                     <td>
                                         <span class="cell-strong">{{ $member->name }}</span>
-                                        <span class="cell-note">{{ $member->email ?: 'Tanpa surel' }}</span>
+                                        <span class="cell-note">{{ $member->email ?: 'Tanpa email' }}</span>
                                         @if ($member->can_scan_face)
                                             <span class="cell-note">Boleh memindai wajah di halaman absen wajah</span>
                                         @endif

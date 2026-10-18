@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Pengaturan Akun')
-@section('note', 'Ubah surel dan sandi akun yang sedang dipakai')
+@section('note', 'Ubah email dan sandi akun yang sedang dipakai')
 
 @section('content')
     <section class="card" style="margin-bottom: 24px;">
@@ -53,7 +53,7 @@
         <section class="card">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">Surel / Email Akun</h2>
+                    <h2 class="section-title">Gmail / Email Akun</h2>
                     <p class="section-note">
                         Email akun Anda sudah tersimpan: <strong>{{ auth()->user()->email }}</strong>.
                     </p>
@@ -90,7 +90,7 @@
         <section class="card">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">Surel / Email Akun</h2>
+                    <h2 class="section-title">Gmail / Email Akun</h2>
                     <p class="section-note">
                         Email bersifat opsional untuk alternatif masuk ke aplikasi. Anda tetap bisa masuk menggunakan nomor induk / NISN.
                     </p>

@@ -142,11 +142,11 @@ class SolatAttendanceService
         // Foto bukti bingkai ini ditampilkan di halaman supaya petugas bisa
         // langsung memastikan orang yang tercatat memang yang di depan kamera.
         // Alamatnya dibuat dari catatan absen pertama yang lahir dari bingkai ini.
-        $proofLogId = null;
+        $proofLog = null;
 
         foreach ($faces as $face) {
             if ($face['log_id'] !== null) {
-                $proofLogId = (int) $face['log_id'];
+                $proofLog = SolatAttendanceLog::find($face['log_id']);
                 break;
             }
         }
@@ -160,7 +160,7 @@ class SolatAttendanceService
             'session' => $this->sessionPayload($session),
             'width' => $detected['width'],
             'height' => $detected['height'],
-            'proof_url' => $proofLogId === null ? null : route('attendance.proof', $proofLogId),
+            'proof_url' => $proofLog === null ? null : $this->proofs->url($proofLog),
             'faces' => $faces,
         ];
     }
@@ -587,8 +587,9 @@ class SolatAttendanceService
         // hanya bila tidak ada catatan lain yang memakainya: pada absen banyak
         // wajah, satu foto bingkai dipakai bersama beberapa catatan.
         $lama = $this->proofs->path($log);
+        $baru = $proofPath ?? $this->keepProof($photo, $session, $moment);
 
-        if ($lama !== null) {
+        if ($lama !== null && $baru !== null && $lama !== $baru) {
             $this->proofs->forgetWhenOrphaned($lama, (int) $log->getKey());
         }
 
@@ -597,7 +598,7 @@ class SolatAttendanceService
             'status' => $status,
             'match_distance' => $distance,
             'device_id' => $deviceId,
-            'proof_photo_path' => $proofPath ?? $this->keepProof($photo, $session, $moment),
+            'proof_photo_path' => $baru ?? $lama,
         ])->save();
 
         return $this->reply(

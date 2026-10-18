@@ -164,7 +164,7 @@
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
                     <input class="input-field search-box-input" type="search" id="q" name="q" value="{{ $term }}"
-                        placeholder="Cari nama, nomor induk, atau surel...">
+                        placeholder="Cari nama, nomor induk, atau email...">
                 </div>
 
                 <div class="search-toolbar-buttons">

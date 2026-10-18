@@ -253,6 +253,47 @@ class SolatTestModeTest extends TestCase
         $this->assertSame('12:05', SolatAttendanceLog::query()->firstOrFail()->scanned_at?->format('H:i'));
     }
 
+    public function test_setelah_jeda_lewat_percobaan_memperbarui_foto_bukti_dan_menghapus_foto_lama(): void
+    {
+        config(['solat.test_cooldown_minutes' => 4]);
+
+        $this->seedPrayerTimes();
+        $admin = $this->makeUser(User::RoleAdmin);
+        $this->enrolledMember();
+
+        // Pindai pertama pukul 12:00 membawa bukti lama
+        $this->fakeFaceService(photo: self::ProofBytes);
+        $this->travelTo(Carbon::parse('today 12:00'));
+        $this->startTest($admin);
+
+        $firstResult = $this->attendance()->recordFacesFromImage('potret 1', 'kamera-wajah', Carbon::now(), true);
+        $this->assertTrue($firstResult['ok']);
+
+        $log = SolatAttendanceLog::query()->firstOrFail();
+        $oldPath = $log->proof_photo_path;
+        $this->assertNotNull($oldPath);
+        $this->assertTrue($this->disk()->exists($oldPath));
+        $this->assertStringContainsString((string) $log->scanned_at->timestamp, $firstResult['proof_url']);
+
+        // Pindai kedua 5 menit kemudian membawa bukti baru
+        $newProof = "\xFF\xD8\xFF\xE0potret baru";
+        $this->fakeFaceService(photo: $newProof);
+        $this->travelTo(Carbon::parse('today 12:05'));
+
+        $secondResult = $this->attendance()->recordFacesFromImage('potret 2', 'kamera-wajah', Carbon::now(), true);
+        $this->assertTrue($secondResult['ok']);
+        $this->assertSame(1, SolatAttendanceLog::query()->count());
+
+        $log->refresh();
+        $newPath = $log->proof_photo_path;
+        $this->assertNotNull($newPath);
+        $this->assertNotSame($oldPath, $newPath);
+        $this->assertTrue($this->disk()->exists($newPath));
+        $this->assertFalse($this->disk()->exists($oldPath));
+        $this->assertSame($newProof, $this->disk()->get($newPath));
+        $this->assertStringContainsString((string) $log->scanned_at->timestamp, $secondResult['proof_url']);
+    }
+
     public function test_jeda_bisa_dimatikan_lewat_pengaturan(): void
     {
         config(['solat.test_cooldown_minutes' => 0]);

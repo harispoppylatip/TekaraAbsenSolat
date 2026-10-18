@@ -100,7 +100,12 @@ class SolatProofService
             return null;
         }
 
-        return route('attendance.proof', $log);
+        $version = $log->scanned_at?->timestamp ?? $log->updated_at?->timestamp;
+
+        return route('attendance.proof', array_filter([
+            'log' => $log,
+            'v' => $version,
+        ]));
     }
 
     /**
