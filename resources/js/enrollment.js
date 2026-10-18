@@ -135,6 +135,13 @@ function setupPhotoStaging(form) {
     return {
         canvas,
         add,
+        getFiles() {
+            return [...staged];
+        },
+        hasPose(key) {
+            const pattern = new RegExp(key, "i");
+            return staged.some((file) => pattern.test(file.name));
+        },
         count() {
             return staged.length;
         },
@@ -155,11 +162,11 @@ function setupPhotoStaging(form) {
 /* ---------- Kamera ---------- */
 
 const AUTO_POSES = [
-    { label: "Lurus", text: "Hadap lurus ke kamera" },
-    { label: "Serong Kiri", text: "Tengok sedikit ke kiri" },
-    { label: "Serong Kanan", text: "Tengok sedikit ke kanan" },
-    { label: "Sedikit ke Atas", text: "Angkat kepala sedikit ke atas" },
-    { label: "Sedikit ke Bawah", text: "Tundukkan kepala sedikit ke bawah" },
+    { id: 1, key: "lurus", label: "Lurus", short_label: "Lurus", instruction: "Hadap lurus ke kamera", text: "Hadap lurus ke kamera" },
+    { id: 2, key: "kiri", label: "Serong Kiri", short_label: "Serong Kiri", instruction: "Tengok sedikit ke kiri", text: "Tengok sedikit ke kiri" },
+    { id: 3, key: "kanan", label: "Serong Kanan", short_label: "Serong Kanan", instruction: "Tengok sedikit ke kanan", text: "Tengok sedikit ke kanan" },
+    { id: 4, key: "atas", label: "Sedikit ke Atas", short_label: "Sedikit ke Atas", instruction: "Angkat kepala sedikit ke atas", text: "Angkat kepala sedikit ke atas" },
+    { id: 5, key: "bawah", label: "Sedikit ke Bawah", short_label: "Sedikit ke Bawah", instruction: "Tundukkan kepala sedikit ke bawah", text: "Tundukkan kepala sedikit ke bawah" },
 ];
 
 function setupShooter(root, staging) {
@@ -213,6 +220,37 @@ function setupShooter(root, staging) {
         };
     };
 
+    const getPosesToTake = () => {
+        let pool = [];
+        if (root.dataset.missingPoses) {
+            try {
+                const parsed = JSON.parse(root.dataset.missingPoses);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    pool = parsed.map((p) => ({
+                        id: p.id,
+                        key: p.key,
+                        label: p.short_label || p.label,
+                        instruction: p.instruction || p.hint || `Pose ${p.id}`,
+                        text: p.instruction || p.hint || `Pose ${p.id}`,
+                    }));
+                }
+            } catch (e) {
+                // Abaikan kesalahan urai JSON
+            }
+        }
+
+        if (pool.length === 0) {
+            pool = AUTO_POSES.map((p) => ({ ...p }));
+        }
+
+        if (staging && staging.hasPose) {
+            pool = pool.filter((p) => !staging.hasPose(p.key));
+        }
+
+        const { targetCount } = getQuotaInfo();
+        return pool.slice(0, targetCount);
+    };
+
     const updateAutoButtonText = () => {
         if (!autoButton) return;
 
@@ -235,13 +273,34 @@ function setupShooter(root, staging) {
             return;
         }
 
-        if (targetCount === 5) {
+        const posesToTake = getPosesToTake();
+
+        if (targetCount === 5 || posesToTake.length === 5) {
             autoButton.textContent = "Mulai foto otomatis (5 sudut)";
+        } else if (posesToTake.length === 1) {
+            autoButton.textContent = `Mulai foto otomatis (Pose: ${posesToTake[0].label})`;
+        } else if (posesToTake.length > 1) {
+            const names = posesToTake.map((p) => p.label).join(", ");
+            autoButton.textContent = `Mulai foto otomatis (${posesToTake.length} foto: ${names})`;
         } else {
             autoButton.textContent = `Mulai foto otomatis (${targetCount} foto lagi)`;
         }
 
         autoButton.disabled = !stream;
+
+        const inst = root.closest(".tool-body")?.querySelector("[data-shoot-instruction] strong");
+        if (inst) {
+            if (usable >= required) {
+                inst.textContent = "Foto sudah lengkap";
+            } else if (posesToTake.length === 5) {
+                inst.textContent = "Mulai foto otomatis (5 sudut)";
+            } else if (posesToTake.length === 1) {
+                inst.textContent = `Mulai foto otomatis (Pose: ${posesToTake[0].label})`;
+            } else if (posesToTake.length > 1) {
+                const names = posesToTake.map((p) => p.label).join(", ");
+                inst.textContent = `Mulai foto otomatis (${posesToTake.length} foto lagi: ${names})`;
+            }
+        }
     };
 
     const triggerFlash = () => {
@@ -489,14 +548,17 @@ function setupShooter(root, staging) {
             guideOverlay.classList.add("is-active");
         }
 
-        for (let i = 0; i < targetCount; i++) {
+        const posesToTake = getPosesToTake();
+
+        for (let i = 0; i < posesToTake.length; i++) {
             if (!isAutoRunning) break;
 
-            const pose = AUTO_POSES[i];
-            const currentStep = `${i + 1}/${targetCount}`;
+            const pose = posesToTake[i];
+            const currentStep = `${i + 1}/${posesToTake.length}`;
+            const stepTitle = `Pose ${pose.id}: ${pose.label}`;
             if (guideStep) guideStep.textContent = currentStep;
-            if (guideText) guideText.textContent = pose.text;
-            say(`Langkah ${currentStep}: ${pose.text}`);
+            if (guideText) guideText.textContent = `${stepTitle} - ${pose.instruction || pose.text}`;
+            say(`Langkah ${currentStep}: ${stepTitle}. ${pose.instruction || pose.text}`);
 
             if (guideCountdown) {
                 guideCountdown.hidden = false;
@@ -516,17 +578,17 @@ function setupShooter(root, staging) {
                 break;
             }
 
-            if (i < targetCount - 1) {
+            if (i < posesToTake.length - 1) {
                 say(`Bagus! Bersiap untuk pose berikutnya...`);
                 await wait(900);
             }
         }
 
         if (isAutoRunning) {
-            if (targetCount === 5) {
+            if (posesToTake.length === 5) {
                 say("Selesai! 5 foto dari 5 sudut berhasil diambil. Periksa pilihan foto di bawah lalu kirim.");
             } else {
-                say(`Selesai! ${targetCount} foto berhasil diambil. Periksa pilihan foto di bawah lalu kirim.`);
+                say(`Selesai! ${posesToTake.length} foto berhasil diambil. Periksa pilihan foto di bawah lalu kirim.`);
             }
             stopAuto();
         }
@@ -722,10 +784,22 @@ function setupQueueWatch(form, staging) {
                 if (typeof state.required !== "undefined") {
                     root.dataset.required = state.required;
                 }
+                if (typeof state.missing_poses !== "undefined") {
+                    root.dataset.missingPoses = JSON.stringify(state.missing_poses);
+                }
                 const req = Number(root.dataset.required || 5);
                 const use = Number(root.dataset.usable || 0);
                 const needed = Math.max(0, req - use);
                 root.dataset.needed = needed;
+
+                const shootCard = document.querySelector("[data-shoot-card]");
+                if (shootCard) {
+                    if (use >= req) {
+                        shootCard.style.display = "none";
+                    } else {
+                        shootCard.style.display = "";
+                    }
+                }
 
                 const inst = root.closest(".tool-body")?.querySelector("[data-shoot-instruction] strong");
                 if (inst) {

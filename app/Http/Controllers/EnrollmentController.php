@@ -91,6 +91,8 @@ class EnrollmentController extends Controller
                 'finished' => $state['finished'],
                 'pending' => $state['pending'],
                 'locked' => $state['locked'],
+                'missing_poses' => $state['missing_poses'] ?? [],
+                'missing_keys' => $state['missing_keys'] ?? [],
             ],
             'batches' => $state['batches'],
             'done_url' => $state['finished'] && ! $state['locked'] ? route('enrollment.done') : null,

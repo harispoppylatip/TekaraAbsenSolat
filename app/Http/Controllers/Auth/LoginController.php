@@ -42,8 +42,28 @@ class LoginController extends Controller
         Auth::login($user, $request->boolean('remember'));
 
         $request->session()->regenerate();
+        $request->session()->forget('error');
 
         $user->forceFill(['last_login_at' => now()])->save();
+
+        $intended = (string) $request->session()->get('url.intended');
+
+        if ($intended !== '') {
+            if (str_contains($intended, 'absen-wajah') && ! $user->isAdmin() && ! $user->isCameraOperator()) {
+                $request->session()->forget('url.intended');
+            } elseif ($user->isMurid()) {
+                $isAllowed = false;
+                foreach (['riwayat', 'pendaftaran-wajah', 'ganti-sandi', 'profil'] as $path) {
+                    if (str_contains($intended, $path)) {
+                        $isAllowed = true;
+                        break;
+                    }
+                }
+                if (! $isAllowed) {
+                    $request->session()->forget('url.intended');
+                }
+            }
+        }
 
         return redirect()
             ->intended(route($user->homeRoute()))

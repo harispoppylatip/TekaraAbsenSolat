@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FaceEmbedding;
 use App\Models\FacePhotoUpload;
 use App\Models\User;
+use App\Support\FacePose;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 
@@ -125,6 +126,8 @@ class StudentEnrollmentService
         $pending = $this->hasPending($user);
         $locked = $this->isLocked($user);
 
+        $poseAnalysis = FacePose::analyzeSaved($user->faceEmbeddings);
+
         return [
             'status' => $user->enrollmentStatus(),
             'label' => $user->enrollmentLabel(),
@@ -140,6 +143,9 @@ class StudentEnrollmentService
             'locked' => $locked,
             'has_photos' => $photo['total'] > 0,
             'batches' => $this->queue->latestBatchFor($user),
+            'missing_poses' => $poseAnalysis['missing_poses'],
+            'missing_keys' => $poseAnalysis['missing_keys'],
+            'saved_by_pose' => $poseAnalysis['saved_by_pose'],
         ];
     }
 

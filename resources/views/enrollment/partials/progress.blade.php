@@ -88,7 +88,10 @@
                             @foreach ($batch['rows'] as $row)
                                 <div class="queue-row" data-row="{{ $row['id'] }}"
                                     data-tone="{{ $row['status'] }}">
-                                    <p class="queue-file">{{ $row['name'] }}</p>
+                                    <p class="queue-file">
+                                        <strong>{{ $row['pose_label'] ?? \App\Support\FacePose::humanLabel($row['name']) }}</strong>
+                                        <span class="cell-note">({{ $row['name'] }})</span>
+                                    </p>
                                     <p class="queue-note">{{ $row['note'] }}</p>
                                 </div>
                             @endforeach
@@ -109,77 +112,114 @@
 @endif
 
 @if ($state['has_photos'])
-    <section class="card">
-        <div class="section-head">
+    <details class="card fold-card" data-record="foto-wajah-tersimpan" @if ($state['usable'] < $state['required']) open @endif>
+        <summary>
             <div>
                 <h2 class="section-title">Foto wajah yang tersimpan</h2>
                 <p class="section-note">
-                    Periksa kembali foto wajah Anda agar jelas dan bagus sebelum menyelesaikan pendaftaran.
+                    {{ $banyakTersimpan }} foto tersimpan di akun Anda.
                     @if ($terkunci)
-                        Pendaftaran Anda sudah selesai, jadi fotonya tidak bisa dihapus dari halaman ini.
-                        Bila memang perlu diganti, minta petugas sekolah membuka pendaftaran ulang.
+                        Pendaftaran sudah selesai dan terkunci.
+                    @elseif ($state['usable'] >= $state['required'])
+                        Foto sudah lengkap. Buka untuk memeriksa atau menghapus foto.
                     @else
-                        Hapus foto yang buram atau kurang jelas, lalu ambil penggantinya.
+                        Periksa kembali foto wajah Anda agar jelas dan bagus sebelum menyelesaikan pendaftaran.
                     @endif
+                </p>
+            </div>
+            <span class="fold-card-hint">
+                <span class="fold-card-open">Lihat foto tersimpan</span>
+                <span class="fold-card-close">Tutup foto tersimpan</span>
+            </span>
+        </summary>
+
+        <div style="margin-top: 14px;">
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Foto ke</th>
+                            <th>Pose Wajah</th>
+                            <th>Foto</th>
+                            <th>Diterima pada</th>
+                            @unless ($terkunci)
+                                <th>Aksi</th>
+                            @endunless
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($tersimpan as $index => $wajah)
+                            @php
+                                $poseLabel = \App\Support\FacePose::humanLabel($wajah->label, $banyakTersimpan - $index);
+                            @endphp
+                            <tr>
+                                <td>{{ $banyakTersimpan - $index }}</td>
+                                <td>
+                                    <strong>{{ $poseLabel }}</strong>
+                                </td>
+                                <td>
+                                    @if ($wajah->photo_path)
+                                        <a class="proof-link" href="{{ route('enrollment.photos.show', $wajah) }}"
+                                            target="_blank" rel="noopener" title="Lihat foto wajah">
+                                            <img class="proof-thumb" src="{{ route('enrollment.photos.show', $wajah) }}"
+                                                alt="Foto ke-{{ $banyakTersimpan - $index }}" width="56" height="56"
+                                                loading="lazy" decoding="async">
+                                        </a>
+                                    @else
+                                        <span class="cell-note">Tanpa foto</span>
+                                    @endif
+                                </td>
+                                <td>{{ $wajah->created_at?->translatedFormat('d M Y, H:i') ?? 'tidak diketahui' }}</td>
+                                @unless ($terkunci)
+                                    <td>
+                                        <form method="POST" action="{{ route('enrollment.photos.destroy', $wajah) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-small btn-danger" type="submit">Hapus</button>
+                                        </form>
+                                    </td>
+                                @endunless
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            @unless ($terkunci)
+                <form method="POST" action="{{ route('enrollment.photos.clear') }}" style="margin-top: 14px;">
+                    @csrf
+                    @method('DELETE')
+                    <div class="form-actions">
+                        <button class="btn btn-outline" type="submit"
+                            data-confirm="Hapus seluruh foto wajah akun Anda? Anda perlu mendaftar ulang dari awal.">
+                            Hapus seluruh foto saya
+                        </button>
+                    </div>
+                </form>
+            @endunless
+        </div>
+    </details>
+@endif
+
+@if (! $terkunci && $state['finished'])
+    <section class="card" style="margin-top: 16px;">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Foto wajah sudah lengkap ({{ $state['usable'] }} dari {{ $state['required'] }} foto)</h2>
+                <p class="section-note">
+                    Periksa kembali foto wajah Anda pada tabel di atas agar jelas dan benar. Jika sudah sesuai, tekan tombol di bawah untuk mengirim dan mengunci pendaftaran.
                 </p>
             </div>
         </div>
 
-        <div class="table-wrap">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Foto ke</th>
-                        <th>Foto</th>
-                        <th>Diterima pada</th>
-                        @unless ($terkunci)
-                            <th>Aksi</th>
-                        @endunless
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($tersimpan as $index => $wajah)
-                        <tr>
-                            <td>{{ $banyakTersimpan - $index }}</td>
-                            <td>
-                                @if ($wajah->photo_path)
-                                    <a class="proof-link" href="{{ route('enrollment.photos.show', $wajah) }}"
-                                        target="_blank" rel="noopener" title="Lihat foto wajah">
-                                        <img class="proof-thumb" src="{{ route('enrollment.photos.show', $wajah) }}"
-                                            alt="Foto ke-{{ $banyakTersimpan - $index }}" width="56" height="56"
-                                            loading="lazy" decoding="async">
-                                    </a>
-                                @else
-                                    <span class="cell-note">Tanpa foto</span>
-                                @endif
-                            </td>
-                            <td>{{ $wajah->created_at?->translatedFormat('d M Y, H:i') ?? 'tidak diketahui' }}</td>
-                            @unless ($terkunci)
-                                <td>
-                                    <form method="POST" action="{{ route('enrollment.photos.destroy', $wajah) }}">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="btn btn-small btn-danger" type="submit">Hapus</button>
-                                    </form>
-                                </td>
-                            @endunless
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        @unless ($terkunci)
-            <form method="POST" action="{{ route('enrollment.photos.clear') }}">
-                @csrf
-                @method('DELETE')
-                <div class="form-actions">
-                    <button class="btn btn-outline" type="submit"
-                        data-confirm="Hapus seluruh foto wajah akun Anda? Anda perlu mendaftar ulang dari awal.">
-                        Hapus seluruh foto saya
-                    </button>
-                </div>
-            </form>
-        @endunless
+        <form method="POST" action="{{ route('enrollment.complete') }}"
+            data-confirm="Pastikan wajah jelas dan benar karena ini akan terkunci jika sudah terkunci tidak bisa diubah kecuali admin membuka. Selesaikan pendaftaran?">
+            @csrf
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">
+                    Kirim dan selesaikan pendaftaran
+                </button>
+            </div>
+        </form>
     </section>
 @endif

@@ -197,4 +197,28 @@ class AuthTest extends TestCase
 
         $this->assertGuest();
     }
+
+    public function test_jamaah_masuk_tidak_diarahkan_ke_kamera_absen_dan_tidak_menerima_notif_gagal_kamera(): void
+    {
+        $murid = $this->makeUser(User::RoleMurid, [
+            'password' => 'rahasia123',
+            'can_scan_face' => false,
+        ]);
+
+        // Simulasikan pengunjung yang sebelumnya mencoba mengakses /absen-wajah
+        $response = $this->withSession(['url.intended' => route('attendance.wajah')])
+            ->post(route('login.store'), [
+                'login' => $murid->email,
+                'password' => 'rahasia123',
+            ]);
+
+        $response->assertRedirect(route('murid.riwayat'));
+        $response->assertSessionMissing('error');
+
+        $this->followingRedirects()
+            ->actingAs($murid)
+            ->get(route('murid.riwayat'))
+            ->assertOk()
+            ->assertDontSee('Kamera absen hanya bisa dipakai petugas');
+    }
 }
