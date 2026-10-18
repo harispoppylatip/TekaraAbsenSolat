@@ -60,11 +60,11 @@ class HistoryController extends Controller
                 ->value('sort_order') ?? 99))
             ->values();
 
-        $openedSessions = SolatSession::query()
+        $activeSession = SolatSession::query()
             ->real()
-            ->betweenDates($from, $to)
-            ->where('status', '!=', SolatSession::StatusBelumDibuka)
-            ->count();
+            ->open()
+            ->latest('opened_at')
+            ->first();
 
         return view('murid.riwayat', [
             'user' => $user,
@@ -72,7 +72,8 @@ class HistoryController extends Controller
             'to' => $to,
             'present' => (int) ($totals[SolatAttendanceLog::StatusHadir] ?? 0),
             'late' => (int) ($totals[SolatAttendanceLog::StatusTerlambat] ?? 0),
-            'openedSessions' => $openedSessions,
+            'activeSession' => $activeSession,
+            'openedSessions' => $activeSession ? 1 : 0,
             'perPrayer' => $perPrayer,
             'logs' => $reports->memberHistory($user, 15),
             'faceCount' => $user->faceEmbeddings()->count(),

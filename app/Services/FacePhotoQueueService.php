@@ -583,7 +583,7 @@ class FacePhotoQueueService
             'id' => (int) $row->getKey(),
             'name' => $row->shortName(),
             'pose_label' => FacePose::humanLabel($row->shortName()),
-            'pose_label' => \App\Support\FacePose::humanLabel($row->shortName()),
+            'pose_label' => FacePose::humanLabel($row->shortName()),
             'status' => $row->status,
             'note' => $note,
             'percent' => $running ? $percent : ($row->isFinished() ? 100 : 0),

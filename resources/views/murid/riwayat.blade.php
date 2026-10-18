@@ -18,10 +18,6 @@
                         : 'Wajah Anda belum terdaftar di sekolah, hubungi petugas absen.' }}
                 </p>
             </div>
-
-            <div class="section-actions">
-                <a class="btn btn-outline btn-small" href="{{ route('password.edit') }}">Ganti sandi</a>
-            </div>
         </div>
 
         <form method="GET" action="{{ route('murid.riwayat') }}" class="search-toolbar-form" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--outline-variant);">
@@ -58,9 +54,15 @@
             </div>
 
             <div class="stat-card">
-                <p class="stat-label">Sesi dibuka sekolah</p>
-                <p class="stat-value">{{ $openedSessions }}</p>
-                <p class="stat-note">Jumlah sesi yang dibuka petugas</p>
+                <p class="stat-label">Sesi dibuka saat ini</p>
+                <p class="stat-value stat-value-small">{{ $activeSession ? $activeSession->prayerLabel() : 'Tidak ada' }}</p>
+                <p class="stat-note">
+                    @if ($activeSession)
+                        Sedang dibuka ({{ $activeSession->windowLabel() }})
+                    @else
+                        Belum ada sesi yang dibuka petugas
+                    @endif
+                </p>
             </div>
 
             <div class="stat-card">

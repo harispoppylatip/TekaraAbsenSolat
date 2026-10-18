@@ -43,7 +43,7 @@
                     @endif
                 </p>
 
-                <a class="nav-link" href="{{ route('password.edit') }}">Ganti Sandi</a>
+                <a class="nav-link @if (request()->routeIs('password.edit')) is-active @endif" href="{{ route('password.edit') }}">Pengaturan Akun</a>
 
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf

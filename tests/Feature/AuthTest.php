@@ -126,7 +126,11 @@ class AuthTest extends TestCase
         $this->actingAs($murid)
             ->get(route('murid.riwayat'))
             ->assertOk()
-            ->assertSee($murid->name);
+            ->assertSee($murid->name)
+            ->assertSee('Sesi dibuka saat ini')
+            ->assertSee('Pengaturan Akun')
+            ->assertDontSee('Sesi dibuka sekolah')
+            ->assertDontSee('<a class="btn btn-outline btn-small" href="'.route('password.edit').'">Ganti sandi</a>', false);
     }
 
     public function test_sandi_salah_menampilkan_pesan(): void

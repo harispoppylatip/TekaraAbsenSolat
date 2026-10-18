@@ -36,8 +36,7 @@
                 </div>
 
                 <div class="section-actions">
-                    <a class="btn btn-outline btn-small" href="{{ route('password.edit') }}">Ganti sandi</a>
-                    <a class="btn btn-text btn-small" href="{{ route($user->homeRoute()) }}">Kembali</a>
+                    <a class="btn btn-outline btn-small" href="{{ route($user->homeRoute()) }}">Kembali</a>
                 </div>
             </div>
 

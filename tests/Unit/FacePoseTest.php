@@ -64,4 +64,3 @@ class FacePoseTest extends TestCase
         $this->assertSame('atas', $analysis['missing_poses'][1]['key']);
     }
 }
-
