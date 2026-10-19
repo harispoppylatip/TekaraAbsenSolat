@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['prayer_name', 'label', 'start_time', 'end_time', 'late_minutes', 'sort_order', 'is_active'])]
+#[Fillable(['prayer_name', 'label', 'start_time', 'end_time', 'late_minutes', 'sort_order', 'is_active', 'active_days'])]
 class PrayerTime extends Model
 {
     /**
@@ -18,6 +18,7 @@ class PrayerTime extends Model
             'late_minutes' => 'integer',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
+            'active_days' => 'array',
         ];
     }
 

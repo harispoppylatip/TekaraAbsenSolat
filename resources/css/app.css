@@ -2447,3 +2447,58 @@ details.fold-alert {
         min-height: 44px;
     }
 }
+
+/* ---------- Pilihan Hari Absen Sekolah ---------- */
+
+.day-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.day-check-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm);
+    background: var(--surface-container);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.day-check-card:hover {
+    border-color: var(--outline);
+    background: var(--surface-variant);
+}
+
+.day-check-card input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    accent-color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.day-check-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.day-check-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--on-surface);
+}
+
+.day-check-state {
+    font-size: 12px;
+    color: var(--on-surface-variant);
+}
+

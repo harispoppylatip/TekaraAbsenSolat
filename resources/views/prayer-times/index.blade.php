@@ -1,16 +1,61 @@
 @extends('layouts.app')
 
 @section('title', 'Waktu Solat')
-@section('note', 'Jam acuan pembukaan sesi absen setiap hari')
+@section('note', 'Jam acuan dan hari aktif pembukaan sesi absen sekolah')
 
 @section('content')
+    <section class="card" id="hari-absen">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Hari absen sekolah</h2>
+                <p class="section-note">
+                    Pilih hari sekolah di mana sesi absen solat disiapkan dan dibuka otomatis (contoh: Senin sampai Jumat aktif, Sabtu dan Minggu libur). Pada hari libur, sistem tidak akan membuat atau membuka sesi otomatis.
+                </p>
+            </div>
+
+            <div class="section-actions">
+                <span class="status status-open">{{ $daysSummary['summary'] }}</span>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ route('prayer-times.days.update') }}">
+            @csrf
+            @method('PUT')
+
+            <div class="day-picker-grid">
+                @foreach ($dayOptions as $dayNumber => $dayLabel)
+                    @php($checked = in_array($dayNumber, old('days', $activeDays), false))
+                    <label class="day-check-card" for="day-{{ $dayNumber }}">
+                        <input type="checkbox" id="day-{{ $dayNumber }}" name="days[]" value="{{ $dayNumber }}"
+                            @checked($checked)>
+                        <span class="day-check-info">
+                            <span class="day-check-name">{{ $dayLabel }}</span>
+                            <span class="day-check-state">{{ in_array($dayNumber, $activeDays, true) ? 'Hari aktif' : 'Hari libur' }}</span>
+                        </span>
+                    </label>
+                @endforeach
+            </div>
+
+            @error('days')
+                <p class="field-error" style="margin-top: 10px;">{{ $message }}</p>
+            @enderror
+
+            <div class="form-actions">
+                <button class="btn btn-primary btn-small" type="submit">Simpan hari absen</button>
+                <span class="field-hint">
+                    {{ count($activeDays) }} hari aktif dalam sepekan. Admin tetap dapat membuka sesi secara manual bila ada kegiatan khusus di hari libur.
+                </span>
+            </div>
+        </form>
+    </section>
+
     <section class="card">
         <div class="section-head">
             <div>
                 <h2 class="section-title">Tambah waktu solat</h2>
                 <p class="section-note">
                     Sesi absen dibuat dari daftar ini dan jendelanya mengikuti jam di sini. Sesinya disiapkan sendiri
-                    setiap hari sesudah tengah malam, dibuka sendiri
+                    setiap hari aktif sesudah tengah malam, dibuka sendiri
                     {{ $earlyOpenMinutes }} menit sebelum jam mulai, dan ditutup di akhir jendela. Waktu solat yang
                     tidak aktif tidak ikut dibuat.
                 </p>

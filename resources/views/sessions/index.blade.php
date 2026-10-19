@@ -20,12 +20,22 @@
             </div>
 
             <div class="section-actions">
+                @if ($isAdmin)
+                    <a class="btn btn-outline btn-small" href="{{ route('prayer-times.index') }}#hari-absen">Atur hari absen</a>
+                @endif
                 <a class="btn btn-outline btn-small" href="{{ route('attendance.wajah') }}">Halaman absen wajah</a>
                 <a class="btn btn-outline btn-small"
                     href="{{ route('reports.index', ['from' => $date->toDateString(), 'to' => $date->toDateString()]) }}">Lihat
                     rekap harian</a>
             </div>
         </div>
+
+        @if (! $isActiveDay)
+            <div class="alert alert-info" style="margin-top: 14px;">
+                <strong>Hari {{ $date->translatedFormat('l') }} termasuk hari libur absen</strong>
+                Jadwal rutin sekolah: {{ $daysSummary['summary'] }}. Sesi otomatis tidak dibuat atau dibuka pada hari libur, namun Admin tetap bisa membuat atau membuka sesi secara manual bila ada kegiatan sekolah.
+            </div>
+        @endif
 
         <div class="search-toolbar-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--outline-variant);">
             <form method="GET" action="{{ route('sessions.index') }}" class="date-range-inline">
@@ -34,11 +44,13 @@
                     value="{{ $date->toDateString() }}" data-auto-submit>
             </form>
 
-            <form method="POST" action="{{ route('sessions.generate') }}" style="display: inline-flex; align-items: center;">
-                @csrf
-                <input type="hidden" name="date" value="{{ $date->toDateString() }}">
-                <button class="btn btn-primary btn-small" id="generate" type="submit">Buat sesi tanggal ini</button>
-            </form>
+            @if ($isActiveDay || $isAdmin)
+                <form method="POST" action="{{ route('sessions.generate') }}" style="display: inline-flex; align-items: center;">
+                    @csrf
+                    <input type="hidden" name="date" value="{{ $date->toDateString() }}">
+                    <button class="btn btn-primary btn-small" id="generate" type="submit">Buat sesi tanggal ini</button>
+                </form>
+            @endif
         </div>
     </section>
 

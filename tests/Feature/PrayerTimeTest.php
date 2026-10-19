@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\SolatSession;
 use App\Models\User;
+use App\Services\SolatSessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class PrayerTimeTest extends TestCase
@@ -77,6 +80,64 @@ class PrayerTimeTest extends TestCase
             'label' => 'Solat Dhuha',
             'late_minutes' => 10,
         ]);
+    }
+
+    /**
+     * Admin mengatur hari absen sekolah (contoh: Senin-Jumat aktif, Sabtu-Minggu libur)
+     * di halaman /waktu-solat, dan penjadwal melewati hari libur secara otomatis.
+     */
+    public function test_admin_mengatur_hari_absen_sekolah_dan_hari_libur_dilewati_otomatis(): void
+    {
+        $admin = $this->makeUser(User::RoleAdmin);
+        $petugas = $this->makeUser(User::RolePetugas);
+        $this->seedPrayerTimes([1, 2, 3, 4, 5, 6, 7]);
+
+        // Admin menyimpan pengaturan Senin-Jumat (1..5), Sabtu & Minggu (6, 7) libur
+        $this->actingAs($admin)
+            ->put(route('prayer-times.days.update'), [
+                'days' => [1, 2, 3, 4, 5],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Hari absen sekolah diperbarui (Aktif: Senin, Selasa, Rabu, Kamis, Jumat · Libur: Sabtu, Minggu).');
+
+        $service = app(SolatSessionService::class);
+        $this->assertSame([1, 2, 3, 4, 5], $service->activeDays());
+        $this->assertTrue($service->isActiveDay('2026-10-23')); // Jumat
+        $this->assertFalse($service->isActiveDay('2026-10-24')); // Sabtu
+        $this->assertFalse($service->isActiveDay('2026-10-25')); // Minggu
+
+        // Penjadwal harian (Jumat s/d Minggu): Jumat dibuat, Sabtu & Minggu dilewati
+        $this->artisan('solat:sesi-harian', [
+            '--date' => '2026-10-23',
+            '--days' => 2,
+        ])
+            ->expectsOutputToContain('Hari libur absen, dilewati')
+            ->assertSuccessful();
+
+        $this->assertSame(5, SolatSession::query()->forDate('2026-10-23')->count());
+        $this->assertSame(0, SolatSession::query()->forDate('2026-10-24')->count());
+        $this->assertSame(0, SolatSession::query()->forDate('2026-10-25')->count());
+
+        // Mesin sesi otomatis tidak membuka sesi pada hari Sabtu (libur)
+        $actionsSabtu = $service->runAutomatically(Carbon::parse('2026-10-24 11:55'));
+        $this->assertSame([], $actionsSabtu);
+        $this->assertNull($service->activeSession());
+
+        // Petugas ditolak membuat sesi manual pada hari Sabtu (libur)
+        $this->actingAs($petugas)
+            ->post(route('sessions.generate'), ['date' => '2026-10-24'])
+            ->assertRedirect(route('sessions.index', ['date' => '2026-10-24']))
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, SolatSession::query()->forDate('2026-10-24')->count());
+
+        // Admin tetap bisa membuat sesi manual di hari libur jika ada kegiatan khusus sekolah
+        $this->actingAs($admin)
+            ->post(route('sessions.generate'), ['date' => '2026-10-24'])
+            ->assertRedirect(route('sessions.index', ['date' => '2026-10-24']))
+            ->assertSessionHas('status');
+
+        $this->assertSame(5, SolatSession::query()->forDate('2026-10-24')->count());
     }
 
     /**

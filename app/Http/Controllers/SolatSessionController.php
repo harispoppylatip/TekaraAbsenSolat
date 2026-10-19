@@ -43,6 +43,8 @@ class SolatSessionController extends Controller
 
         return view('sessions.index', [
             'date' => $date,
+            'isActiveDay' => $service->isActiveDay($date),
+            'daysSummary' => $service->activeDaysSummary(),
             'sessions' => $sessions,
             'selected' => $selected,
             'activeSession' => $service->activeSession(),
@@ -61,6 +63,13 @@ class SolatSessionController extends Controller
     public function generate(Request $request, SolatSessionService $service): RedirectResponse
     {
         $date = $this->resolveDate($request->input('date'));
+
+        if (! $service->isActiveDay($date) && ! $request->user()?->isAdmin()) {
+            return redirect()
+                ->route('sessions.index', ['date' => $date->toDateString()])
+                ->with('error', 'Hari '.$date->translatedFormat('l').' termasuk hari libur absen. Hanya admin yang bisa membuat sesi pada hari libur.');
+        }
+
         $result = $service->generateForDate($date);
 
         if ($result['total'] === 0) {

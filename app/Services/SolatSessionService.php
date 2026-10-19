@@ -19,6 +19,135 @@ use Illuminate\Support\Carbon;
 class SolatSessionService
 {
     /**
+     * Daftar hari dalam sepekan berdasarkan nomor hari ISO-8601 (1 = Senin .. 7 = Minggu).
+     *
+     * @var array<int, string>
+     */
+    public const DayLabels = [
+        1 => 'Senin',
+        2 => 'Selasa',
+        3 => 'Rabu',
+        4 => 'Kamis',
+        5 => 'Jumat',
+        6 => 'Sabtu',
+        7 => 'Minggu',
+    ];
+
+    /**
+     * @return array<int, string>
+     */
+    public static function dayOptions(): array
+    {
+        return self::DayLabels;
+    }
+
+    /**
+     * Hari-hari aktif absen sekolah (nomor ISO 1..7).
+     *
+     * Dibaca dari kolom active_days pada daftar waktu solat, dan bila belum
+     * diatur akan kembali ke bawaan aplikasi (Senin sampai Jumat).
+     *
+     * @return list<int>
+     */
+    public function activeDays(): array
+    {
+        $stored = PrayerTime::query()
+            ->whereNotNull('active_days')
+            ->orderBy('sort_order')
+            ->first()
+            ?->active_days;
+
+        $raw = is_array($stored) && $stored !== []
+            ? $stored
+            : (array) config('solat.active_days', [1, 2, 3, 4, 5]);
+
+        return $this->normalizeDays($raw);
+    }
+
+    /**
+     * Simpan daftar hari aktif absen sekolah ke seluruh baris waktu solat.
+     *
+     * @param  array<int, int|string>  $days
+     * @return list<int>
+     */
+    public function updateActiveDays(array $days): array
+    {
+        $normalized = $this->normalizeDays($days);
+
+        if ($normalized === []) {
+            $normalized = [1, 2, 3, 4, 5];
+        }
+
+        PrayerTime::query()->update([
+            'active_days' => json_encode($normalized),
+        ]);
+
+        config(['solat.active_days' => $normalized]);
+
+        return $normalized;
+    }
+
+    /**
+     * Apakah tanggal tertentu termasuk hari aktif absen sekolah.
+     */
+    public function isActiveDay(CarbonInterface|string $date): bool
+    {
+        $dayIso = Carbon::parse($date)->dayOfWeekIso;
+
+        return in_array($dayIso, $this->activeDays(), true);
+    }
+
+    /**
+     * Ringkasan kalimat hari aktif dan hari libur absen.
+     *
+     * @return array{active_days: list<int>, active_labels: list<string>, off_labels: list<string>, summary: string}
+     */
+    public function activeDaysSummary(): array
+    {
+        $active = $this->activeDays();
+        $activeLabels = [];
+        $offLabels = [];
+
+        foreach (self::DayLabels as $num => $label) {
+            if (in_array($num, $active, true)) {
+                $activeLabels[] = $label;
+            } else {
+                $offLabels[] = $label;
+            }
+        }
+
+        $activeText = $activeLabels !== [] ? implode(', ', $activeLabels) : 'Tidak ada';
+        $offText = $offLabels !== [] ? 'Libur: '.implode(', ', $offLabels) : 'Buka setiap hari';
+
+        return [
+            'active_days' => $active,
+            'active_labels' => $activeLabels,
+            'off_labels' => $offLabels,
+            'summary' => 'Aktif: '.$activeText.' · '.$offText,
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $days
+     * @return list<int>
+     */
+    private function normalizeDays(array $days): array
+    {
+        $valid = [];
+
+        foreach ($days as $day) {
+            $num = (int) $day;
+            if ($num >= 1 && $num <= 7 && ! in_array($num, $valid, true)) {
+                $valid[] = $num;
+            }
+        }
+
+        sort($valid);
+
+        return array_values($valid);
+    }
+
+    /**
      * Menit sebelum waktu mulai saat sesi sudah boleh dibuka.
      *
      * Angka ini dipakai bersama oleh batas buka petugas dan mesin sesi, jadi
@@ -170,6 +299,10 @@ class SolatSessionService
             return 'Petugas hanya bisa membuka sesi hari ini. Hubungi admin untuk tanggal lain.';
         }
 
+        if (! $this->isActiveDay($session->date ?? $now)) {
+            return 'Hari '.$session->date?->translatedFormat('l').' termasuk hari libur absen. Hubungi admin bila sesi ini perlu dibuka.';
+        }
+
         $start = $this->moment($session, 'start_time');
         $end = $this->moment($session, 'end_time');
 
@@ -218,6 +351,10 @@ class SolatSessionService
 
         foreach ($this->endedSessions($stamp) as $session) {
             $actions[] = $this->closeAutomatically($session, $stamp);
+        }
+
+        if (! $this->isActiveDay($stamp)) {
+            return $actions;
         }
 
         foreach (PrayerTime::query()->active()->ordered()->get() as $prayer) {

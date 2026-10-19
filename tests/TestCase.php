@@ -48,8 +48,10 @@ abstract class TestCase extends BaseTestCase
 
     /**
      * Isi waktu solat dari bawaan aplikasi.
+     *
+     * @param  list<int>  $activeDays
      */
-    protected function seedPrayerTimes(): void
+    protected function seedPrayerTimes(array $activeDays = [1, 2, 3, 4, 5, 6, 7]): void
     {
         foreach (config('solat.prayer_defaults') as $prayer) {
             PrayerTime::updateOrCreate(
@@ -61,6 +63,7 @@ abstract class TestCase extends BaseTestCase
                     'late_minutes' => config('solat.late_minutes'),
                     'sort_order' => $prayer['sort_order'],
                     'is_active' => true,
+                    'active_days' => $activeDays,
                 ],
             );
         }

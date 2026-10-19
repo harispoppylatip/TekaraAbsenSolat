@@ -42,9 +42,18 @@ class PrepareSolatSessions extends Command
 
         $created = 0;
         $skipped = 0;
+        $offDays = 0;
 
         for ($offset = 0; $offset <= $days; $offset++) {
             $day = $start->copy()->startOfDay()->addDays($offset);
+
+            if (! $sessions->isActiveDay($day)) {
+                $offDays++;
+                $this->line($day->translatedFormat('l, d F Y').': Hari libur absen, dilewati.');
+
+                continue;
+            }
+
             $result = $sessions->generateForDate($day);
 
             $created += $result['created'];
@@ -56,7 +65,8 @@ class PrepareSolatSessions extends Command
 
         $this->newLine();
         $this->info('Sesi absen disiapkan untuk '.($days + 1).' hari: '.$created.' sesi baru, '
-            .$skipped.' sesi sudah ada sebelumnya.');
+            .$skipped.' sesi sudah ada sebelumnya'
+            .($offDays > 0 ? ', '.$offDays.' hari libur dilewati.' : '.'));
 
         if ($created === 0) {
             $this->line('Tidak ada sesi baru. Semua waktu solat aktif sudah punya sesi pada rentang itu.');

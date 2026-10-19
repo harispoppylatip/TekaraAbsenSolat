@@ -43,6 +43,11 @@ return [
 
     'prepare_days_ahead' => (int) env('SOLAT_PREPARE_DAYS_AHEAD', 1),
 
+    'active_days' => array_values(array_filter(array_map(
+        'intval',
+        explode(',', (string) env('SOLAT_ACTIVE_DAYS', '1,2,3,4,5'))
+    ), static fn (int $day): bool => $day >= 1 && $day <= 7)),
+
     /*
     |--------------------------------------------------------------------------
     | Sesi uji coba absen
