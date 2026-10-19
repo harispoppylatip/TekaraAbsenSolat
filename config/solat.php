@@ -133,4 +133,22 @@ return [
         'needs_reenrollment' => 'Perlu daftar ulang',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Mesin absen sidik jari IoT (ESP32 + AS608 via HTTP REST API)
+    |--------------------------------------------------------------------------
+    |
+    | Mode kedua absen untuk anggota yang dipilih dan didaftarkan jarinya oleh
+    | admin di halaman Data Sidik Jari (/sidik-jari). Mendukung alamat API
+    | lokal (offline) maupun publik (online).
+    |
+    */
+
+    'fingerprint' => [
+        'mode' => env('FINGERPRINT_API_MODE', 'offline'),
+        'url_offline' => env('FINGERPRINT_API_URL_OFFLINE', 'http://localhost:8000/api/fingerprint'),
+        'url_online' => env('FINGERPRINT_API_URL_ONLINE', 'https://absenmu.tekara.my.id/api/fingerprint'),
+        'command_ttl' => (int) env('FINGERPRINT_COMMAND_TTL', 120),
+    ],
+
 ];

@@ -114,8 +114,12 @@
                                 <button class="btn btn-primary" type="submit">Nyalakan mode uji coba</button>
                             </form>
                             @if ($activeSession !== null)
-                                <span class="field-hint">Tutup dulu sesi waktu solat yang sedang dibuka sebelum
-                                    menyalakan mode uji coba.</span>
+                                <form method="POST" action="{{ route('sessions.close', $activeSession) }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <button class="btn btn-secondary" type="submit">Tutup sesi {{ $activeSession->prayerLabel() }}</button>
+                                </form>
+                                <span class="field-hint">Sesi {{ $activeSession->label() }} sedang dibuka. Tutup dulu sesi tersebut sebelum menyalakan mode uji coba.</span>
                             @else
                                 <span class="field-hint">Tidak ada sesi waktu solat yang sedang dibuka, jadi mode uji
                                     coba boleh dinyalakan sekarang.</span>
@@ -169,7 +173,12 @@
                                 <tbody>
                                     @foreach ($testLogs as $log)
                                         <tr>
-                                            <td class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }}</td>
+                                            <td>
+                                                <span class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }}</span>
+                                                @if ($log->isFingerprint())
+                                                    <span class="cell-note">{{ $log->summaryLine() }}</span>
+                                                @endif
+                                            </td>
                                             <td>{{ $log->user?->class_name ?: '-' }}</td>
                                             <td>{{ $log->scanned_at?->format('H:i:s') }}</td>
                                             <td><span
@@ -356,7 +365,12 @@
                             <tbody>
                                 @foreach ($logs as $log)
                                     <tr>
-                                        <td class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }}</td>
+                                        <td>
+                                            <span class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }}</span>
+                                            @if ($log->isFingerprint())
+                                                <span class="cell-note">{{ $log->summaryLine() }}</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $log->user?->class_name ?: '-' }}</td>
                                         <td>{{ $log->scanned_at?->format('H:i:s') }}</td>
                                         <td><span

@@ -85,7 +85,7 @@ class SolatSessionMaintenanceTest extends TestCase
         $this->disk()->assertMissing($log->proof_photo_path);
     }
 
-    public function test_sesi_yang_sedang_dibuka_tidak_ikut_terhapus(): void
+    public function test_sesi_yang_sedang_dibuka_ikut_terhapus_dan_status_aktif_bersih(): void
     {
         $this->seedPrayerTimes();
         $admin = $this->makeUser(User::RoleAdmin);
@@ -93,15 +93,16 @@ class SolatSessionMaintenanceTest extends TestCase
 
         $this->travelTo(Carbon::parse('today 12:05'));
         $this->assertTrue($this->service()->open($session, $admin)['ok']);
+        $this->assertNotNull($this->service()->activeSession());
 
         $this->followingRedirects()
             ->actingAs($admin)
             ->delete(route('sessions.destroy', $session))
             ->assertOk()
-            ->assertSee('sedang dibuka sehingga tidak ikut terhapus');
+            ->assertSee('dihapus beserta catatan kehadirannya');
 
-        $this->assertDatabaseHas('solat_sessions', ['id' => $session->id]);
-        $this->assertSame(SolatSession::StatusSedangDibuka, $session->refresh()->status);
+        $this->assertDatabaseMissing('solat_sessions', ['id' => $session->id]);
+        $this->assertNull($this->service()->activeSession());
     }
 
     public function test_admin_menghapus_sesi_yang_dicentang(): void
@@ -133,7 +134,7 @@ class SolatSessionMaintenanceTest extends TestCase
         $this->assertSame(1, SolatAttendanceLog::query()->count());
     }
 
-    public function test_mencentang_sesi_yang_sedang_dibuka_hanya_dilewati(): void
+    public function test_mencentang_sesi_yang_sedang_dibuka_ikut_terhapus(): void
     {
         $this->seedPrayerTimes();
         $admin = $this->makeUser(User::RoleAdmin);
@@ -150,11 +151,31 @@ class SolatSessionMaintenanceTest extends TestCase
                 'date' => Carbon::today()->toDateString(),
             ])
             ->assertOk()
-            ->assertSee('sedang dibuka sehingga tidak ikut terhapus')
-            ->assertSee('Zuhur');
+            ->assertSee('2 sesi dihapus beserta catatan kehadirannya');
 
-        $this->assertDatabaseHas('solat_sessions', ['id' => $zuhur->id]);
+        $this->assertDatabaseMissing('solat_sessions', ['id' => $zuhur->id]);
         $this->assertDatabaseMissing('solat_sessions', ['id' => $ashar->id]);
+        $this->assertNull($this->service()->activeSession());
+    }
+
+    public function test_sesi_tertinggal_dari_tanggal_sebelumnya_otomatis_ditutup_saat_memeriksa_sesi_aktif_atau_mode_uji(): void
+    {
+        $this->seedPrayerTimes();
+        $admin = $this->makeUser(User::RoleAdmin);
+        $kemarin = Carbon::yesterday()->toDateString();
+
+        $stale = $this->makeSession('zuhur', $kemarin, [
+            'status' => SolatSession::StatusSedangDibuka,
+            'opened_at' => Carbon::parse($kemarin.' 12:05'),
+        ]);
+
+        // Tanpa menjalankan perintah konsol penjadwal, activeSession() langsung menutup sesi kemarin
+        $this->assertNull($this->service()->activeSession());
+        $this->assertSame(SolatSession::StatusSudahDitutup, $stale->refresh()->status);
+
+        // Mode uji coba langsung bisa dinyalakan tanpa terhalang sesi kemarin
+        $result = $this->service()->startTestSession($admin);
+        $this->assertTrue($result['ok']);
     }
 
     public function test_admin_menghapus_semua_sesi_pada_satu_tanggal(): void

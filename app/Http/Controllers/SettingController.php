@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Device;
 use App\Models\FaceEmbedding;
 use App\Models\FacePhotoUpload;
+use App\Models\Fingerprint;
 use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Models\User;
@@ -184,6 +185,8 @@ class SettingController extends Controller
 
         $memberIds = $members->modelKeys();
 
+        Fingerprint::query()->whereIn('user_id', $memberIds)->delete();
+        Fingerprint::query()->whereIn('user_id', $memberIds)->delete();
         FacePhotoUpload::query()->whereIn('user_id', $memberIds)->delete();
         FaceEmbedding::query()->whereIn('user_id', $memberIds)->delete();
         SolatAttendanceLog::query()->whereIn('user_id', $memberIds)->delete();
@@ -230,6 +233,8 @@ class SettingController extends Controller
         DB::transaction(function (): void {
             SolatAttendanceLog::query()->delete();
             SolatSession::query()->delete();
+            Fingerprint::query()->delete();
+            Fingerprint::query()->delete();
             FacePhotoUpload::query()->delete();
             FaceEmbedding::query()->delete();
             Device::query()->delete();

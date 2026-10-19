@@ -96,6 +96,12 @@ class SolatSessionService
      */
     public function activeSession(): ?SolatSession
     {
+        $now = Carbon::now();
+
+        foreach ($this->staleSessions($now) as $stale) {
+            $this->closeAutomatically($stale, $now, 'Sesi ini tertinggal dari tanggal sebelumnya.');
+        }
+
         return SolatSession::query()->real()->open()->latest('opened_at')->first();
     }
 
@@ -587,16 +593,14 @@ class SolatSessionService
     /**
      * Jalan yang sama untuk ketiga cara penghapusan.
      *
-     * Tiga hal yang sengaja dijaga:
+     * Dua hal yang sengaja dijaga:
      *
      * 1. Sesi uji coba tidak pernah lewat sini, karena cara penghapusannya
      *    sendiri ada di deleteTestSession().
-     * 2. Sesi yang sedang dibuka hanya dilaporkan, bukan dihapus. Menghapusnya
-     *    berarti kamera yang sedang menerima absen kehilangan sesinya tanpa
-     *    ada yang menyadari.
-     * 3. Berkas foto bukti dibuang lebih dulu, sebab catatan kehadirannya ikut
+     * 2. Berkas foto bukti dibuang lebih dulu, sebab catatan kehadirannya ikut
      *    terhapus bersama sesinya sehingga berkasnya tidak akan bisa ditemukan
-     *    lagi dan hanya jadi sampah di penyimpanan.
+     *    lagi dan hanya jadi sampah di penyimpanan. Sesi yang sedang dibuka
+     *    ikut dihapus agar tidak menyisakan status sesi terbuka setelah dihapus.
      *
      * @param  Collection<int, SolatSession>  $sessions
      * @return array{ok: bool, message: string, deleted: int}
@@ -611,9 +615,6 @@ class SolatSessionService
             return ['ok' => false, 'message' => 'Tidak ada sesi yang bisa dihapus.', 'deleted' => 0];
         }
 
-        $open = $rows->first(fn (SolatSession $session): bool => $session->isOpen());
-        $rows = $rows->reject(fn (SolatSession $session): bool => $session->isOpen())->values();
-
         $proofs->forgetForSessions($rows->modelKeys());
 
         foreach ($rows as $session) {
@@ -623,15 +624,10 @@ class SolatSessionService
         $deleted = $rows->count();
 
         $message = match (true) {
-            $deleted === 0 => 'Tidak ada sesi yang dihapus.',
             $deleted === 1 => 'Sesi '.$rows->first()->label().' dihapus beserta catatan kehadirannya.',
             default => $deleted.' sesi dihapus beserta catatan kehadirannya.',
         };
 
-        if ($open !== null) {
-            $message .= ' Sesi '.$open->label().' sedang dibuka sehingga tidak ikut terhapus, tutup dulu sesi itu.';
-        }
-
-        return ['ok' => $deleted > 0, 'message' => $message, 'deleted' => $deleted];
+        return ['ok' => true, 'message' => $message, 'deleted' => $deleted];
     }
 }

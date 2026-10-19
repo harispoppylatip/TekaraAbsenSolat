@@ -49,4 +49,49 @@ class SolatAttendanceLog extends Model
     {
         return $this->status === self::StatusTerlambat ? 'warning' : 'success';
     }
+
+    /**
+     * Apakah catatan kehadiran ini berasal dari pemindaian sensor sidik jari.
+     */
+    public function isFingerprint(): bool
+    {
+        if ($this->device_id === null || $this->device_id === '') {
+            return false;
+        }
+
+        $cameraDevices = array_filter([
+            config('solat.device_id', 'kamera-wajah'),
+            config('face.device_id', 'kamera-wajah'),
+            'kamera-wajah',
+        ]);
+
+        return ! in_array($this->device_id, $cameraDevices, true) && $this->proof_photo_path === null;
+    }
+
+    /**
+     * Keterangan singkat cara absen dilakukan.
+     */
+    public function methodLabel(): string
+    {
+        if ($this->isFingerprint()) {
+            return 'absen via sidik jari';
+        }
+
+        if ($this->proof_photo_path !== null || ($this->device_id !== null && $this->device_id !== '')) {
+            return 'absen via kamera wajah';
+        }
+
+        return 'dicatat petugas';
+    }
+
+    /**
+     * Kalimat ringkas log kehadiran (misal: "Hari Poppy Latip absen via sidik jari pukul 12:05").
+     */
+    public function summaryLine(): string
+    {
+        $name = $this->user?->name ?? 'Anggota';
+        $time = $this->scanned_at?->format('H:i:s') ?? '-';
+
+        return "{$name} {$this->methodLabel()} pukul {$time}";
+    }
 }

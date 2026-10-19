@@ -11,6 +11,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FaceDataController;
+use App\Http\Controllers\FingerprintDataController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Murid\HistoryController;
 use App\Http\Controllers\PrayerTimeController;
@@ -102,6 +103,12 @@ Route::middleware('auth')->group(function () {
         Route::delete('/wajah/anggota/{member}', [FaceDataController::class, 'destroyMember'])->name('face.member.destroy');
         Route::put('/wajah/anggota/{member}/daftar-ulang', [FaceDataController::class, 'requestReenrollment'])->name('face.enrollment.reopen');
         Route::put('/wajah/petugas/{member}', [FaceDataController::class, 'updateOperator'])->name('face.operator.update');
+
+        Route::get('/sidik-jari', [FingerprintDataController::class, 'index'])->name('fingerprint.index');
+        Route::post('/sidik-jari/daftar', [FingerprintDataController::class, 'enroll'])->name('fingerprint.enroll');
+        Route::post('/sidik-jari/anggota/{member}/ulang', [FingerprintDataController::class, 'replace'])->name('fingerprint.replace');
+        Route::delete('/sidik-jari/perintah', [FingerprintDataController::class, 'cancelEnroll'])->name('fingerprint.command.cancel');
+        Route::delete('/sidik-jari/anggota/{member}', [FingerprintDataController::class, 'destroyMember'])->name('fingerprint.member.destroy');
 
         Route::get('/perangkat', [DeviceController::class, 'index'])->name('devices.index');
         Route::put('/perangkat/{device}', [DeviceController::class, 'update'])->name('devices.update');

@@ -23,7 +23,7 @@
             <div class="stat-card">
                 <p class="stat-label">Absen hari ini</p>
                 <p class="stat-value">{{ $stats['absen'] }}</p>
-                <p class="stat-note">Dicatat dari wajah jamaah</p>
+                <p class="stat-note">Dari kamera wajah dan sidik jari</p>
             </div>
 
             <div class="stat-card">
@@ -117,7 +117,7 @@
             </div>
 
             @if ($recent->isEmpty())
-                <p class="empty-state">Belum ada catatan kehadiran. Buka sesi lalu lakukan absen wajah.</p>
+                <p class="empty-state">Belum ada catatan kehadiran. Buka sesi lalu lakukan absen wajah atau sidik jari.</p>
             @else
                 <div class="table-wrap">
                     <table class="data-table">
@@ -133,7 +133,12 @@
                         <tbody>
                             @foreach ($recent as $log)
                                 <tr>
-                                    <td class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }}</td>
+                                    <td>
+                                        <span class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }}</span>
+                                        @if ($log->isFingerprint())
+                                            <span class="cell-note">{{ $log->summaryLine() }}</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $log->user?->class_name ?: '-' }}</td>
                                     <td>{{ $log->session?->prayerLabel() ?? '-' }}</td>
                                     <td>{{ $log->scanned_at?->format('d/m H:i') }}</td>

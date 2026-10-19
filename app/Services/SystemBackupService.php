@@ -34,6 +34,7 @@ class SystemBackupService
         'devices',
         'face_embeddings',
         'face_photo_uploads',
+        'fingerprints',
         'solat_sessions',
         'solat_attendance_logs',
     ];
@@ -159,6 +160,12 @@ class SystemBackupService
         }
 
         foreach (self::Tables as $table) {
+            if ($table === 'fingerprints' && ! array_key_exists($table, $database)) {
+                $database[$table] = [];
+
+                continue;
+            }
+
             if (! array_key_exists($table, $database) || ! is_array($database[$table])) {
                 throw new RuntimeException("Data tabel '{$table}' tidak ditemukan di dalam berkas cadangan.");
             }

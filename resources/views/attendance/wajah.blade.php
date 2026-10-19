@@ -166,6 +166,9 @@
                                             @if ($identity)
                                                 <span>{{ $identity }}</span>
                                             @endif
+                                            @if ($log->isFingerprint())
+                                                <span>Via sidik jari</span>
+                                            @endif
                                         </span>
                                         <span
                                             class="status {{ \App\Support\Status::log($log->status) }}">{{ $log->statusLabel() }}</span>

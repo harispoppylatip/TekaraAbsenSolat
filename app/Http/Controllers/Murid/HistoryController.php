@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Murid;
 use App\Http\Controllers\Controller;
 use App\Models\PrayerTime;
 use App\Models\SolatAttendanceLog;
-use App\Models\SolatSession;
 use App\Services\SolatReportService;
+use App\Services\SolatSessionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -60,11 +60,7 @@ class HistoryController extends Controller
                 ->value('sort_order') ?? 99))
             ->values();
 
-        $activeSession = SolatSession::query()
-            ->real()
-            ->open()
-            ->latest('opened_at')
-            ->first();
+        $activeSession = app(SolatSessionService::class)->activeSession();
 
         return view('murid.riwayat', [
             'user' => $user,

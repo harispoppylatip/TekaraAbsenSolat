@@ -48,6 +48,7 @@ class Menu
                 'items' => [
                     ['label' => 'Data Anggota', 'route' => 'members.index', 'active' => 'members.*', 'roles' => [User::RoleAdmin]],
                     ['label' => 'Data Wajah', 'route' => 'face.index', 'active' => 'face.*', 'roles' => [User::RoleAdmin]],
+                    ['label' => 'Data Sidik Jari', 'route' => 'fingerprint.index', 'active' => 'fingerprint.*', 'roles' => [User::RoleAdmin]],
                 ],
             ],
             [

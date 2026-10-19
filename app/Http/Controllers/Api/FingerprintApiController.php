@@ -44,7 +44,16 @@ class FingerprintApiController extends Controller
         ]);
 
         $user = User::where('identifier_number', $data['user_id'])->firstOrFail();
-        $fingerprint = $this->fingerprints->store($user, $data['template'], $data['finger_position'] ?? null);
+
+        $pending = Cache::get('fingerprint.pending_enroll');
+        $fingerPosition = $data['finger_position']
+            ?? (is_array($pending) && ($pending['user_id'] ?? null) === $user->identifier_number ? ($pending['finger_position'] ?? null) : null);
+
+        $fingerprint = $this->fingerprints->store($user, $data['template'], $fingerPosition);
+
+        Cache::forget('fingerprint.pending_enroll');
+        Cache::forget('fingerprint.command.any');
+        Cache::forget('fingerprint.command.'.$data['device_id']);
 
         return response()->json([
             'status' => 'success',
@@ -128,6 +137,22 @@ class FingerprintApiController extends Controller
             ]);
         }
 
+        if (! $user->fingerprints()->exists()) {
+            return response()->json([
+                'ok' => false,
+                'status' => 'not_enrolled',
+                'message' => 'Anggota ini belum didaftarkan pada mode absen sidik jari.',
+                'user_id' => $user->identifier_number,
+                'name' => $user->name,
+                'attendance_id' => null,
+                'attendance_recorded' => false,
+                'attendance_type' => null,
+                'attendance_label' => null,
+                'display_message' => 'Belum terdaftar',
+                'display_detail' => 'Hubungi admin',
+            ]);
+        }
+
         $session = $this->sessions->activeSession();
 
         if ($session === null) {
@@ -192,7 +217,8 @@ class FingerprintApiController extends Controller
             'device_id' => ['required', 'string', 'max:50'],
         ]);
 
-        $command = Cache::pull('fingerprint.command.'.$data['device_id']);
+        $command = Cache::pull('fingerprint.command.'.$data['device_id'])
+            ?? Cache::pull('fingerprint.command.any');
 
         return response()->json($command ?: ['mode' => 'verify']);
     }
@@ -263,4 +289,3 @@ class FingerprintApiController extends Controller
         ]);
     }
 }
-

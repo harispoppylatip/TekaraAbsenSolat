@@ -545,13 +545,15 @@ class SolatAttendanceService
             'proof_photo_path' => $proofPath ?? $this->keepProof($photo, $session, $moment),
         ]);
 
+        $via = $log->isFingerprint() ? ' via sidik jari' : '';
+
         return $this->reply(
             status: $late ? self::StatusLate : self::StatusRecorded,
             ok: true,
             label: $late ? 'Terlambat' : 'Hadir',
             message: $session->isTest()
-                ? 'Percobaan '.$user->name.' tercatat pukul '.$moment->format('H:i').'. Data ini tidak dihitung pada rekap.'
-                : $user->name.' tercatat '.($late ? 'terlambat' : 'hadir').' pada solat '
+                ? 'Percobaan '.$user->name.($log->isFingerprint() ? ' absen via sidik jari' : '').' tercatat pukul '.$moment->format('H:i').'. Data ini tidak dihitung pada rekap.'
+                : $user->name.' tercatat '.($late ? 'terlambat' : 'hadir').$via.' pada solat '
                     .$session->prayerLabel().' pukul '.$moment->format('H:i').'.',
             display: $late ? 'Terlambat' : 'Absen tersimpan',
             session: $session,
@@ -605,7 +607,7 @@ class SolatAttendanceService
             status: $late ? self::StatusLate : self::StatusRecorded,
             ok: true,
             label: $late ? 'Terlambat' : 'Hadir',
-            message: 'Percobaan '.$user->name.' diperbarui pukul '.$moment->format('H:i').'. Data ini tidak dihitung pada rekap.',
+            message: 'Percobaan '.$user->name.($log->isFingerprint() ? ' absen via sidik jari' : '').' diperbarui pukul '.$moment->format('H:i').'. Data ini tidak dihitung pada rekap.',
             display: $late ? 'Terlambat' : 'Uji coba OK',
             session: $session,
             user: $user,

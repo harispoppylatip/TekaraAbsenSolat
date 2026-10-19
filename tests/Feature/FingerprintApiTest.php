@@ -221,10 +221,36 @@ class FingerprintApiTest extends TestCase
             ]);
     }
 
+    public function test_api_match_menolak_anggota_yang_belum_didaftarkan_sidik_jari(): void
+    {
+        $device = $this->makeDevice();
+        $user = $this->makeMember('25006', 'Anggota Tanpa Sidik Jari');
+        $this->openSession();
+
+        $response = $this->postJson(route('api.fingerprint.match'), [
+            'device_id' => $device->device_id,
+            'user_id' => $user->identifier_number,
+            'matched' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'ok' => false,
+                'status' => 'not_enrolled',
+                'attendance_recorded' => false,
+                'display_message' => 'Belum terdaftar',
+            ]);
+    }
+
     public function test_api_match_menolak_jika_belum_ada_sesi(): void
     {
         $device = $this->makeDevice();
         $user = $this->makeMember('25006');
+        Fingerprint::create([
+            'user_id' => $user->id,
+            'template' => 'TEMPLATE_25006',
+            'finger_position' => 'Telunjuk Kanan',
+        ]);
 
         $response = $this->postJson(route('api.fingerprint.match'), [
             'device_id' => $device->device_id,
@@ -245,7 +271,12 @@ class FingerprintApiTest extends TestCase
     public function test_api_match_merekam_kehadiran_di_sesi_aktif(): void
     {
         $device = $this->makeDevice();
-        $user = $this->makeMember('25006', 'Haris Murid');
+        $user = $this->makeMember('25006', 'Hari Poppy Latip');
+        Fingerprint::create([
+            'user_id' => $user->id,
+            'template' => 'TEMPLATE_25006',
+            'finger_position' => 'Telunjuk Kanan',
+        ]);
         $session = $this->openSession();
 
         $response = $this->postJson(route('api.fingerprint.match'), [
@@ -259,9 +290,11 @@ class FingerprintApiTest extends TestCase
                 'ok' => true,
                 'attendance_recorded' => true,
                 'user_id' => '25006',
-                'name' => 'Haris Murid',
+                'name' => 'Hari Poppy Latip',
                 'display_message' => 'Absen tersimpan',
             ]);
+
+        $this->assertStringContainsString('via sidik jari', (string) $response->json('message'));
 
         $this->assertDatabaseHas('solat_attendance_logs', [
             'user_id' => $user->id,
@@ -289,6 +322,11 @@ class FingerprintApiTest extends TestCase
     {
         $device = $this->makeDevice();
         $user = $this->makeMember('25006', 'Haris Tester');
+        Fingerprint::create([
+            'user_id' => $user->id,
+            'template' => 'TEMPLATE_25006',
+            'finger_position' => 'Telunjuk Kanan',
+        ]);
 
         // Nyalakan mode uji coba
         app(SolatSessionService::class)->startTestSession();
@@ -306,5 +344,7 @@ class FingerprintApiTest extends TestCase
                 'attendance_type' => 'test',
                 'user_id' => '25006',
             ]);
+
+        $this->assertStringContainsString('absen via sidik jari', (string) $response->json('message'));
     }
 }
