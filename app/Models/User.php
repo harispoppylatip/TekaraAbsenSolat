@@ -99,6 +99,14 @@ class User extends Authenticatable
     }
 
     /**
+     * @return HasMany<Fingerprint, $this>
+     */
+    public function fingerprints(): HasMany
+    {
+        return $this->hasMany(Fingerprint::class);
+    }
+
+    /**
      * @return HasMany<SolatAttendanceLog, $this>
      */
     public function attendanceLogs(): HasMany

@@ -31,7 +31,7 @@ class SettingCleanupTest extends TestCase
         $this->actingAs($admin)
             ->get(route('settings.index'))
             ->assertOk()
-            ->assertSee('Pengaturan & Pembersihan Data')
+            ->assertSee('Pengaturan, Cadangan & Pembersihan Data')
             ->assertSee('Hapus Seluruh Riwayat Absen')
             ->assertSee('Hapus Seluruh Data (Reset Total Sistem)');
     }

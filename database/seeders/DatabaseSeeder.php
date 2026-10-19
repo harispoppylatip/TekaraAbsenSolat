@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Device;
 use App\Models\PrayerTime;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -51,7 +50,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->seedAccounts();
         $this->seedPrayerTimes();
-        $this->seedCamera();
     }
 
     /**
@@ -117,23 +115,5 @@ class DatabaseSeeder extends Seeder
                 ],
             );
         }
-    }
-
-    /**
-     * Kamera absen wajah bawaan. Perangkat ini sudah didaftarkan dan dinyalakan
-     * supaya halaman Absen Wajah bisa langsung dicoba.
-     */
-    private function seedCamera(): void
-    {
-        Device::updateOrCreate(
-            ['device_id' => config('solat.device_id')],
-            [
-                'name' => 'Kamera Absen Masjid',
-                'type' => Device::TypeGerbang,
-                'status' => Device::StatusAktif,
-                'location' => 'Depan masjid sekolah',
-                'last_seen_at' => Carbon::now(),
-            ],
-        );
     }
 }

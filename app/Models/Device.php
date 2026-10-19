@@ -14,6 +14,8 @@ class Device extends Model
 
     public const StatusNonaktif = 'nonaktif';
 
+    public const TypeSidikJari = 'sidik_jari';
+
     public const TypeGerbang = 'gerbang';
 
     public const TypeKelas = 'kelas';
@@ -50,6 +52,7 @@ class Device extends Model
     public function typeLabel(): string
     {
         return match ($this->type) {
+            self::TypeSidikJari => 'Sensor sidik jari',
             self::TypeKelas => 'Ruang kelas',
             default => 'Gerbang',
         };
@@ -72,6 +75,7 @@ class Device extends Model
     public static function types(): array
     {
         return [
+            self::TypeSidikJari => 'Sensor sidik jari',
             self::TypeGerbang => 'Gerbang',
             self::TypeKelas => 'Ruang kelas',
         ];

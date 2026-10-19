@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Perangkat')
-@section('note', 'Pusat pengaturan sensor absen wajah')
+@section('note', 'Pusat pengaturan sensor sidik jari dan perangkat absen')
 
 @section('content')
     <div data-live="perangkat">

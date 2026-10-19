@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\FaceApiController;
+use App\Http\Controllers\Api\FingerprintApiController;
 use App\Http\Controllers\Api\SolatScanController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceProofController;
@@ -156,4 +157,16 @@ Route::prefix('api')->middleware('throttle:60,1')->group(function () {
     Route::get('/solat/sesi', [SolatScanController::class, 'session'])->name('api.solat.session');
     Route::post('/wajah/daftar', [FaceApiController::class, 'register'])->name('api.face.register');
     Route::get('/wajah/angka', [FaceApiController::class, 'embeddings'])->name('api.face.embeddings');
+
+    /*
+    | Layanan sensor sidik jari ESP32 (HTTP REST API).
+    */
+    Route::prefix('fingerprint')->group(function () {
+        Route::get('/users', [FingerprintApiController::class, 'users'])->name('api.fingerprint.users');
+        Route::get('/template/{userId}', [FingerprintApiController::class, 'template'])->name('api.fingerprint.template');
+        Route::get('/templates', [FingerprintApiController::class, 'templates'])->name('api.fingerprint.templates');
+        Route::get('/command', [FingerprintApiController::class, 'command'])->name('api.fingerprint.command');
+        Route::post('/register', [FingerprintApiController::class, 'register'])->name('api.fingerprint.register');
+        Route::post('/match', [FingerprintApiController::class, 'match'])->name('api.fingerprint.match');
+    });
 });
