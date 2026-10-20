@@ -220,7 +220,10 @@ class FingerprintApiController extends Controller
         $command = Cache::pull('fingerprint.command.'.$data['device_id'])
             ?? Cache::pull('fingerprint.command.any');
 
-        return response()->json($command ?: ['mode' => 'verify']);
+        $payload = is_array($command) ? $command : ['mode' => 'verify'];
+        $payload['templates_stamp'] = Fingerprint::query()->count().':'.((string) Fingerprint::query()->max('updated_at'));
+
+        return response()->json($payload);
     }
 
     /**
