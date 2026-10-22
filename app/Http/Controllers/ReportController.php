@@ -60,23 +60,29 @@ class ReportController extends Controller
             'prayer' => $prayer,
         ];
 
+        $delimiter = $request->query('delimiter') === 'comma' ? ',' : ';';
         $rows = $reports->perMember($from, $to, $filters, 100000);
         $filename = 'rekap-solat-'.$from->toDateString().'-sampai-'.$to->toDateString().'.csv';
 
-        return response()->streamDownload(function () use ($rows, $reports, $from, $to, $prayer): void {
+        return response()->streamDownload(function () use ($rows, $reports, $from, $to, $prayer, $delimiter): void {
             $handle = fopen('php://output', 'wb');
 
             if ($handle === false) {
                 return;
             }
 
-            fputcsv($handle, ['Rekap Kehadiran Solat']);
-            fputcsv($handle, ['Sekolah', config('app.name')]);
-            fputcsv($handle, ['Rentang', $from->format('d/m/Y').' sampai '.$to->format('d/m/Y')]);
-            fputcsv($handle, ['Waktu solat', $prayer !== '' ? $prayer : 'Semua waktu']);
-            fputcsv($handle, []);
+            // UTF-8 BOM agar Excel membuka berkas dengan encoding UTF-8 yang benar
+            fwrite($handle, "\xEF\xBB\xBF");
+            // Direktif penentu pemisah kolom khusus Microsoft Excel (agar tidak menumpuk di Kolom A)
+            fwrite($handle, "sep={$delimiter}\r\n");
 
-            fputcsv($handle, ['Nomor induk', 'Nama', 'Peran', 'Kelas', 'Hadir', 'Terlambat', 'Total catatan', 'Foto wajah']);
+            fputcsv($handle, ['Rekap Kehadiran Solat'], $delimiter, '"', "\\");
+            fputcsv($handle, ['Sekolah', config('app.name')], $delimiter, '"', "\\");
+            fputcsv($handle, ['Rentang', $from->format('d/m/Y').' sampai '.$to->format('d/m/Y')], $delimiter, '"', "\\");
+            fputcsv($handle, ['Waktu solat', $prayer !== '' ? $prayer : 'Semua waktu'], $delimiter, '"', "\\");
+            fputcsv($handle, [], $delimiter, '"', "\\");
+
+            fputcsv($handle, ['Nomor induk', 'Nama', 'Peran', 'Kelas', 'Hadir', 'Terlambat', 'Total catatan', 'Foto wajah'], $delimiter, '"', "\\");
 
             foreach ($rows as $member) {
                 fputcsv($handle, [
@@ -88,11 +94,11 @@ class ReportController extends Controller
                     $member->late_count,
                     $member->log_count,
                     $member->face_count,
-                ]);
+                ], $delimiter, '"', "\\");
             }
 
-            fputcsv($handle, []);
-            fputcsv($handle, ['Sesi', 'Jumlah catatan', 'Hadir', 'Terlambat']);
+            fputcsv($handle, [], $delimiter, '"', "\\");
+            fputcsv($handle, ['Sesi', 'Jumlah catatan', 'Hadir', 'Terlambat'], $delimiter, '"', "\\");
 
             foreach ($reports->sessionBreakdown($from, $to, 500) as $session) {
                 fputcsv($handle, [
@@ -100,7 +106,7 @@ class ReportController extends Controller
                     $session->log_count,
                     $session->present_count,
                     $session->late_count,
-                ]);
+                ], $delimiter, '"', "\\");
             }
 
             fclose($handle);

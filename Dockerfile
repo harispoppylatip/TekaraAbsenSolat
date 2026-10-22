@@ -85,7 +85,7 @@ RUN composer install \
 # ---------------------------------------------------------------------------
 FROM php:8.5-fpm-alpine AS app
 
-RUN apk add --no-cache su-exec tzdata
+RUN apk update && apk upgrade --no-cache && apk add --no-cache su-exec tzdata
 
 # Yang dipasang hanya pdo_mysql, pcntl, dan bila perlu mbstring serta curl.
 # opcache, pdo_sqlite, dan sqlite3 sudah ada di dalam citra.

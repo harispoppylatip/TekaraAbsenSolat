@@ -57,7 +57,8 @@
 
                 <div class="search-toolbar-aside">
                     <button class="btn btn-outline btn-small" type="button" data-print>Cetak halaman</button>
-                    <a class="btn btn-primary btn-small" href="{{ route('reports.export', $exportQuery) }}">Unduh berkas CSV</a>
+                    <a class="btn btn-primary btn-small" href="{{ route('reports.export', array_merge($exportQuery, ['delimiter' => 'semicolon'])) }}">Unduh Excel (CSV)</a>
+                    <a class="btn btn-outline btn-small" href="{{ route('reports.export', array_merge($exportQuery, ['delimiter' => 'comma'])) }}">CSV (Koma)</a>
                 </div>
             </div>
 
