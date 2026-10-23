@@ -32,6 +32,7 @@ class SystemBackupService
         'users',
         'prayer_times',
         'devices',
+        'cameras',
         'face_embeddings',
         'face_photo_uploads',
         'fingerprints',

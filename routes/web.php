@@ -7,6 +7,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceProofController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\CameraController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\EnrollmentController;
@@ -111,6 +112,14 @@ Route::middleware('auth')->group(function () {
         Route::delete('/sidik-jari/perintah', [FingerprintDataController::class, 'cancelEnroll'])->name('fingerprint.command.cancel');
         Route::delete('/sidik-jari/anggota/{member}', [FingerprintDataController::class, 'destroyMember'])->name('fingerprint.member.destroy');
 
+        Route::get('/kamera', [CameraController::class, 'index'])->name('cameras.index');
+        Route::post('/kamera', [CameraController::class, 'store'])->name('cameras.store');
+        Route::get('/kamera/{camera}/ubah', [CameraController::class, 'edit'])->name('cameras.edit');
+        Route::put('/kamera/{camera}', [CameraController::class, 'update'])->name('cameras.update');
+        Route::put('/kamera/{camera}/status', [CameraController::class, 'toggleStatus'])->name('cameras.status');
+        Route::delete('/kamera/{camera}', [CameraController::class, 'destroy'])->name('cameras.destroy');
+        Route::post('/kamera/uji-koneksi', [CameraController::class, 'testConnection'])->name('cameras.test');
+
         Route::get('/perangkat', [DeviceController::class, 'index'])->name('devices.index');
         Route::put('/perangkat/{device}', [DeviceController::class, 'update'])->name('devices.update');
         Route::put('/perangkat/{device}/daftar', [DeviceController::class, 'register'])->name('devices.register');
@@ -129,6 +138,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:admin,petugas')->group(function () {
+        Route::get('/kamera/{camera}/siaran', [CameraController::class, 'stream'])->name('cameras.stream');
+        Route::get('/kamera/{camera}/cuplikan', [CameraController::class, 'snapshot'])->name('cameras.snapshot');
+
         Route::get('/sesi-absen', [SolatSessionController::class, 'index'])->name('sessions.index');
         Route::post('/sesi-absen/buat', [SolatSessionController::class, 'generate'])->name('sessions.generate');
         Route::put('/sesi-absen/{solatSession}/buka', [SolatSessionController::class, 'open'])->name('sessions.open');
