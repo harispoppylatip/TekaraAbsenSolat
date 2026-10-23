@@ -347,4 +347,57 @@ class FingerprintApiTest extends TestCase
 
         $this->assertStringContainsString('absen via sidik jari', (string) $response->json('message'));
     }
+
+    public function test_absen_sidik_jari_membersihkan_foto_bukti_lama_saat_mode_uji_coba(): void
+    {
+        $device = $this->makeDevice();
+        $user = $this->makeMember('25006', 'Hari Poppy Latip');
+        Fingerprint::create([
+            'user_id' => $user->id,
+            'template' => 'TEMPLATE_25006',
+            'finger_position' => 'Telunjuk Kanan',
+        ]);
+
+        // Nyalakan mode uji coba
+        app(SolatSessionService::class)->startTestSession();
+        $testSession = app(SolatSessionService::class)->testSession();
+
+        // Simulasikan absen kamera sebelumnya yang memiliki foto bukti
+        $oldMoment = Carbon::now()->subMinutes(10);
+        $log = \App\Models\SolatAttendanceLog::create([
+            'user_id' => $user->id,
+            'solat_session_id' => $testSession->id,
+            'scanned_at' => $oldMoment,
+            'status' => 'hadir',
+            'match_distance' => 0.42,
+            'device_id' => 'kamera-wajah',
+            'proof_photo_path' => 'proofs/test-old-face.jpg',
+        ]);
+
+        $this->assertFalse($log->isFingerprint());
+        $this->assertNotNull($log->proof_photo_path);
+
+        // Anggota melakukan scan sidik jari sesudah jeda
+        $response = $this->postJson(route('api.fingerprint.match'), [
+            'device_id' => $device->device_id,
+            'user_id' => $user->identifier_number,
+            'matched' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'ok' => true,
+                'attendance_recorded' => true,
+                'attendance_type' => 'test',
+                'user_id' => '25006',
+            ]);
+
+        $log->refresh();
+
+        // Bukti foto lama dari kamera harus dibersihkan, dan catatan beralih ke via sidik jari
+        $this->assertNull($log->proof_photo_path);
+        $this->assertTrue($log->isFingerprint());
+        $this->assertSame($device->device_id, $log->device_id);
+        $this->assertTrue($log->scanned_at->greaterThan($oldMoment));
+    }
 }

@@ -591,7 +591,7 @@ class SolatAttendanceService
         $lama = $this->proofs->path($log);
         $baru = $proofPath ?? $this->keepProof($photo, $session, $moment);
 
-        if ($lama !== null && $baru !== null && $lama !== $baru) {
+        if ($lama !== null && $lama !== $baru) {
             $this->proofs->forgetWhenOrphaned($lama, (int) $log->getKey());
         }
 
@@ -600,7 +600,7 @@ class SolatAttendanceService
             'status' => $status,
             'match_distance' => $distance,
             'device_id' => $deviceId,
-            'proof_photo_path' => $baru ?? $lama,
+            'proof_photo_path' => $baru,
         ])->save();
 
         return $this->reply(

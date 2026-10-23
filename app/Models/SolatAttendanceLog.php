@@ -65,7 +65,7 @@ class SolatAttendanceLog extends Model
             'kamera-wajah',
         ]);
 
-        return ! in_array($this->device_id, $cameraDevices, true) && $this->proof_photo_path === null;
+        return ! in_array($this->device_id, $cameraDevices, true);
     }
 
     /**

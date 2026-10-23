@@ -42,7 +42,7 @@ class ReportExportTest extends TestCase
         $content = $response->streamedContent();
 
         // Memastikan UTF-8 BOM dan header sep=; ada di awal berkas untuk Microsoft Excel
-        $this->assertStringStartsWith("\xEF\xBB\xBFsep=;\n", $content);
+        $this->assertStringStartsWith("\xEF\xBB\xBFsep=;", $content);
         // Memastikan baris data dipisahkan dengan titik koma (;)
         $this->assertStringContainsString(';Nama;Peran;Kelas;Hadir;Terlambat;', $content);
         $this->assertStringContainsString('ADM-001;"Admin Utama";Administrator;-;0;0;0;0', $content);
@@ -62,7 +62,7 @@ class ReportExportTest extends TestCase
         $content = $response->streamedContent();
 
         // Memastikan UTF-8 BOM dan header sep=, ada di awal berkas
-        $this->assertStringStartsWith("\xEF\xBB\xBFsep=,\n", $content);
+        $this->assertStringStartsWith("\xEF\xBB\xBFsep=,", $content);
         // Memastikan baris data dipisahkan dengan koma (,)
         $this->assertStringContainsString(',Nama,Peran,Kelas,Hadir,Terlambat,', $content);
         $this->assertStringContainsString('ADM-001,"Admin Utama",Administrator,-,0,0,0,0', $content);

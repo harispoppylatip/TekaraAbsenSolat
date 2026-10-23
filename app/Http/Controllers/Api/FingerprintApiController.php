@@ -181,7 +181,7 @@ class FingerprintApiController extends Controller
         $recordResult = $this->attendance->record(
             user: $user,
             session: $session,
-            deviceId: $device?->device_id,
+            deviceId: $device?->device_id ?? $data['device_id'],
         );
 
         $isRecorded = (bool) ($recordResult['ok'] ?? false);

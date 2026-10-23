@@ -20,7 +20,7 @@
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <p class="sidebar-brand-name">Absen Solat</p>
+                <p class="sidebar-brand-name">Absen Sholat</p>
                 <p class="sidebar-brand-note">SMK Istiqomah Muhammadiyah 4</p>
             </div>
 

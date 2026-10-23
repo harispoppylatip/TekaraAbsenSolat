@@ -689,6 +689,14 @@ select.select-field {
     background: var(--surface-variant);
 }
 
+.proof-thumb-fingerprint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    background: var(--surface-variant);
+}
+
 .face-photo-preview {
     display: flex;
     align-items: center;
