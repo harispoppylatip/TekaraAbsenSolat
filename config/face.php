@@ -50,6 +50,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ambang toleransi khusus kamera CCTV (RTSP / Jarak Jauh)
+    |--------------------------------------------------------------------------
+    |
+    | Pada kamera CCTV yang memotret dari jarak 2-3 meter, sudut wajah sedikit
+    | berbeda dibanding webcam laptop. Nilai 1.15 terbukti secara empiris di server
+    | membedakan wajah asli (1.02) dari orang lain di ruangan (1.21).
+    |
+    */
+
+    'cctv_tolerance' => (float) env('FACE_CCTV_TOLERANCE', 1.15),
+
+    'cctv_min_face_size' => (int) env('FACE_CCTV_MIN_FACE_SIZE', 40),
+
+    /*
+    |--------------------------------------------------------------------------
     | Berapa foto yang dihitung saat menilai satu anggota
     |--------------------------------------------------------------------------
     |

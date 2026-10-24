@@ -124,10 +124,10 @@ class SolatAttendanceService
         $faces = [];
         $isCctv = $deviceId !== null && str_starts_with($deviceId, 'cctv-');
         $minFaceSize = $isCctv
-            ? (int) config('face.cctv_min_face_size', 35)
+            ? (int) config('face.cctv_min_face_size', 40)
             : (int) config('face.min_face_size', 80);
         $customTolerance = $isCctv
-            ? (float) config('face.cctv_tolerance', 1.26)
+            ? (float) config('face.cctv_tolerance', 1.15)
             : null;
 
         try {
