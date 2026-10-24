@@ -1,0 +1,12 @@
+api:
+  listen: ":1984"
+  origin: "*"
+
+rtsp:
+  listen: ":18554"
+
+webrtc:
+  listen: ":18555"
+
+streams: {}
+

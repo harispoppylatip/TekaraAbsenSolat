@@ -4,7 +4,7 @@
 @section('note', 'Perbarui pengaturan kamera siaran CCTV atau Web Stream')
 
 @section('content')
-    <div data-live="kamera-edit">
+    <div>
         <section class="card">
             <div class="section-head">
                 <div>
@@ -151,3 +151,4 @@
         });
     </script>
 @endsection
+

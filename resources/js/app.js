@@ -270,13 +270,10 @@ async function cameraDevices() {
 }
 
 function buildCameraChoices(picker, cameras, preferred) {
-    const cctvGroup = picker.querySelector("[data-cctv-group]");
-    const clonedCctv = cctvGroup ? cctvGroup.cloneNode(true) : null;
-
     picker.innerHTML = "";
 
     const facingGroup = document.createElement("optgroup");
-    facingGroup.label = "Arah kamera peramban";
+    facingGroup.label = "Arah kamera";
 
     CAMERA_FACING_OPTIONS.forEach(([value, label]) => {
         const option = document.createElement("option");
@@ -286,10 +283,6 @@ function buildCameraChoices(picker, cameras, preferred) {
     });
 
     picker.appendChild(facingGroup);
-
-    if (clonedCctv) {
-        picker.appendChild(clonedCctv);
-    }
 
     if (cameras.length > 0) {
         const deviceGroup = document.createElement("optgroup");
@@ -545,7 +538,6 @@ function drawFaceOverlay(root, faces, frame, busy) {
 
 function initCamera(root) {
     const video = root.querySelector("[data-camera-video]");
-    const cctvImg = root.querySelector("[data-camera-cctv-img]");
     const canvas = root.querySelector("[data-camera-canvas]");
     const startButton = root.querySelector("[data-camera-start]");
     const stopButton = root.querySelector("[data-camera-stop]");
@@ -563,10 +555,6 @@ function initCamera(root) {
     let facing =
         picker && picker.value ? picker.value : CAMERA_FACING_OPTIONS[0][0];
     let starting = false;
-    let isCctvMode = false;
-    let cctvUseSnapshot = false;
-    let cctvStreamUrl = "";
-    let cctvSnapshotUrl = "";
 
     // Wajah dari balasan terakhir, beserta ukuran gambar yang dipakai server.
     // Dipakai menggambar ulang kotaknya saat ukuran tampilan berubah.
@@ -659,68 +647,12 @@ function initCamera(root) {
     }
 
     async function start() {
-        if (stream !== null || isCctvMode) {
+        if (stream !== null) {
             return;
         }
 
         if (picker && picker.value) {
             facing = picker.value;
-        }
-
-        const isCctv = typeof facing === "string" && facing.startsWith("cctv:");
-
-        if (isCctv) {
-            const selectedOpt = picker ? picker.selectedOptions[0] : null;
-            if (!selectedOpt) {
-                return;
-            }
-
-            const camType = selectedOpt.dataset.camType || "web_stream";
-            cctvStreamUrl = selectedOpt.dataset.camStream || "";
-            cctvSnapshotUrl = selectedOpt.dataset.camSnapshot || "";
-            isCctvMode = true;
-
-            if (startButton) {
-                startButton.disabled = true;
-            }
-
-            if (stopButton) {
-                stopButton.disabled = false;
-            }
-
-            if (placeholder) {
-                placeholder.hidden = true;
-            }
-
-            if (camType === "web_stream") {
-                say("Menghubungkan ke siaran Web Stream...");
-                video.style.transform = "none";
-                video.crossOrigin = "anonymous";
-                video.src = cctvStreamUrl;
-                video.hidden = false;
-
-                video.play().then(() => {
-                    say("Siaran Web Stream aktif. Memindai wajah...");
-                }).catch(() => {
-                    cctvUseSnapshot = true;
-                    video.hidden = true;
-                    if (cctvImg) {
-                        cctvImg.style.display = "block";
-                    }
-                    say("Siaran Web Stream aktif (mode cuplikan). Memindai wajah...");
-                });
-            } else {
-                cctvUseSnapshot = true;
-                video.hidden = true;
-                if (cctvImg) {
-                    cctvImg.style.display = "block";
-                }
-                say("Kamera RTSP CCTV aktif. Memindai wajah...");
-            }
-
-            timer = window.setInterval(capture, interval);
-            capture();
-            return;
         }
 
         const mine = ++attempt;
@@ -835,22 +767,9 @@ function initCamera(root) {
         }
 
         if (video) {
-            video.pause();
             video.srcObject = null;
-            video.src = "";
-            video.removeAttribute("src");
             video.hidden = true;
         }
-
-        if (cctvImg) {
-            cctvImg.style.display = "none";
-            cctvImg.removeAttribute("src");
-        }
-
-        isCctvMode = false;
-        cctvUseSnapshot = false;
-        cctvStreamUrl = "";
-        cctvSnapshotUrl = "";
 
         if (placeholder) {
             placeholder.hidden = false;
@@ -878,7 +797,7 @@ function initCamera(root) {
     }
 
     async function capture() {
-        if (busy || (stream === null && !isCctvMode) || !canvas) {
+        if (busy || stream === null || !canvas) {
             return;
         }
 
@@ -889,60 +808,18 @@ function initCamera(root) {
         drawFaceOverlay(root, faces, frame, true);
 
         try {
-            let blob = null;
-            let activeWidth = 480;
-            let activeHeight = 360;
+            const width = video.videoWidth || 480;
+            const height = video.videoHeight || 360;
 
-            if (isCctvMode && cctvUseSnapshot) {
-                const snapUrl =
-                    cctvSnapshotUrl +
-                    (cctvSnapshotUrl.includes("?") ? "&" : "?") +
-                    "_t=" +
-                    Date.now();
-                const snapRes = await fetch(snapUrl, {
-                    credentials: "same-origin",
-                }).catch(() => null);
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext("2d").drawImage(video, 0, 0, width, height);
 
-                if (snapRes && snapRes.ok) {
-                    blob = await snapRes.blob();
-                    if (blob) {
-                        const objectUrl = URL.createObjectURL(blob);
-                        if (cctvImg) {
-                            cctvImg.src = objectUrl;
-                        }
-
-                        await new Promise((resolve) => {
-                            const img = new Image();
-                            img.onload = () => {
-                                activeWidth = img.naturalWidth || 640;
-                                activeHeight = img.naturalHeight || 480;
-                                canvas.width = activeWidth;
-                                canvas.height = activeHeight;
-                                canvas
-                                    .getContext("2d")
-                                    .drawImage(img, 0, 0, activeWidth, activeHeight);
-                                resolve();
-                            };
-                            img.onerror = resolve;
-                            img.src = objectUrl;
-                        });
-                    }
-                }
-            } else {
-                activeWidth = video.videoWidth || 480;
-                activeHeight = video.videoHeight || 360;
-
-                canvas.width = activeWidth;
-                canvas.height = activeHeight;
-                canvas.getContext("2d").drawImage(video, 0, 0, activeWidth, activeHeight);
-
-                blob = await new Promise((resolve) =>
-                    canvas.toBlob(resolve, "image/jpeg", 0.85),
-                );
-            }
+            const blob = await new Promise((resolve) =>
+                canvas.toBlob(resolve, "image/jpeg", 0.85),
+            );
 
             if (!blob) {
-                busy = false;
                 return;
             }
 
@@ -963,7 +840,7 @@ function initCamera(root) {
 
             if (!data) {
                 addLine("Balasan server tidak terbaca.", false);
-                busy = false;
+
                 return;
             }
 
@@ -972,8 +849,8 @@ function initCamera(root) {
             // Bila tidak ada wajah lagi, daftarnya kosong dan kotak lama hilang.
             faces = Array.isArray(data.faces) ? data.faces : [];
             frame = {
-                width: Number(data.width || activeWidth),
-                height: Number(data.height || activeHeight),
+                width: Number(data.width || width),
+                height: Number(data.height || height),
             };
 
             drawFaceOverlay(root, faces, frame, false);

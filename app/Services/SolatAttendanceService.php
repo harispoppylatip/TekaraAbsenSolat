@@ -122,15 +122,23 @@ class SolatAttendanceService
         // catatan.
         $this->sharedProof = $this->sharedProofProvider($detected['photo'], $session, $at);
         $faces = [];
+        $isCctv = $deviceId !== null && str_starts_with($deviceId, 'cctv-');
+        $minFaceSize = $isCctv
+            ? (int) config('face.cctv_min_face_size', 35)
+            : (int) config('face.min_face_size', 80);
+        $customTolerance = $isCctv
+            ? (float) config('face.cctv_tolerance', 1.26)
+            : null;
 
         try {
             foreach ($detected['faces'] as $face) {
                 $faces[] = $this->judgeFace(
                     face: $face,
-                    minFaceSize: (int) config('face.min_face_size', 80),
+                    minFaceSize: $minFaceSize,
                     session: $session,
                     deviceId: $deviceId,
                     at: $at,
+                    customTolerance: $customTolerance,
                 );
             }
         } finally {
@@ -177,6 +185,7 @@ class SolatAttendanceService
         SolatSession $session,
         ?string $deviceId,
         ?CarbonInterface $at,
+        ?float $customTolerance = null,
     ): array {
         $box = [
             'top' => (int) $face['top'],
@@ -210,7 +219,7 @@ class SolatAttendanceService
             );
         }
 
-        $match = $this->matcher->match($face['encoding']);
+        $match = $this->matcher->match($face['encoding'], $customTolerance);
 
         // Dua anggota sama sama mirip: belum bisa diputuskan, jadi tidak ada
         // identitas yang dipilih dan tidak ada kehadiran yang dicatat.

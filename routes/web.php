@@ -119,6 +119,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/kamera/{camera}/status', [CameraController::class, 'toggleStatus'])->name('cameras.status');
         Route::delete('/kamera/{camera}', [CameraController::class, 'destroy'])->name('cameras.destroy');
         Route::post('/kamera/uji-koneksi', [CameraController::class, 'testConnection'])->name('cameras.test');
+        Route::post('/kamera/{camera}/scan', [CameraController::class, 'scan'])->name('cameras.scan');
 
         Route::get('/perangkat', [DeviceController::class, 'index'])->name('devices.index');
         Route::put('/perangkat/{device}', [DeviceController::class, 'update'])->name('devices.update');
@@ -140,6 +141,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:admin,petugas')->group(function () {
         Route::get('/kamera/{camera}/siaran', [CameraController::class, 'stream'])->name('cameras.stream');
         Route::get('/kamera/{camera}/cuplikan', [CameraController::class, 'snapshot'])->name('cameras.snapshot');
+        Route::get('/kamera/{camera}/logs', [CameraController::class, 'logs'])->name('cameras.logs');
 
         Route::get('/sesi-absen', [SolatSessionController::class, 'index'])->name('sessions.index');
         Route::post('/sesi-absen/buat', [SolatSessionController::class, 'generate'])->name('sessions.generate');

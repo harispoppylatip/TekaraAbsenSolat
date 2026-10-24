@@ -104,7 +104,6 @@
             <div data-camera data-endpoint="{{ route('attendance.wajah.scan') }}" data-interval="2000">
                 <div class="camera-frame">
                     <video data-camera-video playsinline muted hidden></video>
-                    <img data-camera-cctv-img alt="Siaran CCTV" style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;" aria-hidden="true">
                     {{-- Kamvas gambar biasa dipakai untuk memotret; kanvas lapisan dipakai
                          menggambar kotak dan nama setiap wajah di atas gambarnya. --}}
                     <canvas data-camera-canvas></canvas>
@@ -118,22 +117,8 @@
                     <div class="field">
                         <label class="field-label" for="kamera-pilihan">Kamera yang dipakai</label>
                         <select class="select-field" id="kamera-pilihan" data-camera-facing>
-                            <optgroup label="Arah kamera peramban" data-facing-group>
-                                <option value="facing:user">Kamera depan</option>
-                                <option value="facing:environment">Kamera belakang</option>
-                            </optgroup>
-                            @if (isset($activeCameras) && $activeCameras->isNotEmpty())
-                                <optgroup label="Kamera CCTV (Stream / RTSP)" data-cctv-group>
-                                    @foreach ($activeCameras as $cam)
-                                        <option value="cctv:{{ $cam->id }}"
-                                            data-cam-type="{{ $cam->stream_type }}"
-                                            data-cam-stream="{{ route('cameras.stream', $cam) }}"
-                                            data-cam-snapshot="{{ route('cameras.snapshot', $cam) }}">
-                                            {{ $cam->name }} ({{ $cam->isRtsp() ? 'RTSP' : 'Web Stream' }}{{ $cam->location ? ' - ' . $cam->location : '' }})
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            @endif
+                            <option value="facing:user">Kamera depan</option>
+                            <option value="facing:environment">Kamera belakang</option>
                         </select>
                     </div>
 

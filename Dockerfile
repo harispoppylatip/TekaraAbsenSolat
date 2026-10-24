@@ -85,7 +85,7 @@ RUN composer install \
 # ---------------------------------------------------------------------------
 FROM php:8.5-fpm-alpine AS app
 
-RUN apk update && apk upgrade --no-cache && apk add --no-cache su-exec tzdata
+RUN apk update && apk upgrade --no-cache && apk add --no-cache su-exec tzdata ffmpeg
 
 # Yang dipasang hanya pdo_mysql, pcntl, dan bila perlu mbstring serta curl.
 # opcache, pdo_sqlite, dan sqlite3 sudah ada di dalam citra.
@@ -108,6 +108,7 @@ RUN set -eux; \
     php -r 'exit(in_array("mysql", PDO::getAvailableDrivers(), true) ? 0 : 1);' || { echo "pdo_mysql tidak siap"; exit 1; }; \
     php -r 'exit(function_exists("pcntl_fork") ? 0 : 1);' || { echo "pcntl tidak siap"; exit 1; }; \
     php -r 'exit(function_exists("curl_init") ? 0 : 1);' || { echo "curl tidak siap"; exit 1; }; \
+    ffmpeg -version >/dev/null 2>&1 || { echo "ffmpeg tidak siap"; exit 1; }; \
     echo 'Pemeriksaan PHP, ekstensi, dan driver basis data lulus.'
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-absen-solat.ini
@@ -130,6 +131,7 @@ RUN set -eux; \
     mkdir -p \
         storage/app/private \
         storage/app/public \
+        storage/app/cctv \
         storage/framework/cache/data \
         storage/framework/sessions \
         storage/framework/views \

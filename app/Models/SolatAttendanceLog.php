@@ -59,6 +59,14 @@ class SolatAttendanceLog extends Model
             return false;
         }
 
+        if ($this->proof_photo_path !== null && $this->proof_photo_path !== '') {
+            return false;
+        }
+
+        if (str_starts_with($this->device_id, 'cctv-') || str_starts_with($this->device_id, 'kamera-')) {
+            return false;
+        }
+
         $cameraDevices = array_filter([
             config('solat.device_id', 'kamera-wajah'),
             config('face.device_id', 'kamera-wajah'),

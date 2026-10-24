@@ -21,6 +21,7 @@ cd /var/www/html
 mkdir -p \
     storage/app/private \
     storage/app/public \
+    storage/app/cctv \
     storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/views \

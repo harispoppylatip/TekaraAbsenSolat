@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Camera;
 use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Services\FaceEncodingService;
@@ -36,10 +35,6 @@ class AttendanceController extends Controller
                 ->with(['user', 'session'])
                 ->latest('scanned_at')
                 ->limit(10)
-                ->get(),
-            'activeCameras' => Camera::query()
-                ->active()
-                ->orderBy('name')
                 ->get(),
         ]);
     }

@@ -28,3 +28,4 @@ Thumbs.db
 RAB.md
 *.rab.md
 proposal-*.md
+/bin/go2rtc/

@@ -2,25 +2,45 @@
 
 namespace App\Http\Controllers;
 
+use App\Console\Commands\CctvAutoScanCommand;
 use App\Models\Camera;
+use App\Models\SolatAttendanceLog;
 use App\Services\CameraStreamService;
+use App\Services\SolatAttendanceService;
+use App\Services\SolatSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CameraController extends Controller
 {
     /**
-     * Tampilkan daftar kamera siaran (CCTV RTSP dan Web Stream).
+     * Tampilkan pemantau siaran CCTV dan daftar kamera.
      */
-    public function index(): View
+    public function index(Request $request, SolatSessionService $sessions, CameraStreamService $streamService): View
     {
         $cameras = Camera::query()
             ->latest()
             ->get();
+
+        $selectedCameraId = $request->query('kamera');
+        $selectedCamera = null;
+
+        if ($selectedCameraId) {
+            $selectedCamera = $cameras->firstWhere('id', (int) $selectedCameraId);
+        }
+
+        if ($selectedCamera === null) {
+            $selectedCamera = $cameras->firstWhere('is_active', true) ?: $cameras->first();
+        }
+
+        if ($selectedCamera !== null && $selectedCamera->isRtsp()) {
+            $streamService->ensureGo2RtcStream($selectedCamera);
+        }
 
         $stats = [
             'total' => $cameras->count(),
@@ -34,17 +54,31 @@ class CameraController extends Controller
             Camera::TypeRtsp => 'RTSP CCTV (Kamera Biasa)',
         ];
 
+        $recent = SolatAttendanceLog::query()
+            ->with(['user', 'session'])
+            ->latest('scanned_at')
+            ->limit(10)
+            ->get();
+
+        $workerStatus = Cache::get(CctvAutoScanCommand::CacheKey);
+        $isWorkerActive = ! empty($workerStatus['running']) && (now()->timestamp - ($workerStatus['last_beat'] ?? 0) <= 25);
+
         return view('cameras.index', [
             'cameras' => $cameras,
+            'selectedCamera' => $selectedCamera,
             'stats' => $stats,
             'types' => $types,
+            'activeSession' => $sessions->activeSession(),
+            'testSession' => $sessions->testSession(),
+            'recent' => $recent,
+            'isWorkerActive' => $isWorkerActive,
         ]);
     }
 
     /**
      * Simpan kamera siaran baru ke sistem.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, CameraStreamService $streamService): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -62,10 +96,14 @@ class CameraController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
-        Camera::create($validated);
+        $camera = Camera::create($validated);
+
+        if ($camera->isRtsp()) {
+            $streamService->ensureGo2RtcStream($camera);
+        }
 
         return redirect()
-            ->route('cameras.index')
+            ->route('cameras.index', ['kamera' => $camera->id])
             ->with('status', 'Kamera ' . $validated['name'] . ' berhasil ditambahkan.');
     }
 
@@ -88,7 +126,7 @@ class CameraController extends Controller
     /**
      * Perbarui data kamera siaran.
      */
-    public function update(Request $request, Camera $camera): RedirectResponse
+    public function update(Request $request, Camera $camera, CameraStreamService $streamService): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -108,8 +146,12 @@ class CameraController extends Controller
 
         $camera->update($validated);
 
+        if ($camera->isRtsp()) {
+            $streamService->ensureGo2RtcStream($camera);
+        }
+
         return redirect()
-            ->route('cameras.index')
+            ->route('cameras.index', ['kamera' => $camera->id])
             ->with('status', 'Data kamera ' . $camera->name . ' berhasil diperbarui.');
     }
 
@@ -165,6 +207,10 @@ class CameraController extends Controller
      */
     public function snapshot(Camera $camera, CameraStreamService $service): Response
     {
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         $image = $service->captureSnapshot($camera);
 
         if ($image === null) {
@@ -185,6 +231,84 @@ class CameraController extends Controller
      */
     public function stream(Camera $camera, CameraStreamService $service): StreamedResponse
     {
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         return $service->streamResponse($camera);
+    }
+
+    /**
+     * Terima satu cuplikan potret dari pemantau CCTV, lalu periksa seluruh wajah
+     * yang terlihat untuk dicatat kehadirannya secara otomatis.
+     */
+    public function scan(Request $request, Camera $camera, SolatAttendanceService $attendance): JsonResponse
+    {
+        $request->validate([
+            'photo' => ['required', 'image', 'max:5120'],
+        ], [
+            'photo.required' => 'Cuplikan potret tidak diterima.',
+            'photo.image' => 'Berkas potret bukan gambar valid.',
+            'photo.max' => 'Ukuran potret maksimal 5 MB.',
+        ]);
+
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
+        $path = $request->file('photo')->getRealPath();
+        $contents = $path !== false ? file_get_contents($path) : false;
+
+        if ($contents === false) {
+            return response()->json(['error' => 'Foto tidak terbaca'], 422);
+        }
+
+        $deviceId = 'cctv-' . $camera->id;
+        $result = $attendance->recordFacesFromImage($contents, $deviceId, now(), allowTestSession: true);
+
+        Cache::put('cctv_last_scan_' . $camera->id, [
+            'faces' => $result['faces'] ?? [],
+            'width' => $result['width'] ?? 1920,
+            'height' => $result['height'] ?? 1080,
+            'timestamp' => now()->timestamp,
+        ], 12);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Ambil daftar riwayat log absen terakhir untuk pembaruan realtime di layar CCTV.
+     */
+    public function logs(Camera $camera, \App\Services\SolatProofService $proofs): JsonResponse
+    {
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
+        $recent = SolatAttendanceLog::query()
+            ->with(['user', 'session'])
+            ->latest('scanned_at')
+            ->limit(10)
+            ->get()
+            ->map(function (SolatAttendanceLog $log) use ($proofs) {
+                return [
+                    'name' => $log->user?->name ?? 'Anggota',
+                    'identity' => $log->user?->class_name ?: $log->user?->roleLabel(),
+                    'time' => $log->scanned_at?->format('H:i:s'),
+                    'session' => $log->session?->prayerLabel() ?? 'Uji Coba',
+                    'status' => $log->statusLabel(),
+                    'proof_photo_url' => $proofs->url($log),
+                ];
+            });
+
+        $workerStatus = Cache::get(CctvAutoScanCommand::CacheKey);
+        $isWorkerActive = ! empty($workerStatus['running']) && (now()->timestamp - ($workerStatus['last_beat'] ?? 0) <= 25);
+        $lastScan = Cache::get('cctv_last_scan_' . $camera->id);
+
+        return response()->json([
+            'logs' => $recent,
+            'worker_active' => $isWorkerActive,
+            'last_scan' => $lastScan,
+        ]);
     }
 }

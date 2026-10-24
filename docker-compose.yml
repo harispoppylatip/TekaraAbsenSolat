@@ -85,6 +85,7 @@ x-app-lingkungan: &app-lingkungan
     # Di dalam wadah, 127.0.0.1 menunjuk wadah itu sendiri; nilai dari .env
     # diganti supaya mesin wajah di komputer induk tetap bisa dipanggil.
     FACE_SERVICE_URL: ${FACE_SERVICE_URL_DOCKER:-http://host.docker.internal:5005}
+    GO2RTC_URL: ${GO2RTC_URL_DOCKER:-http://go2rtc:1984}
 
 x-app-wadah: &app-wadah
     build:
@@ -252,6 +253,49 @@ services:
             timeout: 10s
             retries: 5
             start_period: 60s
+        networks:
+            - absen
+
+    # -------------------------------------------------------------------------
+    # Pemindai CCTV di latar belakang (Headless Background Worker)
+    #
+    # Mengambil frame dari kamera CCTV aktif dan mencatat absensi wajah jamaah
+    # secara otomatis saat sesi solat terbuka tanpa perlu membuka web.
+    # -------------------------------------------------------------------------
+    cctv:
+        <<: *app-wadah
+        container_name: absen-solat-cctv
+        command:
+            - php
+            - artisan
+            - cctv:auto-scan
+            - --interval=2
+        healthcheck:
+            test:
+                ["CMD-SHELL", "php artisan --version >/dev/null 2>&1 || exit 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 60s
+        networks:
+            - absen
+            - wajah
+
+    # -------------------------------------------------------------------------
+    # go2rtc (Penerus Siaran RTSP ke WebRTC / MSE WebSocket tanpa beban CPU)
+    # -------------------------------------------------------------------------
+    go2rtc:
+        image: alexxit/go2rtc:latest
+        container_name: absen-solat-go2rtc
+        restart: unless-stopped
+        ports:
+            - "1984:1984"
+            - "18555:18555/tcp"
+            - "18555:18555/udp"
+        volumes:
+            - ./docker/go2rtc/go2rtc.yaml:/config/go2rtc.yaml
+        extra_hosts:
+            - host.docker.internal:host-gateway
         networks:
             - absen
 

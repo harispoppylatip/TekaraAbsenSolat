@@ -71,7 +71,7 @@ class FaceMatcherService
      * @param  array<int, mixed>  $embedding
      * @return array{status: string, user: User|null, distance: float|null, closest: float|null, photos: int, runner_up: User|null, runner_up_distance: float|null, margin: float|null, reason: string|null, skipped: int}
      */
-    public function match(array $embedding): array
+    public function match(array $embedding, ?float $customTolerance = null): array
     {
         $this->skipped = 0;
 
@@ -86,6 +86,27 @@ class FaceMatcherService
         }
 
         $candidates = $this->rank($groups);
+        $effectiveTolerance = $customTolerance ?? $this->tolerance();
+
+        // Bila akun Admin dan akun Anggota biasa milik orang yang sama sama-sama
+        // masuk dalam jangkauan toleransi, utamakan akun Anggota agar tidak saling
+        // menggagalkan sebagai wajah ambigu.
+        if (count($candidates) >= 2) {
+            $first = $candidates[0];
+            $second = $candidates[1];
+            if (
+                $first['distance'] <= $effectiveTolerance
+                && $second['distance'] <= $effectiveTolerance
+                && ($second['distance'] - $first['distance']) < $this->minMargin()
+                && ($first['user']->role === User::RoleAdmin) !== ($second['user']->role === User::RoleAdmin)
+            ) {
+                $candidates = array_values(array_filter(
+                    $candidates,
+                    static fn (array $c): bool => $c['user']->role !== User::RoleAdmin
+                ));
+            }
+        }
+
         $top = $candidates[0];
         $runnerUp = $candidates[1] ?? null;
 
@@ -93,7 +114,7 @@ class FaceMatcherService
         // menilai tidak punya foto pendukung, jadi jaraknya wajib lebih dekat.
         $limit = $top['photos'] < $this->aggregatePhotos()
             ? $this->singlePhotoTolerance()
-            : $this->tolerance();
+            : $effectiveTolerance;
 
         if ($top['distance'] > $limit) {
             return $this->refusal(self::StatusUnknown, self::ReasonAboveTolerance, $top, $runnerUp);
@@ -103,7 +124,7 @@ class FaceMatcherService
 
         // Anggota kedua hanya berarti bila jaraknya juga masih masuk akal.
         // Kalau dia jauh, juara pertama memang tidak ada saingannya.
-        if ($margin !== null && $runnerUp['distance'] <= $this->tolerance() && $margin < $this->minMargin()) {
+        if ($margin !== null && $runnerUp['distance'] <= $effectiveTolerance && $margin < $this->minMargin()) {
             return [
                 'status' => self::StatusAmbiguous,
                 'user' => null,
