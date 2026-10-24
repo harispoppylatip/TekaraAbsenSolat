@@ -5,7 +5,7 @@
 
 @section('content')
     <div>
-        <section class="stats-grid">
+        <section class="stats-grid cctv-stats-grid">
             <div class="stat-card">
                 <p class="stat-label">Total kamera CCTV</p>
                 <p class="stat-value">{{ $stats['total'] }}</p>
@@ -29,7 +29,7 @@
         @if ($selectedCamera)
             <div class="scan-layout" style="margin-top: 8px;">
                 <section class="card">
-                    <div class="section-head">
+                    <div class="section-head cctv-section-head">
                         <div>
                             <h2 class="section-title">Pemantau CCTV: {{ $selectedCamera->name }}</h2>
                             <p class="section-note">
@@ -52,9 +52,8 @@
                     </div>
 
                     @if ($isWorkerActive)
-                        <div class="alert alert-success" style="margin-bottom: 14px;">
-                            <strong>Pemindai server latar belakang sedang berjalan</strong>
-                            <p>Layanan background worker (<code>php artisan cctv:auto-scan</code>) aktif memindai CCTV dan mencatat kehadiran tanpa perlu membuka peramban.</p>
+                        <div class="alert alert-success" style="margin-bottom: 12px; padding: 10px 14px;">
+                            <strong style="display: block;">Pemindai server latar belakang sedang berjalan</strong>
                         </div>
                     @endif
 
@@ -66,7 +65,7 @@
                         data-scan-endpoint="{{ route('cameras.scan', $selectedCamera) }}"
                         data-logs-url="{{ route('cameras.logs', $selectedCamera) }}">
 
-                        <div class="camera-frame" style="position: relative; background: #0b0f19; aspect-ratio: 16 / 9; min-height: 320px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px;">
+                        <div class="camera-frame cctv-frame" style="position: relative; background: #0b0f19; aspect-ratio: 16 / 9; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px;">
                             <video id="cctv-video" playsinline muted autoplay style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
                             <img id="cctv-img" alt="Siaran CCTV" style="width: 100%; height: 100%; object-fit: contain; display: none;">
                             <canvas id="cctv-canvas" style="display: none;"></canvas>
@@ -78,8 +77,8 @@
                             </div>
                         </div>
 
-                        <div class="camera-controls" style="margin-top: 16px;">
-                            <div class="form-actions" style="margin-top: 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <div class="camera-controls" style="margin-top: 14px;">
+                            <div class="form-actions cctv-controls-actions" style="margin-top: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                                 <button class="btn btn-primary" type="button" id="btn-toggle-scanner">
                                     Aktifkan pemindai wajah
                                 </button>
@@ -999,4 +998,58 @@
             }
         });
     </script>
+
+    <style>
+        @media (max-width: 680px) {
+            .cctv-stats-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 8px !important;
+                margin-bottom: 12px !important;
+            }
+            .cctv-stats-grid .stat-card {
+                padding: 10px 10px !important;
+            }
+            .cctv-stats-grid .stat-label {
+                font-size: 11px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                line-height: 1.2 !important;
+            }
+            .cctv-stats-grid .stat-value {
+                font-size: 20px !important;
+                margin-top: 2px !important;
+            }
+            .cctv-stats-grid .stat-note {
+                display: none !important;
+            }
+            .cctv-section-head {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+            }
+            .cctv-section-head .field {
+                width: 100% !important;
+            }
+            .cctv-section-head .select-field {
+                width: 100% !important;
+            }
+            .cctv-controls-actions {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+            }
+            .cctv-controls-actions #btn-toggle-scanner {
+                grid-column: 1 / -1 !important;
+            }
+            .cctv-controls-actions .btn {
+                width: 100% !important;
+                justify-content: center !important;
+                text-align: center !important;
+                font-size: 13px !important;
+                padding: 10px 8px !important;
+                white-space: nowrap !important;
+            }
+        }
+    </style>
 @endsection

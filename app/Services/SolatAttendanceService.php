@@ -66,6 +66,7 @@ class SolatAttendanceService
         private FaceMatcherService $matcher,
         private SolatSessionService $sessions,
         private SolatProofService $proofs,
+        private ProofOverlayService $overlays,
     ) {}
 
     /**
@@ -120,7 +121,6 @@ class SolatAttendanceService
         // ditunda sampai ada catatan yang benar benar lahir: kalau tidak ada satu
         // pun wajah yang lolos, tidak boleh ada berkas yang tertinggal tanpa
         // catatan.
-        $this->sharedProof = $this->sharedProofProvider($detected['photo'], $session, $at);
         $faces = [];
         $isCctv = $deviceId !== null && str_starts_with($deviceId, 'cctv-');
         $minFaceSize = $isCctv
@@ -130,19 +130,193 @@ class SolatAttendanceService
             ? (float) config('face.cctv_tolerance', 1.15)
             : null;
 
-        try {
-            foreach ($detected['faces'] as $face) {
-                $faces[] = $this->judgeFace(
-                    face: $face,
-                    minFaceSize: $minFaceSize,
-                    session: $session,
-                    deviceId: $deviceId,
-                    at: $at,
-                    customTolerance: $customTolerance,
-                );
+        $srcW = (int) ($detected['width'] ?? 0);
+        $srcH = (int) ($detected['height'] ?? 0);
+        $moment = $at !== null ? Carbon::parse($at) : Carbon::now();
+
+        // Tahap 1: Evaluasi seluruh wajah di dalam frame sebelum foto bukti disimpan.
+        // Dengan cara ini, semua kotak pendeteksi wajah dan nama jamaah sudah lengkap
+        // saat anotasi foto bukti digambar.
+        $evaluated = [];
+        $hasRecordCandidate = false;
+
+        foreach ($detected['faces'] as $idx => $face) {
+            $box = [
+                'top' => (int) $face['top'],
+                'right' => (int) $face['right'],
+                'bottom' => (int) $face['bottom'],
+                'left' => (int) $face['left'],
+            ];
+
+            if (($face['encoding'] ?? null) === null) {
+                $evaluated[$idx] = [
+                    'type' => 'no_face',
+                    'box' => $box,
+                    'label' => self::LabelUnknown,
+                    'status' => self::StatusNoFace,
+                    'display' => 'Wajah tak jelas',
+                    'detail' => 'Belum terdaftar',
+                    'distance' => null,
+                ];
+                continue;
             }
-        } finally {
-            $this->sharedProof = null;
+
+            if ($minFaceSize > 0 && (int) ($face['face_size'] ?? 0) > 0 && (int) $face['face_size'] < $minFaceSize) {
+                $evaluated[$idx] = [
+                    'type' => 'face_too_small',
+                    'box' => $box,
+                    'label' => self::LabelUnknown,
+                    'status' => self::StatusFaceTooSmall,
+                    'display' => 'Dekatkan wajah',
+                    'detail' => 'Dekatkan wajah',
+                    'distance' => null,
+                ];
+                continue;
+            }
+
+            $match = $this->matcher->match($face['encoding'], $customTolerance);
+
+            if ($match['status'] === FaceMatcherService::StatusAmbiguous) {
+                $evaluated[$idx] = [
+                    'type' => 'ambiguous',
+                    'box' => $box,
+                    'label' => self::LabelUnknown,
+                    'status' => self::StatusAmbiguous,
+                    'display' => 'Belum pasti',
+                    'detail' => 'Ulangi pindai',
+                    'distance' => $match['distance'],
+                ];
+                continue;
+            }
+
+            if ($match['status'] !== FaceMatcherService::StatusMatched || $match['user'] === null) {
+                $evaluated[$idx] = [
+                    'type' => 'unknown',
+                    'box' => $box,
+                    'label' => self::LabelUnknown,
+                    'status' => self::StatusUnknown,
+                    'display' => 'Belum terdaftar',
+                    'detail' => 'Belum terdaftar',
+                    'distance' => $match['distance'],
+                ];
+                continue;
+            }
+
+            /** @var User $user */
+            $user = $match['user'];
+
+            $existing = SolatAttendanceLog::query()
+                ->where('solat_session_id', $session->id)
+                ->where('user_id', $user->id)
+                ->first();
+
+            $willRecord = false;
+            $statusStr = '';
+            $displayStr = '';
+
+            if ($existing !== null) {
+                if ($session->isTest()) {
+                    $left = $this->cooldownLeft($existing, $moment);
+                    if ($left !== null) {
+                        $statusStr = self::StatusDuplicate;
+                        $displayStr = 'Tunggu '.$left.' menit';
+                    } else {
+                        $willRecord = true;
+                        $statusForSess = $this->statusFor($session, $moment);
+                        $statusStr = $statusForSess === SolatAttendanceLog::StatusTerlambat ? self::StatusLate : self::StatusRecorded;
+                        $displayStr = $statusForSess === SolatAttendanceLog::StatusTerlambat ? 'Terlambat' : 'Uji coba OK';
+                    }
+                } else {
+                    $statusStr = self::StatusDuplicate;
+                    $displayStr = 'Sudah absen';
+                }
+            } else {
+                $willRecord = true;
+                $statusForSess = $this->statusFor($session, $moment);
+                $statusStr = $statusForSess === SolatAttendanceLog::StatusTerlambat ? self::StatusLate : self::StatusRecorded;
+                $displayStr = $statusForSess === SolatAttendanceLog::StatusTerlambat ? 'Terlambat' : 'Absen tersimpan';
+            }
+
+            if ($willRecord) {
+                $hasRecordCandidate = true;
+            }
+
+            $evaluated[$idx] = [
+                'type' => 'matched',
+                'user' => $user,
+                'box' => $box,
+                'label' => $user->name,
+                'status' => $statusStr,
+                'display' => $displayStr,
+                'detail' => (string) $user->identifier_number,
+                'distance' => $match['distance'],
+                'will_record' => $willRecord,
+            ];
+        }
+
+        // Susun daftar wajah untuk anotasi gambar bukti
+        $facesForOverlay = [];
+        foreach ($evaluated as $item) {
+            $facesForOverlay[] = [
+                'box' => $item['box'],
+                'label' => $item['label'],
+                'status' => $item['status'],
+                'display_message' => $item['display'],
+                'attendance' => [
+                    'recorded' => $item['will_record'] ?? false,
+                    'status' => $item['status'],
+                    'display_message' => $item['display'],
+                ],
+                'member' => isset($item['user']) ? [
+                    'id' => $item['user']->getKey(),
+                    'name' => $item['user']->name,
+                ] : null,
+            ];
+        }
+
+        // Jika ada yang perlu dicatat atau diperbarui, bubuhi anotasi lalu simpan sekali
+        $sharedProofPath = null;
+        if ($hasRecordCandidate && ! empty($detected['photo'])) {
+            $annotatedPhoto = $this->overlays->annotate($detected['photo'], $facesForOverlay, $srcW, $srcH);
+            $sharedProofPath = $this->keepProofTanpaBersama($annotatedPhoto, $session, $moment);
+        }
+
+        // Tahap 2: Catat kehadiran ke basis data dengan foto bukti bersama yang sudah tersimpan
+        foreach ($evaluated as $item) {
+            if ($item['type'] !== 'matched') {
+                $faces[] = $this->faceReport(
+                    box: $item['box'],
+                    label: $item['label'],
+                    status: $item['status'],
+                    display: $item['display'],
+                    detail: $item['detail'],
+                    distance: $item['distance'],
+                );
+                continue;
+            }
+
+            $user = $item['user'];
+            $result = $this->record(
+                user: $user,
+                session: $session,
+                distance: $item['distance'],
+                deviceId: $deviceId,
+                at: $moment,
+                proofPath: $sharedProofPath,
+            );
+
+            $faces[] = $this->faceReport(
+                box: $item['box'],
+                label: $user->name,
+                status: (string) $result['status'],
+                display: (string) $result['display_message'],
+                detail: (string) $user->identifier_number,
+                distance: $item['distance'],
+                user: $user,
+                recorded: (bool) $result['ok'],
+                logId: $result['log'] === null ? null : (int) $result['log']->getKey(),
+                message: (string) $result['message'],
+            );
         }
 
         $recorded = count(array_filter($faces, static fn (array $face): bool => $face['attendance']['recorded'] === true));
@@ -700,14 +874,22 @@ class SolatAttendanceService
      *
      * @return \Closure(): ?string
      */
-    private function sharedProofProvider(?string $photo, SolatSession $session, ?CarbonInterface $at): \Closure
-    {
+    private function sharedProofProvider(
+        ?string $photo,
+        SolatSession $session,
+        ?CarbonInterface $at,
+        ?\Closure $annotator = null
+    ): \Closure {
         $tersimpan = false;
         $path = null;
 
-        return function () use (&$tersimpan, &$path, $photo, $session, $at): ?string {
+        return function () use (&$tersimpan, &$path, $photo, $session, $at, $annotator): ?string {
             if (! $tersimpan) {
-                $path = $this->keepProofTanpaBersama($photo, $session, $at);
+                $finalPhoto = $photo;
+                if ($finalPhoto !== null && $annotator !== null) {
+                    $finalPhoto = $annotator($finalPhoto);
+                }
+                $path = $this->keepProofTanpaBersama($finalPhoto, $session, $at);
                 $tersimpan = true;
             }
 

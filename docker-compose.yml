@@ -86,6 +86,8 @@ x-app-lingkungan: &app-lingkungan
     # diganti supaya mesin wajah di komputer induk tetap bisa dipanggil.
     FACE_SERVICE_URL: ${FACE_SERVICE_URL_DOCKER:-http://host.docker.internal:5005}
     GO2RTC_URL: ${GO2RTC_URL_DOCKER:-http://go2rtc:1984}
+    FACE_CCTV_TOLERANCE: ${FACE_CCTV_TOLERANCE:-1.15}
+    FACE_CCTV_MIN_FACE_SIZE: ${FACE_CCTV_MIN_FACE_SIZE:-40}
 
 x-app-wadah: &app-wadah
     build:

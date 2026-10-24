@@ -87,15 +87,16 @@ FROM php:8.5-fpm-alpine AS app
 
 RUN apk update && apk upgrade --no-cache && apk add --no-cache su-exec tzdata ffmpeg
 
-# Yang dipasang hanya pdo_mysql, pcntl, dan bila perlu mbstring serta curl.
+# Yang dipasang hanya pdo_mysql, pcntl, gd, dan bila perlu mbstring serta curl.
 # opcache, pdo_sqlite, dan sqlite3 sudah ada di dalam citra.
 RUN set -eux; \
-    apk add --no-cache --virtual .bangun $PHPIZE_DEPS oniguruma-dev curl-dev; \
+    apk add --no-cache --virtual .bangun $PHPIZE_DEPS oniguruma-dev curl-dev libpng-dev libjpeg-turbo-dev freetype-dev; \
     if ! php -m | grep -qix mbstring; then docker-php-ext-install -j"$(nproc)" mbstring; fi; \
     if ! php -m | grep -qix curl; then docker-php-ext-install -j"$(nproc)" curl; fi; \
-    docker-php-ext-install -j"$(nproc)" pdo_mysql pcntl; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg; \
+    docker-php-ext-install -j"$(nproc)" pdo_mysql pcntl gd; \
     apk del .bangun; \
-    apk add --no-cache libcurl oniguruma
+    apk add --no-cache libcurl oniguruma libpng libjpeg-turbo freetype ttf-dejavu
 
 # Penjaga: pembangunan berhenti lebih awal bila PHP terlalu tua atau ada
 # ekstensi yang hilang, bukan setelah wadah berjalan lalu mati diam-diam.

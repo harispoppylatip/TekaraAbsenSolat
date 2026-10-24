@@ -6,6 +6,7 @@ use App\Models\Device;
 use App\Models\FaceEmbedding;
 use App\Models\FacePhotoUpload;
 use App\Models\Fingerprint;
+use App\Models\Setting;
 use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Models\User;
@@ -44,7 +45,23 @@ class SettingController extends Controller
             'deviceCount' => Device::query()->count(),
             'photoFileCount' => $storageSummary['file_count'],
             'photoTotalBytes' => $storageSummary['total_bytes'],
+            'proofOverlayEnabled' => Setting::proofOverlayEnabled(),
         ]);
+    }
+
+    /**
+     * Perbarui opsi penyimpanan foto bukti absen beranotasi kotak wajah.
+     */
+    public function updateProofOverlay(Request $request): RedirectResponse
+    {
+        $enabled = $request->boolean('proof_box_overlay', false);
+        Setting::set(Setting::KeyProofBoxOverlay, $enabled);
+
+        $message = $enabled
+            ? 'Pengaturan diperbarui: Foto bukti absen kini menyertakan kotak pendeteksi dan label nama hasil pemindaian wajah.'
+            : 'Pengaturan diperbarui: Foto bukti absen kini disimpan tanpa kotak/label nama (foto polos).';
+
+        return back()->with('status', $message);
     }
 
     /**

@@ -10,6 +10,41 @@
             : number_format(max($photoTotalBytes / 1024, 0), 1, ',', '.').' KB';
     @endphp
 
+    {{-- Pengaturan Foto Bukti Absensi --}}
+    <section class="card" style="margin-bottom: 24px;">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Foto Bukti Pemindaian Wajah</h2>
+                <p class="section-note">
+                    Atur apakah foto bukti absensi yang disimpan sistem menyertakan kotak pendeteksi wajah dan label nama jamaah.
+                </p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ route('settings.proof-overlay') }}">
+            @csrf
+            @method('PUT')
+
+            <div class="field" style="margin-bottom: 18px;">
+                <label class="checkbox-row" for="proof_box_overlay" style="cursor: pointer; align-items: flex-start; gap: 12px;">
+                    <input type="checkbox" id="proof_box_overlay" name="proof_box_overlay" value="1" @checked($proofOverlayEnabled) style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer;">
+                    <div>
+                        <strong style="display: block; font-size: 14.5px; color: var(--on-surface);">Sertakan kotak dan label nama pada foto bukti absen</strong>
+                        <p class="field-hint" style="margin-top: 4px; color: var(--on-surface-variant); font-size: 13px; line-height: 1.5;">
+                            Saat opsi ini aktif, setiap foto bukti yang disimpan (baik dari siaran CCTV latar belakang maupun pemindai kamera petugas) akan otomatis dibubuhi kotak hijau/oranye serta label 2 baris nama anggota dan status kehadiran persis seperti yang terlihat di layar.
+                        </p>
+                    </div>
+                </label>
+            </div>
+
+            <div class="form-actions" style="margin-top: 14px;">
+                <button class="btn btn-primary" type="submit">
+                    Simpan Pengaturan Foto Bukti
+                </button>
+            </div>
+        </form>
+    </section>
+
     <section class="card">
         <div class="section-head">
             <div>
