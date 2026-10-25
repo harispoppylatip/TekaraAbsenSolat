@@ -46,29 +46,51 @@ class EnrollmentController extends Controller
     public function store(
         FaceEnrollmentUploadRequest $request,
         StudentEnrollmentService $enrollment,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $user = $request->user();
 
         if (($terkunci = $this->locked($user, $enrollment)) !== null) {
-            return $terkunci;
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => StudentEnrollmentService::LockedMessage,
+                ], 403);
+            }
+
+            return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('error', StudentEnrollmentService::LockedMessage);
         }
 
         // Dua proses berjalan bersamaan pada satu akun membuat pemeriksaan foto
         // kembar tidak bisa melihat foto kiriman yang lain, dan pemiliknya
         // melihat kemajuan yang tercampur dari dua kelompok berbeda.
         if ($enrollment->hasPending($user)) {
-            return back()->with('error', 'Foto Anda sebelumnya masih diproses. Tunggu sampai selesai, lalu kirim foto berikutnya.');
+            $msg = 'Foto Anda sebelumnya masih diproses. Tunggu sampai selesai, lalu kirim foto berikutnya.';
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $msg,
+                ], 422);
+            }
+
+            return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('error', $msg);
         }
 
         $replace = $request->boolean('replace');
         $result = $enrollment->submit($user, $request->file('photos') ?? [], $replace);
 
-        return back()->with(
-            'status',
-            $result['count'].' foto diterima dan sedang diperiksa. '
+        $message = $result['count'].' foto diterima dan sedang diperiksa. '
             .'Buka halaman ini lagi sebentar untuk melihat hasilnya. '
-            .($replace ? 'Setelah seluruh fotonya lolos, foto lama Anda diganti dengan yang baru.' : ''),
-        );
+            .($replace ? 'Setelah seluruh fotonya lolos, foto lama Anda diganti dengan yang baru.' : '');
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'count' => $result['count'],
+            ]);
+        }
+
+        return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('status', $message);
     }
 
     /**
@@ -140,10 +162,10 @@ class EnrollmentController extends Controller
         }
 
         if (! $enrollment->removePhoto($request->user(), $faceEmbedding)) {
-            return back()->with('error', 'Foto itu bukan milik akun Anda.');
+            return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('error', 'Foto itu bukan milik akun Anda.');
         }
 
-        return back()->with('status', 'Satu foto wajah Anda dihapus.');
+        return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('status', 'Satu foto wajah Anda dihapus.');
     }
 
     /**
@@ -158,10 +180,10 @@ class EnrollmentController extends Controller
         $jumlah = $enrollment->removeAll($request->user());
 
         if ($jumlah === 0) {
-            return back()->with('error', 'Belum ada foto wajah yang tersimpan di akun Anda.');
+            return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('error', 'Belum ada foto wajah yang tersimpan di akun Anda.');
         }
 
-        return back()->with('status', 'Seluruh foto wajah Anda ('.$jumlah.' foto) dihapus. Silakan mendaftar ulang dari awal.');
+        return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('status', 'Seluruh foto wajah Anda ('.$jumlah.' foto) dihapus. Silakan mendaftar ulang dari awal.');
     }
 
     /**
@@ -179,10 +201,10 @@ class EnrollmentController extends Controller
         $retried = $enrollment->retryBatch($request->user(), $batch);
 
         if ($retried === 0) {
-            return back()->with('error', 'Tidak ada foto yang bisa diulang pada kelompok itu. Foto yang isinya tidak terbaca harus diambil ulang.');
+            return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('error', 'Tidak ada foto yang bisa diulang pada kelompok itu. Foto yang isinya tidak terbaca harus diambil ulang.');
         }
 
-        return back()->with('status', $retried.' foto dimasukkan kembali ke antrean pemeriksaan.');
+        return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('status', $retried.' foto dimasukkan kembali ke antrean pemeriksaan.');
     }
 
     /**

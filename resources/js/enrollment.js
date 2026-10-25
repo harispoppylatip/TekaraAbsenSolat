@@ -15,6 +15,15 @@ const SHOOT_POLL_INTERVAL = 3000;
 
 /* ---------- Menyusun daftar foto yang akan dikirim ---------- */
 
+function scrollToProgressSection() {
+    const el = document.getElementById("kemajuan-pemeriksaan")
+        || document.querySelector("[data-progress-card]")
+        || document.querySelector("[data-live='enrollment']");
+    if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+}
+
 function setupPhotoStaging(form) {
     const input = form.querySelector("[data-shoot-input]");
     const preview = form.querySelector("[data-shoot-preview]");
@@ -64,7 +73,17 @@ function setupPhotoStaging(form) {
             const remove = document.createElement("button");
             remove.type = "button";
             remove.className = "btn btn-small btn-outline";
-            remove.textContent = "Buang";
+            remove.innerHTML = `
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Buang
+            `;
+            remove.style.display = "inline-flex";
+            remove.style.alignItems = "center";
+            remove.style.justifyContent = "center";
+            remove.style.gap = "4px";
             remove.addEventListener("click", () => {
                 staged.splice(index, 1);
                 sync();
@@ -130,6 +149,90 @@ function setupPhotoStaging(form) {
         }
     });
 
+    // Kirim foto melalui AJAX agar halaman TIDAK refresh ke atas,
+    // melainkan tetap di bawah pada area kemajuan pemeriksaan foto.
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (!submit || submit.disabled || busy) {
+            return;
+        }
+
+        if (staged.length === 0) {
+            alert("Belum ada foto yang siap dikirim. Ambil foto terlebih dahulu.");
+            return;
+        }
+
+        const originalHtml = submit.innerHTML;
+        submit.disabled = true;
+        submit.innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                <svg style="animation: spin 1s linear infinite;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                Mengirim foto...
+            </span>
+        `;
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json",
+                },
+                credentials: "same-origin",
+            });
+
+            if (response.ok) {
+                // Foto berhasil diterima server! Kosongkan daftar staged
+                staged.splice(0, staged.length);
+                sync();
+
+                // Matikan kamera agar hemat baterai/performa
+                const stopBtn = form.querySelector("[data-shoot-stop]");
+                if (stopBtn && !stopBtn.disabled) {
+                    stopBtn.click();
+                }
+
+                // Gulir mulus ke bagian kemajuan pemeriksaan di bawah
+                scrollToProgressSection();
+
+                // Picu pembaruan status antrean seketika
+                if (typeof window._triggerQueueCheck === "function") {
+                    window._triggerQueueCheck();
+                }
+            } else {
+                let errorMsg = "Gagal mengirim foto.";
+                try {
+                    const errJson = await response.json();
+                    if (errJson.message) {
+                        errorMsg = errJson.message;
+                    } else if (errJson.errors && Object.values(errJson.errors)[0]) {
+                        errorMsg = Object.values(errJson.errors)[0][0];
+                    }
+                } catch (e) {
+                    // response is not json
+                }
+                alert(errorMsg);
+                submit.disabled = false;
+                submit.innerHTML = originalHtml;
+            }
+        } catch (error) {
+            // Jika ada kesalahan fetch, fallback pengiriman normal
+            form.submit();
+        }
+    });
+
     sync();
 
     return {
@@ -173,7 +276,6 @@ function setupShooter(root, staging) {
     const video = root.querySelector("[data-shoot-video]");
     const startButton = root.querySelector("[data-shoot-start]");
     const stopButton = root.querySelector("[data-shoot-stop]");
-    const shootButton = root.querySelector("[data-shoot-capture]");
     const autoButton = root.querySelector("[data-shoot-auto]");
     const guideOverlay = root.querySelector("[data-shoot-guide]");
     const guideStep = root.querySelector("[data-shoot-guide-step]");
@@ -184,7 +286,7 @@ function setupShooter(root, staging) {
     const status = root.querySelector("[data-shoot-status]");
     const placeholder = root.querySelector("[data-shoot-placeholder]");
 
-    if (!video || !startButton || !shootButton) {
+    if (!video || !startButton) {
         return;
     }
 
@@ -336,9 +438,6 @@ function setupShooter(root, staging) {
 
         updateAutoButtonText();
 
-        if (shootButton) {
-            shootButton.disabled = !stream;
-        }
         if (startButton) {
             startButton.disabled = !!stream;
         }
@@ -358,7 +457,6 @@ function setupShooter(root, staging) {
         }
 
         video.srcObject = null;
-        shootButton.disabled = true;
         updateAutoButtonText();
         stopButton.disabled = true;
         startButton.disabled = false;
@@ -425,7 +523,6 @@ function setupShooter(root, staging) {
             // setelah pengguna menekan layar, jadi ini bukan kegagalan.
         }
 
-        shootButton.disabled = false;
         updateAutoButtonText();
         stopButton.disabled = false;
 
@@ -500,13 +597,6 @@ function setupShooter(root, staging) {
         });
     };
 
-    const captureManual = async () => {
-        const ok = await takeSnapshot();
-        if (ok) {
-            say("Foto diambil. Ambil foto berikutnya dengan sudut yang berbeda.");
-        }
-    };
-
     const runAutoCapture = async () => {
         if (isAutoRunning) {
             stopAuto();
@@ -538,9 +628,6 @@ function setupShooter(root, staging) {
         isAutoRunning = true;
         if (autoButton) {
             autoButton.textContent = "Batal foto otomatis";
-        }
-        if (shootButton) {
-            shootButton.disabled = true;
         }
 
         if (guideOverlay) {
@@ -596,7 +683,6 @@ function setupShooter(root, staging) {
 
     startButton.addEventListener("click", start);
     stopButton.addEventListener("click", stop);
-    shootButton.addEventListener("click", captureManual);
     if (autoButton) {
         autoButton.addEventListener("click", runAutoCapture);
     }
@@ -846,6 +932,7 @@ function setupQueueWatch(form, staging) {
         }
     };
 
+    window._triggerQueueCheck = check;
     check();
     window.setInterval(check, SHOOT_POLL_INTERVAL);
 }
@@ -869,7 +956,7 @@ function setupEnrollment() {
                 }
 
                 root.querySelectorAll(
-                    "[data-shoot-start], [data-shoot-capture]",
+                    "[data-shoot-start]",
                 ).forEach((button) => {
                     button.disabled = true;
                 });
@@ -884,6 +971,10 @@ function setupEnrollment() {
 
         setupQueueWatch(form, staging);
     });
+
+    if (window.location.hash === "#kemajuan-pemeriksaan") {
+        setTimeout(scrollToProgressSection, 300);
+    }
 }
 
 if (document.readyState === "loading") {

@@ -1,0 +1,23 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-BFTNsoLs.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-C_WqVz90.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/enrollment.js": {
+    "file": "assets/enrollment-Bjm1Qa7l.js",
+    "name": "enrollment",
+    "src": "resources/js/enrollment.js",
+    "isEntry": true
+  }
+}
