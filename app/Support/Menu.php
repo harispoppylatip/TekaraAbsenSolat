@@ -72,12 +72,6 @@ class Menu
                     ['label' => 'Pengaturan', 'route' => 'settings.index', 'active' => 'settings.*', 'roles' => [User::RoleAdmin]],
                 ],
             ],
-            [
-                'label' => 'Akun',
-                'items' => [
-                    ['label' => 'Pengaturan Akun', 'route' => 'password.edit', 'active' => 'password.edit', 'roles' => [User::RoleMurid, User::RolePetugas]],
-                ],
-            ],
         ];
 
         $result = [];

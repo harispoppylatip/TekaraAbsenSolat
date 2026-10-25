@@ -73,6 +73,8 @@ class HistoryController extends Controller
             'perPrayer' => $perPrayer,
             'logs' => $reports->memberHistory($user, 15),
             'faceCount' => $user->faceEmbeddings()->count(),
+            'isFaceEnrolled' => $user->hasCompletedEnrollment(),
+            'needsEnrollment' => ! $user->hasCompletedEnrollment() || $user->faceEmbeddings()->count() < 5,
         ]);
     }
 
