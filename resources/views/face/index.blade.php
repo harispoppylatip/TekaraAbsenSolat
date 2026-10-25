@@ -841,7 +841,7 @@
                                                 <div class="member-name-text">{{ $anggota->name }}</div>
                                                 <div class="member-meta-text">
                                                     {{ $anggota->identifier_number ?: 'Tanpa NIS/NIP' }}
-                                                    {{ $anggota->class_name ? ' &middot; Kelas ' . $anggota->class_name : ' &middot; ' . $anggota->roleLabel() }}
+                                                    {{ $anggota->class_name ? ' · Kelas ' . $anggota->class_name : ' · ' . $anggota->roleLabel() }}
                                                 </div>
                                             </div>
                                         </div>
@@ -1006,7 +1006,7 @@
                                             <div style="font-size: 14.5px; font-weight: 700; color: #0f172a;">{{ $member->name }}</div>
                                             <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
                                                 {{ $member->identifier_number ? 'Nomor Induk: ' . $member->identifier_number : $member->roleLabel() }}
-                                                {{ $member->class_name ? ' &middot; Kelas ' . $member->class_name : '' }}
+                                                {{ $member->class_name ? ' · Kelas ' . $member->class_name : '' }}
                                             </div>
                                         </div>
                                     </div>
@@ -1086,24 +1086,31 @@
 
                                         {{-- Aksi Kartu Anggota --}}
                                         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 14px;">
-                                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                                <form method="POST" action="{{ route('face.member.destroy', $member) }}"
-                                                    data-confirm="Hapus seluruh foto wajah {{ $member->name }}? Riwayat absensi dan akun anggota tetap aman.">
+                                            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                                {{-- Tombol 1-Klik: Hapus Semua Foto & Buka Pendaftaran Ulang --}}
+                                                <form method="POST" action="{{ route('face.member.reset-reenroll', $member) }}"
+                                                    data-confirm="Hapus seluruh foto wajah {{ $member->name }} dan langsung buka pendaftaran ulang agar anggota dapat mendaftar dari awal?">
                                                     @csrf
-                                                    @method('DELETE')
-                                                    <button class="btn btn-small btn-danger" type="submit">Hapus Semua Foto</button>
+                                                    <button class="btn btn-small btn-danger" type="submit" style="display: inline-flex; align-items: center; gap: 6px;">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                        </svg>
+                                                        Hapus Semua Foto & Buka Pendaftaran Ulang
+                                                    </button>
                                                 </form>
 
                                                 <a class="btn btn-small btn-outline" href="{{ route('members.edit', $member) }}">Ubah Data Anggota</a>
                                             </div>
 
                                             @if ($hasCompleted)
+                                                {{-- Opsi Buka Pendaftaran Ulang Tetapi Tetap Simpan Foto Lama --}}
                                                 <form method="POST" action="{{ route('face.enrollment.reopen', $member) }}"
-                                                    data-confirm="Buka pendaftaran ulang wajah {{ $member->name }}? Setelah dibuka, anggota dapat mendaftarkan fotonya kembali dari akunnya.">
+                                                    data-confirm="Buka pendaftaran ulang wajah {{ $member->name }} tanpa menghapus foto lamanya? (Foto lama tetap aktif sampai foto baru diverifikasi).">
                                                     @csrf
                                                     @method('PUT')
-                                                    <button class="btn btn-small btn-outline" type="submit" style="color: #2563eb; border-color: #93c5fd;">
-                                                        Buka Pendaftaran Ulang
+                                                    <button class="btn btn-small btn-outline" type="submit" style="color: #2563eb; border-color: #93c5fd;" title="Buka pendaftaran ulang tetapi simpan foto lama">
+                                                        Buka Pendaftaran Saja (Simpan Foto)
                                                     </button>
                                                 </form>
                                             @endif

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FaceEmbedding;
+use App\Models\FacePhotoUpload;
 use App\Models\User;
 use App\Services\FaceEncodingService;
 use App\Services\FaceMatcherService;
@@ -11,6 +12,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class FaceDataController extends Controller
@@ -236,6 +238,33 @@ class FaceDataController extends Controller
         $rows->each->delete();
 
         return back()->with('status', $total.' foto wajah '.$member->name.' dihapus. Anggota dan riwayat absennya tetap ada.');
+    }
+
+    /**
+     * Hapus seluruh foto wajah anggota sekaligus membuka pendaftaran ulang seketika (1-klik).
+     */
+    public function resetAndReenroll(User $member): RedirectResponse
+    {
+        $rows = $member->faceEmbeddings()->get();
+        $total = $rows->count();
+        $rows->each->delete();
+
+        FacePhotoUpload::query()
+            ->where('user_id', $member->id)
+            ->get()
+            ->each(function (FacePhotoUpload $upload): void {
+                if ($upload->path && Storage::disk('local')->exists($upload->path)) {
+                    Storage::disk('local')->delete($upload->path);
+                }
+                $upload->delete();
+            });
+
+        $member->forceFill([
+            'enrollment_status' => User::EnrollmentNeedsReenrollment,
+            'enrolled_at' => null,
+        ])->save();
+
+        return back()->with('status', 'Seluruh foto wajah '.$member->name.' ('.$total.' foto) telah dihapus dan pendaftaran ulang langsung dibuka.');
     }
 
     /**

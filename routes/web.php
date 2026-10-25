@@ -103,6 +103,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/wajah/unggah', [FaceDataController::class, 'store'])->name('face.photos.store');
         Route::delete('/wajah/foto/{faceEmbedding}', [FaceDataController::class, 'destroyPhoto'])->name('face.photos.destroy');
         Route::delete('/wajah/anggota/{member}', [FaceDataController::class, 'destroyMember'])->name('face.member.destroy');
+        Route::post('/wajah/anggota/{member}/reset-daftar-ulang', [FaceDataController::class, 'resetAndReenroll'])->name('face.member.reset-reenroll');
         Route::put('/wajah/anggota/{member}/daftar-ulang', [FaceDataController::class, 'requestReenrollment'])->name('face.enrollment.reopen');
         Route::put('/wajah/petugas/{member}', [FaceDataController::class, 'updateOperator'])->name('face.operator.update');
 
