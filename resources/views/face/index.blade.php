@@ -49,26 +49,11 @@
             gap: 12px;
         }
 
-        .service-status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
+        .service-status-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
-        }
-
-        .service-status-dot.green {
-            background: #16a34a;
-            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
-        }
-
-        .service-status-dot.amber {
-            background: #d97706;
-            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
-        }
-
-        .service-status-dot.red {
-            background: #dc2626;
-            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
         }
 
         .service-status-text {
@@ -621,7 +606,13 @@
         @if ($serviceReady && $serviceModel !== null && $serviceModel !== $expectedModel)
             <div class="service-status-bar error">
                 <div class="service-status-left">
-                    <div class="service-status-dot red"></div>
+                    <span class="service-status-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                    </span>
                     <div>
                         <div class="service-status-text">Perbedaan Versi Model Mesin Wajah</div>
                         <div class="service-status-sub">Aplikasi mengharapkan <code>{{ $expectedModel }}</code>, tetapi layanan wajah melaporkan <code>{{ $serviceModel }}</code>. Foto tidak dapat dicocokkan sampai keduanya sama.</div>
@@ -631,10 +622,15 @@
         @elseif ($serviceReady)
             <div class="service-status-bar ready">
                 <div class="service-status-left">
-                    <div class="service-status-dot green"></div>
+                    <span class="service-status-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </span>
                     <div>
                         <div class="service-status-text">Layanan AI InsightFace Aktif & Terhubung</div>
-                        <div class="service-status-sub">Model: <strong>{{ $serviceModel ?? 'InsightFace' }}</strong> &middot; Endpoint: <code>{{ $serviceUrl }}</code></div>
+                        <div class="service-status-sub">Model: <strong>{{ $serviceModel ?? 'InsightFace' }}</strong> · Endpoint: <code>{{ $serviceUrl }}</code></div>
                     </div>
                 </div>
                 <span class="status-pill success">Siap Pindai</span>
@@ -642,7 +638,13 @@
         @else
             <div class="service-status-bar warning">
                 <div class="service-status-left">
-                    <div class="service-status-dot amber"></div>
+                    <span class="service-status-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </span>
                     <div>
                         <div class="service-status-text">Layanan AI Wajah Tidak Terhubung</div>
                         <div class="service-status-sub">Layanan wajah di <code>{{ $serviceUrl }}</code> tidak dapat dihubungi. Foto baru akan ditampung di antrean sampai layanan kembali aktif.</div>
