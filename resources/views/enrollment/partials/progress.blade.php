@@ -43,6 +43,22 @@
         border-left: 4px solid #ea580c;
     }
 
+    .saved-photos-accordion summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .saved-photos-accordion[open] .toggle-arrow {
+        transform: rotate(180deg);
+    }
+
+    .saved-photos-accordion[open] .toggle-text-open {
+        display: none !important;
+    }
+
+    .saved-photos-accordion[open] .toggle-text-close {
+        display: inline !important;
+    }
+
     .saved-photo-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -233,9 +249,9 @@
     </section>
 @endif
 
-{{-- 2. Galeri Foto Wajah Tersimpan --}}
+{{-- 2. Galeri Foto Wajah Tersimpan (Tertutup secara bawaan) --}}
 @if ($state['has_photos'])
-    <details class="progress-section-card" data-record="foto-wajah-tersimpan" @if ($state['usable'] < $state['required']) open @endif style="padding: 20px 24px;">
+    <details class="progress-section-card saved-photos-accordion" data-record="foto-wajah-tersimpan" style="padding: 20px 24px;">
         <summary style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; list-style: none; user-select: none;">
             <div>
                 <h2 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0;">Foto Wajah yang Tersimpan ({{ $banyakTersimpan }} Foto)</h2>
@@ -243,15 +259,16 @@
                     @if ($terkunci)
                         Pendaftaran telah selesai dan terkunci untuk absensi.
                     @elseif ($state['usable'] >= $state['required'])
-                        5 sudut foto wajah sudah lengkap. Anda dapat meninjau galeri di bawah ini.
+                        5 sudut foto wajah sudah lengkap. Tekan lihat detail untuk membuka galeri.
                     @else
                         Kumpulan foto wajah yang telah lolos verifikasi AI untuk akun Anda.
                     @endif
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px; color: #2563eb; font-size: 13px; font-weight: 600;">
-                <span>Lihat Galeri</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div style="display: flex; align-items: center; gap: 6px; color: #2563eb; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 8px; background: #eff6ff;">
+                <span class="toggle-text-open">Lihat Detail</span>
+                <span class="toggle-text-close" style="display: none;">Tutup</span>
+                <svg class="toggle-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s ease;">
                     <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
             </div>

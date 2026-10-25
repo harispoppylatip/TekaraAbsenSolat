@@ -148,76 +148,6 @@
             line-height: 1.45;
         }
 
-        /* 5 Kartu Status Pose */
-        .enroll-poses-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin-top: 16px;
-        }
-
-        .enroll-pose-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 10px 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.2s ease;
-        }
-
-        .enroll-pose-card.saved {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
-        }
-
-        .enroll-pose-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 26px;
-            height: 26px;
-            border-radius: 6px;
-            flex-shrink: 0;
-            background: #e2e8f0;
-            color: #64748b;
-        }
-
-        .enroll-pose-card.saved .enroll-pose-icon {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .enroll-pose-info {
-            min-width: 0;
-            flex: 1;
-        }
-
-        .enroll-pose-num {
-            font-size: 11px;
-            font-weight: 600;
-            color: #64748b;
-            text-transform: uppercase;
-        }
-
-        .enroll-pose-card.saved .enroll-pose-num {
-            color: #15803d;
-        }
-
-        .enroll-pose-title {
-            font-size: 12.5px;
-            font-weight: 600;
-            color: #1e293b;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .enroll-pose-card.saved .enroll-pose-title {
-            color: #166534;
-        }
-
         /* 2. Kartu Panduan Terbuka/Tutup */
         .enroll-guide-card {
             background: #ffffff;
@@ -609,38 +539,9 @@
                         @elseif ($state['finished'])
                             Semua sudut foto wajah sudah terverifikasi. Periksa kembali galeri foto Anda di bawah, lalu kunci pendaftaran.
                         @else
-                            Dibutuhkan {{ $kurang }} foto lagi agar pendaftaran wajah Anda lengkap dan siap dipakai absen mandiri.
+                            Kurang {{ $kurang }} foto lagi supaya pendaftaran bisa diselesaikan.
                         @endif
                     </p>
-                </div>
-
-                {{-- Status 5 Pose Terpandu --}}
-                <div class="enroll-poses-grid">
-                    @foreach ($variations as $index => $variasi)
-                        @php
-                            $poseNumber = $index + 1;
-                            $isSaved = isset($savedByPose[$poseNumber]);
-                        @endphp
-                        <div class="enroll-pose-card @if($isSaved) saved @endif">
-                            <span class="enroll-pose-icon">
-                                @if ($isSaved)
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                    </svg>
-                                @else
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                                    </svg>
-                                @endif
-                            </span>
-                            <div class="enroll-pose-info">
-                                <div class="enroll-pose-num">Pose {{ $poseNumber }} · {{ $isSaved ? 'Tersimpan' : 'Belum' }}</div>
-                                <div class="enroll-pose-title">{{ $variasi['label'] }}</div>
-                            </div>
-                        </div>
-                    @endforeach
                 </div>
 
                 @if ($state['unusable'] > 0)
