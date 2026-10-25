@@ -20,6 +20,10 @@ class Setting extends Model
     ];
 
     public const KeyProofBoxOverlay = 'proof_box_overlay';
+    public const KeyFaceCctvTolerance = 'face_cctv_tolerance';
+    public const KeyFaceTolerance = 'face_tolerance';
+    public const KeyFaceCctvMinFaceSize = 'face_cctv_min_face_size';
+    public const KeyFaceMinFaceSize = 'face_min_face_size';
 
     /**
      * Ambil nilai pengaturan berdasarkan kunci.
@@ -76,5 +80,45 @@ class Setting extends Model
         $val = static::get(self::KeyProofBoxOverlay, '1');
 
         return in_array($val, ['1', 'true', true, 1], true);
+    }
+
+    /**
+     * Ambang toleransi jarak pencocokan wajah khusus kamera CCTV.
+     */
+    public static function faceCctvTolerance(): float
+    {
+        $val = static::get(self::KeyFaceCctvTolerance, config('face.cctv_tolerance', 1.15));
+
+        return (float) $val;
+    }
+
+    /**
+     * Ambang toleransi jarak pencocokan wajah untuk kamera petugas/webcam.
+     */
+    public static function faceTolerance(): float
+    {
+        $val = static::get(self::KeyFaceTolerance, config('face.tolerance', 1.15));
+
+        return (float) $val;
+    }
+
+    /**
+     * Batas minimal ukuran sisi wajah kamera CCTV dalam piksel.
+     */
+    public static function faceCctvMinFaceSize(): int
+    {
+        $val = static::get(self::KeyFaceCctvMinFaceSize, config('face.cctv_min_face_size', 40));
+
+        return (int) $val;
+    }
+
+    /**
+     * Batas minimal ukuran sisi wajah kamera petugas dalam piksel.
+     */
+    public static function faceMinFaceSize(): int
+    {
+        $val = static::get(self::KeyFaceMinFaceSize, config('face.min_face_size', 80));
+
+        return (int) $val;
     }
 }

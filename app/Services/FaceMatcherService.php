@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FaceEmbedding;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -314,7 +315,7 @@ class FaceMatcherService
 
     public function tolerance(): float
     {
-        return (float) config('face.tolerance', 0.5);
+        return Setting::faceTolerance();
     }
 
     public function singlePhotoTolerance(): float

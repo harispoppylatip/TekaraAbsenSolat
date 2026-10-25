@@ -7,21 +7,21 @@
     <div>
         <section class="stats-grid cctv-stats-grid">
             <div class="stat-card">
-                <p class="stat-label">Total kamera CCTV</p>
+                <p class="stat-label">Total CCTV</p>
                 <p class="stat-value">{{ $stats['total'] }}</p>
                 <p class="stat-note">{{ $stats['aktif'] }} sedang aktif</p>
             </div>
 
             <div class="stat-card">
-                <p class="stat-label">Web Stream (fMP4/HTTP)</p>
+                <p class="stat-label">Web Stream</p>
                 <p class="stat-value">{{ $stats['web_stream'] }}</p>
-                <p class="stat-note">Siaran web atau VMS media</p>
+                <p class="stat-note">Siaran web / media</p>
             </div>
 
             <div class="stat-card">
                 <p class="stat-label">RTSP CCTV</p>
                 <p class="stat-value">{{ $stats['rtsp'] }}</p>
-                <p class="stat-note">Kamera IP atau NVR lokal</p>
+                <p class="stat-note">Kamera IP / NVR</p>
             </div>
         </section>
 
@@ -141,102 +141,29 @@
                 </div>
             </div>
         @else
-            <div class="alert alert-info">
-                <strong>Belum ada kamera CCTV terdaftar</strong>
-                <p>Silakan isi formulir di bawah untuk menambahkan siaran kamera CCTV baru.</p>
+            <div class="alert alert-info" style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <strong>Belum ada kamera CCTV terdaftar</strong>
+                    <p style="margin: 4px 0 0;">Tambahkan siaran kamera CCTV baru untuk mulai memantau dan memindai kehadiran jamaah.</p>
+                </div>
+                <button class="btn btn-primary btn-trigger-tambah-cctv" type="button">
+                    + Tambah Kamera CCTV
+                </button>
             </div>
         @endif
 
-        {{-- Formulir Tambah Kamera CCTV --}}
-        <section class="card" style="margin-top: 24px;">
-            <div class="section-head">
-                <div>
-                    <h2 class="section-title">Tambah kamera CCTV baru</h2>
-                    <p class="section-note">
-                        Tambahkan kamera siaran CCTV (RTSP atau Web Stream) untuk dipantau dan dijadikan pemindai wajah.
-                    </p>
-                </div>
-            </div>
-
-            <form method="POST" action="{{ route('cameras.store') }}" id="form-tambah-kamera">
-                @csrf
-
-                <div class="form-grid">
-                    <div class="field">
-                        <label class="field-label" for="cam-name">Nama kamera</label>
-                        <input class="input-field" type="text" id="cam-name" name="name"
-                            value="{{ old('name') }}" placeholder="CCTV Pintu Masuk / CCTV Musala" required>
-                    </div>
-
-                    <div class="field">
-                        <label class="field-label" for="cam-type">Jenis siaran</label>
-                        <select class="select-field" id="cam-type" name="stream_type" required>
-                            @foreach ($types as $val => $label)
-                                <option value="{{ $val }}" @selected(old('stream_type', \App\Models\Camera::TypeWebStream) === $val)>
-                                    {{ $label }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="field field-full">
-                        <label class="field-label" for="cam-stream-url">Alamat URL siaran (Stream URL)</label>
-                        <input class="input-field" type="text" id="cam-stream-url" name="stream_url"
-                            value="{{ old('stream_url') }}"
-                            placeholder="https://vmssamarinda.iconpln.co.id:...&format=fmp4... atau rtsp://admin:pass@192.168.1.x:554/ch1"
-                            required>
-                        <p class="field-hint">
-                            Untuk Web Stream gunakan URL HTTP/HTTPS (fMP4, MJPEG, atau HLS). Untuk RTSP gunakan format rtsp://pengguna:sandi@ip:port/jalur.
-                        </p>
-                    </div>
-
-                    <div class="field field-full">
-                        <label class="field-label" for="cam-snapshot-url">Alamat URL cuplikan potret (Opsional)</label>
-                        <input class="input-field" type="text" id="cam-snapshot-url" name="snapshot_url"
-                            value="{{ old('snapshot_url') }}"
-                            placeholder="http://192.168.1.x/ISAPI/Streaming/channels/101/picture (Bila CCTV memiliki URL potret HTTP)">
-                    </div>
-
-                    <div class="field">
-                        <label class="field-label" for="cam-location">Letak / Lokasi kamera</label>
-                        <input class="input-field" type="text" id="cam-location" name="location"
-                            value="{{ old('location') }}" placeholder="Gerbang Masuk / Musala Lantai 1">
-                    </div>
-
-                    <div class="field">
-                        <label class="field-label" for="cam-notes">Catatan tambahan</label>
-                        <input class="input-field" type="text" id="cam-notes" name="notes"
-                            value="{{ old('notes') }}" placeholder="Kamera menghadap ke pintu masuk">
-                    </div>
-                </div>
-
-                <div class="form-check" style="margin-top: 14px;">
-                    <label class="check-label">
-                        <input type="checkbox" name="is_active" value="1" @checked(old('is_active', true))>
-                        <span>Aktifkan kamera ini di sistem</span>
-                    </label>
-                </div>
-
-                <div id="test-result-box" class="alert" style="display: none; margin-top: 14px;">
-                    <span id="test-result-text"></span>
-                </div>
-
-                <div class="form-actions" style="margin-top: 18px;">
-                    <button class="btn btn-primary" type="submit">Simpan kamera</button>
-                    <button class="btn btn-outline" type="button" id="btn-uji-koneksi">Uji koneksi siaran</button>
-                </div>
-            </form>
-        </section>
-
         {{-- Tabel Daftar Kamera CCTV --}}
         <section class="card" style="margin-top: 24px;">
-            <div class="section-head">
+            <div class="section-head" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
                 <div>
                     <h2 class="section-title">Daftar kamera CCTV terdaftar</h2>
                     <p class="section-note">
                         Pilih kamera untuk dipantau siarannya atau mengaktifkan pemindai wajah.
                     </p>
                 </div>
+                <button class="btn btn-primary btn-trigger-tambah-cctv" type="button">
+                    + Tambah Kamera CCTV
+                </button>
             </div>
 
             @if ($cameras->isEmpty())
@@ -302,6 +229,91 @@
                 </div>
             @endif
         </section>
+
+        {{-- Modal Dialog: Tambah Kamera CCTV Baru --}}
+        <div id="modal-tambah-cctv" class="cctv-modal-backdrop" style="display: none;" aria-hidden="true">
+            <div class="cctv-modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-cctv-title">
+                <div class="cctv-modal-header">
+                    <div>
+                        <h2 id="modal-cctv-title" class="section-title" style="margin-bottom: 2px;">Tambah kamera CCTV baru</h2>
+                        <p class="section-note">
+                            Tambahkan kamera siaran CCTV (RTSP atau Web Stream) untuk dipantau dan dijadikan pemindai wajah.
+                        </p>
+                    </div>
+                    <button type="button" class="cctv-modal-close" id="btn-tutup-modal" aria-label="Tutup dialog">&times;</button>
+                </div>
+
+                <form method="POST" action="{{ route('cameras.store') }}" id="form-tambah-kamera">
+                    @csrf
+
+                    <div class="form-grid" style="margin-top: 16px;">
+                        <div class="field">
+                            <label class="field-label" for="cam-name">Nama kamera</label>
+                            <input class="input-field" type="text" id="cam-name" name="name"
+                                value="{{ old('name') }}" placeholder="CCTV Pintu Masuk / CCTV Musala" required>
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="cam-type">Jenis siaran</label>
+                            <select class="select-field" id="cam-type" name="stream_type" required>
+                                @foreach ($types as $val => $label)
+                                    <option value="{{ $val }}" @selected(old('stream_type', \App\Models\Camera::TypeWebStream) === $val)>
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="field field-full">
+                            <label class="field-label" for="cam-stream-url">Alamat URL siaran (Stream URL)</label>
+                            <input class="input-field" type="text" id="cam-stream-url" name="stream_url"
+                                value="{{ old('stream_url') }}"
+                                placeholder="rtsp://admin:pass@192.168.1.x:554/ch1 atau URL HTTP/HTTPS (fMP4/HLS)"
+                                required>
+                            <p class="field-hint">
+                                Untuk Web Stream gunakan URL HTTP/HTTPS (fMP4, MJPEG, atau HLS). Untuk RTSP gunakan format rtsp://pengguna:sandi@ip:port/jalur.
+                            </p>
+                        </div>
+
+                        <div class="field field-full">
+                            <label class="field-label" for="cam-snapshot-url">Alamat URL cuplikan potret (Opsional)</label>
+                            <input class="input-field" type="text" id="cam-snapshot-url" name="snapshot_url"
+                                value="{{ old('snapshot_url') }}"
+                                placeholder="http://192.168.1.x/ISAPI/Streaming/channels/101/picture (Bila CCTV memiliki URL potret HTTP)">
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="cam-location">Letak / Lokasi kamera</label>
+                            <input class="input-field" type="text" id="cam-location" name="location"
+                                value="{{ old('location') }}" placeholder="Gerbang Masuk / Musala Lantai 1">
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="cam-notes">Catatan tambahan</label>
+                            <input class="input-field" type="text" id="cam-notes" name="notes"
+                                value="{{ old('notes') }}" placeholder="Kamera menghadap ke pintu masuk">
+                        </div>
+                    </div>
+
+                    <div class="form-check" style="margin-top: 14px;">
+                        <label class="check-label">
+                            <input type="checkbox" name="is_active" value="1" @checked(old('is_active', true))>
+                            <span>Aktifkan kamera ini di sistem</span>
+                        </label>
+                    </div>
+
+                    <div id="test-result-box" class="alert" style="display: none; margin-top: 14px;">
+                        <span id="test-result-text"></span>
+                    </div>
+
+                    <div class="form-actions" style="margin-top: 20px; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                        <button class="btn btn-outline" type="button" id="btn-tutup-modal-batal">Batal</button>
+                        <button class="btn btn-outline" type="button" id="btn-uji-koneksi">Uji koneksi siaran</button>
+                        <button class="btn btn-primary" type="submit">Simpan kamera</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -996,29 +1008,138 @@
                     logList.removeChild(logList.lastElementChild);
                 }
             }
+
+            // Logika Modal Pop-up Tambah Kamera CCTV
+            const modalCctv = document.getElementById('modal-tambah-cctv');
+            const btnsBukaModal = document.querySelectorAll('.btn-trigger-tambah-cctv');
+            const btnTutupModal = document.getElementById('btn-tutup-modal');
+            const btnTutupModalBatal = document.getElementById('btn-tutup-modal-batal');
+
+            function bukaModalCctv() {
+                if (modalCctv) {
+                    modalCctv.style.display = 'flex';
+                    modalCctv.setAttribute('aria-hidden', 'false');
+                    document.body.style.overflow = 'hidden';
+                    const nameInput = document.getElementById('cam-name');
+                    if (nameInput) setTimeout(() => nameInput.focus(), 50);
+                }
+            }
+
+            function tutupModalCctv() {
+                if (modalCctv) {
+                    modalCctv.style.display = 'none';
+                    modalCctv.setAttribute('aria-hidden', 'true');
+                    document.body.style.overflow = '';
+                }
+            }
+
+            btnsBukaModal.forEach(btn => btn.addEventListener('click', bukaModalCctv));
+            if (btnTutupModal) btnTutupModal.addEventListener('click', tutupModalCctv);
+            if (btnTutupModalBatal) btnTutupModalBatal.addEventListener('click', tutupModalCctv);
+
+            if (modalCctv) {
+                modalCctv.addEventListener('click', function (e) {
+                    if (e.target === modalCctv) tutupModalCctv();
+                });
+            }
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && modalCctv && modalCctv.style.display === 'flex') {
+                    tutupModalCctv();
+                }
+            });
+
+            @if ($errors->any())
+                bukaModalCctv();
+            @endif
         });
     </script>
 
     <style>
+        .cctv-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 1050;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .cctv-modal-card {
+            background: var(--surface, #ffffff);
+            color: var(--on-surface, #1e293b);
+            border-radius: var(--radius-lg, 14px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-sizing: border-box;
+            position: relative;
+            margin: auto;
+        }
+        .cctv-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            border-bottom: 1px solid var(--outline-variant, #e2e8f0);
+            padding-bottom: 14px;
+        }
+        .cctv-modal-close {
+            background: transparent;
+            border: none;
+            font-size: 26px;
+            line-height: 1;
+            color: var(--on-surface-variant, #64748b);
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 6px;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+        .cctv-modal-close:hover {
+            background: var(--surface-container-high, #f1f5f9);
+            color: var(--on-surface, #0f172a);
+        }
+
         @media (max-width: 680px) {
             .cctv-stats-grid {
-                grid-template-columns: repeat(3, 1fr) !important;
-                gap: 8px !important;
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 6px !important;
                 margin-bottom: 12px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
             }
             .cctv-stats-grid .stat-card {
-                padding: 10px 10px !important;
+                min-width: 0 !important;
+                padding: 10px 6px !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                text-align: center !important;
             }
             .cctv-stats-grid .stat-label {
                 font-size: 11px !important;
-                white-space: nowrap !important;
+                white-space: normal !important;
+                word-break: break-word !important;
                 overflow: hidden !important;
-                text-overflow: ellipsis !important;
                 line-height: 1.2 !important;
+                height: 26px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
             .cctv-stats-grid .stat-value {
                 font-size: 20px !important;
                 margin-top: 2px !important;
+                white-space: nowrap !important;
             }
             .cctv-stats-grid .stat-note {
                 display: none !important;
@@ -1049,6 +1170,24 @@
                 font-size: 13px !important;
                 padding: 10px 8px !important;
                 white-space: nowrap !important;
+            }
+            .cctv-modal-backdrop {
+                padding: 8px !important;
+                align-items: flex-end !important;
+            }
+            .cctv-modal-card {
+                padding: 20px 16px !important;
+                max-height: 90vh !important;
+                border-radius: 16px 16px 8px 8px !important;
+            }
+            .cctv-modal-card .form-actions {
+                flex-direction: column-reverse !important;
+                gap: 8px !important;
+            }
+            .cctv-modal-card .form-actions .btn {
+                width: 100% !important;
+                justify-content: center !important;
+                text-align: center !important;
             }
         }
     </style>

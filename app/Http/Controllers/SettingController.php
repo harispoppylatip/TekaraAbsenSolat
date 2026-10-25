@@ -46,7 +46,40 @@ class SettingController extends Controller
             'photoFileCount' => $storageSummary['file_count'],
             'photoTotalBytes' => $storageSummary['total_bytes'],
             'proofOverlayEnabled' => Setting::proofOverlayEnabled(),
+            'faceCctvTolerance' => Setting::faceCctvTolerance(),
+            'faceTolerance' => Setting::faceTolerance(),
+            'faceCctvMinFaceSize' => Setting::faceCctvMinFaceSize(),
+            'faceMinFaceSize' => Setting::faceMinFaceSize(),
         ]);
+    }
+
+    /**
+     * Perbarui nilai ambang toleransi dan sensitivitas pengenalan wajah.
+     */
+    public function updateFaceSensitivity(Request $request): RedirectResponse
+    {
+        if ($request->has('reset_defaults')) {
+            Setting::set(Setting::KeyFaceCctvTolerance, config('face.cctv_tolerance', 1.15));
+            Setting::set(Setting::KeyFaceTolerance, config('face.tolerance', 1.15));
+            Setting::set(Setting::KeyFaceCctvMinFaceSize, config('face.cctv_min_face_size', 40));
+            Setting::set(Setting::KeyFaceMinFaceSize, config('face.min_face_size', 80));
+
+            return back()->with('status', 'Pengaturan sensitivitas pengenalan wajah berhasil dikembalikan ke rekomendasi bawaan.');
+        }
+
+        $validated = $request->validate([
+            'face_cctv_tolerance' => ['required', 'numeric', 'min:0.5', 'max:2.0'],
+            'face_tolerance' => ['required', 'numeric', 'min:0.5', 'max:2.0'],
+            'face_cctv_min_face_size' => ['required', 'integer', 'min:0', 'max:500'],
+            'face_min_face_size' => ['required', 'integer', 'min:0', 'max:500'],
+        ]);
+
+        Setting::set(Setting::KeyFaceCctvTolerance, (float) $validated['face_cctv_tolerance']);
+        Setting::set(Setting::KeyFaceTolerance, (float) $validated['face_tolerance']);
+        Setting::set(Setting::KeyFaceCctvMinFaceSize, (int) $validated['face_cctv_min_face_size']);
+        Setting::set(Setting::KeyFaceMinFaceSize, (int) $validated['face_min_face_size']);
+
+        return back()->with('status', 'Pengaturan sensitivitas pengenalan wajah berhasil disimpan dan langsung aktif.');
     }
 
     /**

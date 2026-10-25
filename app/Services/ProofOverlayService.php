@@ -49,8 +49,18 @@ class ProofOverlayService
 
             // Periksa font TrueType di sistem bila ada
             $ttfFont = $this->resolveTtfFont();
+            $drawnBadges = [];
 
             foreach ($faces as $face) {
+                // Hanya gambar kotak dan label untuk anggota terdaftar (abaikan yang tidak dikenal/belum terdaftar)
+                $hasMember = ! empty($face['member']);
+                $nama = (string) ($face['label'] ?? ($face['member']['name'] ?? ''));
+                $isUnknown = $nama === '' || in_array($nama, ['Tidak dikenal', 'Wajah tidak dikenal'], true);
+
+                if (! $hasMember && $isUnknown) {
+                    continue;
+                }
+
                 $box = $face['box'] ?? null;
                 if (! is_array($box)) {
                     continue;
@@ -66,12 +76,7 @@ class ProofOverlayService
                 $bw = max(2, min($imgW - $bx, $right - $left));
                 $bh = max(2, min($imgH - $by, $bottom - $top));
 
-                $status = (string) ($face['attendance']['status'] ?? ($face['status'] ?? ''));
-                $isSaved = ! empty($face['attendance']['recorded'])
-                    || in_array($status, ['recorded', 'late', 'duplicate', 'cooldown'], true)
-                    || ! empty($face['member']);
-
-                $badgeColor = $isSaved ? $colorGreen : $colorOrange;
+                $badgeColor = $colorGreen;
 
                 // 1. Gambar kotak wajah dengan ketebalan rapi
                 for ($t = 0; $t < $thickness; $t++) {
@@ -86,21 +91,20 @@ class ProofOverlayService
                 }
 
                 // 2. Siapkan label nama dan status
-                $nama = (string) ($face['label'] ?? ($face['member']['name'] ?? 'Tidak dikenal'));
-                if ($nama === '' || $nama === 'Wajah tidak dikenal') {
-                    $nama = 'Tidak dikenal';
+                $keadaan = (string) ($face['attendance']['display_message'] ?? ($face['display_message'] ?? 'Hadir'));
+                if ($keadaan === '' || $keadaan === 'Belum terdaftar') {
+                    $keadaan = 'Hadir';
                 }
 
-                $keadaan = (string) ($face['attendance']['display_message'] ?? ($face['display_message'] ?? 'Belum terdaftar'));
-                if ($keadaan === '') {
-                    $keadaan = 'Belum terdaftar';
-                }
-
-                // 3. Gambar badge dan teks
+                // 3. Gambar badge dan teks dengan pencegahan tumpang-tindih (collision avoidance)
                 if ($ttfFont !== null) {
-                    $this->drawTtfBadge($im, $ttfFont, $bx, $by, $bw, $imgW, $imgH, $scale, $nama, $keadaan, $badgeColor, $colorWhite);
+                    $drawn = $this->drawTtfBadge($im, $ttfFont, $bx, $by, $bw, $bh, $imgW, $imgH, $scale, $nama, $keadaan, $badgeColor, $colorWhite, $drawnBadges);
                 } else {
-                    $this->drawBitmapBadge($im, $bx, $by, $bw, $imgW, $imgH, $nama, $keadaan, $badgeColor, $colorWhite);
+                    $drawn = $this->drawBitmapBadge($im, $bx, $by, $bw, $bh, $imgW, $imgH, $nama, $keadaan, $badgeColor, $colorWhite, $drawnBadges);
+                }
+
+                if ($drawn !== null) {
+                    $drawnBadges[] = $drawn;
                 }
             }
 
@@ -135,20 +139,26 @@ class ProofOverlayService
         return null;
     }
 
+    /**
+     * @param  array<int, array{x: int, y: int, w: int, h: int}>  $drawnBadges
+     * @return array{x: int, y: int, w: int, h: int}
+     */
     private function drawTtfBadge(
         \GdImage $im,
         string $font,
         int $bx,
         int $by,
         int $bw,
+        int $bh,
         int $imgW,
         int $imgH,
         float $scale,
         string $nama,
         string $keadaan,
         int $bgColor,
-        int $textColor
-    ): void {
+        int $textColor,
+        array $drawnBadges = []
+    ): array {
         $fontSizeName = max(7, (int) round(12 * $scale));
         $fontSizeStatus = max(6, (int) round(10 * $scale));
 
@@ -162,8 +172,7 @@ class ProofOverlayService
         $badgeW = max($nameW, $statusW) + ($badgePad * 2);
         $badgeH = (int) round(($fontSizeName + $fontSizeStatus) * 1.3) + ($badgePad * 2);
 
-        $badgeX = max(0, min($imgW - $badgeW, $bx));
-        $badgeY = ($by - $badgeH < 0) ? $by : ($by - $badgeH);
+        [$badgeX, $badgeY] = $this->calculateBadgePosition($bx, $by, $bw, $bh, $badgeW, $badgeH, $imgW, $imgH, $drawnBadges);
 
         imagefilledrectangle($im, $badgeX, $badgeY, $badgeX + $badgeW, $badgeY + $badgeH, $bgColor);
 
@@ -173,20 +182,28 @@ class ProofOverlayService
 
         imagettftext($im, $fontSizeName, 0, $textX, $textY1, $textColor, $font, $nama);
         imagettftext($im, $fontSizeStatus, 0, $textX, $textY2, $textColor, $font, $keadaan);
+
+        return ['x' => $badgeX, 'y' => $badgeY, 'w' => $badgeW, 'h' => $badgeH];
     }
 
+    /**
+     * @param  array<int, array{x: int, y: int, w: int, h: int}>  $drawnBadges
+     * @return array{x: int, y: int, w: int, h: int}
+     */
     private function drawBitmapBadge(
         \GdImage $im,
         int $bx,
         int $by,
         int $bw,
+        int $bh,
         int $imgW,
         int $imgH,
         string $nama,
         string $keadaan,
         int $bgColor,
-        int $textColor
-    ): void {
+        int $textColor,
+        array $drawnBadges = []
+    ): array {
         $fontName = 4;   // 8x16 px
         $fontStatus = 2; // 6x13 px
 
@@ -197,8 +214,7 @@ class ProofOverlayService
         $badgeW = max($nameW, $statusW) + ($badgePad * 2);
         $badgeH = imagefontheight($fontName) + imagefontheight($fontStatus) + 8;
 
-        $badgeX = max(0, min($imgW - $badgeW, $bx));
-        $badgeY = ($by - $badgeH < 0) ? $by : ($by - $badgeH);
+        [$badgeX, $badgeY] = $this->calculateBadgePosition($bx, $by, $bw, $bh, $badgeW, $badgeH, $imgW, $imgH, $drawnBadges);
 
         imagefilledrectangle($im, $badgeX, $badgeY, $badgeX + $badgeW, $badgeY + $badgeH, $bgColor);
 
@@ -208,5 +224,71 @@ class ProofOverlayService
 
         imagestring($im, $fontName, $textX, $textY1, $nama, $textColor);
         imagestring($im, $fontStatus, $textX, $textY2, $keadaan, $textColor);
+
+        return ['x' => $badgeX, 'y' => $badgeY, 'w' => $badgeW, 'h' => $badgeH];
+    }
+
+    /**
+     * Tentukan posisi badge nama agar tidak keluar kanvas dan tidak menabrak badge lain.
+     *
+     * @param  array<int, array{x: int, y: int, w: int, h: int}>  $drawnBadges
+     * @return array{0: int, 1: int} [badgeX, badgeY]
+     */
+    private function calculateBadgePosition(
+        int $bx,
+        int $by,
+        int $bw,
+        int $bh,
+        int $badgeW,
+        int $badgeH,
+        int $imgW,
+        int $imgH,
+        array $drawnBadges
+    ): array {
+        $badgeX = max(0, min($imgW - $badgeW, $bx));
+
+        // Pilihan 1: Di atas kotak wajah (posisi standar)
+        $topY = $by - $badgeH;
+        $isTopValid = ($topY >= 0);
+
+        $collidesTop = false;
+        if ($isTopValid) {
+            foreach ($drawnBadges as $prev) {
+                if ($this->isRectIntersect($badgeX, $topY, $badgeW, $badgeH, $prev['x'], $prev['y'], $prev['w'], $prev['h'])) {
+                    $collidesTop = true;
+                    break;
+                }
+            }
+        }
+
+        if ($isTopValid && ! $collidesTop) {
+            return [$badgeX, $topY];
+        }
+
+        // Pilihan 2: Jika posisi atas bertabrakan atau keluar kanvas atas, coba di bawah kotak wajah
+        $bottomY = $by + $bh;
+        $isBottomValid = ($bottomY + $badgeH <= $imgH);
+
+        $collidesBottom = false;
+        if ($isBottomValid) {
+            foreach ($drawnBadges as $prev) {
+                if ($this->isRectIntersect($badgeX, $bottomY, $badgeW, $badgeH, $prev['x'], $prev['y'], $prev['w'], $prev['h'])) {
+                    $collidesBottom = true;
+                    break;
+                }
+            }
+        }
+
+        if ($isBottomValid && ! $collidesBottom) {
+            return [$badgeX, $bottomY];
+        }
+
+        // Fallback: Di atas jika muat, atau di batas atas kanvas
+        return [$badgeX, $isTopValid ? $topY : max(0, $by)];
+    }
+
+    private function isRectIntersect(int $x1, int $y1, int $w1, int $h1, int $x2, int $y2, int $w2, int $h2): bool
+    {
+        return ! ($x1 + $w1 <= $x2 || $x2 + $w2 <= $x1 || $y1 + $h1 <= $y2 || $y2 + $h2 <= $y1);
     }
 }

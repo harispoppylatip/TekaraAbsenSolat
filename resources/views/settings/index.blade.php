@@ -10,6 +10,109 @@
             : number_format(max($photoTotalBytes / 1024, 0), 1, ',', '.').' KB';
     @endphp
 
+    {{-- Pengaturan Sensitivitas & Ambang Wajah --}}
+    <section class="card" style="margin-bottom: 24px;">
+        <div class="section-head">
+            <div>
+                <h2 class="section-title">Sensitivitas & Pengenalan Wajah</h2>
+                <p class="section-note">
+                    Atur ambang kecocokan wajah (toleransi jarak) dan ukuran wajah minimum untuk pemindaian CCTV latar belakang maupun kamera pemindai langsung. Pengaturan langsung aktif seketika tanpa perlu mematikan atau menyalakan ulang server.
+                </p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ route('settings.face-sensitivity') }}">
+            @csrf
+            @method('PUT')
+
+            <div class="form-grid" style="margin-bottom: 16px;">
+                <div class="field">
+                    <label class="field-label" for="face_cctv_tolerance">
+                        Toleransi CCTV (Jarak Jauh)
+                    </label>
+                    <input class="input-field" type="number" step="0.01" min="0.5" max="2.0" id="face_cctv_tolerance" name="face_cctv_tolerance"
+                        value="{{ old('face_cctv_tolerance', $faceCctvTolerance) }}" required>
+                    <p class="field-hint">Standar rekomendasi: <strong>1.15</strong></p>
+                    @error('face_cctv_tolerance')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="field">
+                    <label class="field-label" for="face_tolerance">
+                        Toleransi Kamera Web / Petugas
+                    </label>
+                    <input class="input-field" type="number" step="0.01" min="0.5" max="2.0" id="face_tolerance" name="face_tolerance"
+                        value="{{ old('face_tolerance', $faceTolerance) }}" required>
+                    <p class="field-hint">Standar rekomendasi: <strong>1.15</strong></p>
+                    @error('face_tolerance')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="field">
+                    <label class="field-label" for="face_cctv_min_face_size">
+                        Ukuran Min. Wajah CCTV (px)
+                    </label>
+                    <input class="input-field" type="number" step="1" min="0" max="500" id="face_cctv_min_face_size" name="face_cctv_min_face_size"
+                        value="{{ old('face_cctv_min_face_size', $faceCctvMinFaceSize) }}" required>
+                    <p class="field-hint">Standar: <strong>40</strong> px (wajah kecil/jauh)</p>
+                    @error('face_cctv_min_face_size')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="field">
+                    <label class="field-label" for="face_min_face_size">
+                        Ukuran Min. Wajah Kamera Web (px)
+                    </label>
+                    <input class="input-field" type="number" step="1" min="0" max="500" id="face_min_face_size" name="face_min_face_size"
+                        value="{{ old('face_min_face_size', $faceMinFaceSize) }}" required>
+                    <p class="field-hint">Standar: <strong>80</strong> px (kamera jarak dekat)</p>
+                    @error('face_min_face_size')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
+
+            {{-- Dropdown Keterangan / Detail Panduan --}}
+            <details style="background: var(--surface-variant, #f8fafc); border: 1px solid var(--outline, #e2e8f0); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+                <summary style="cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--primary); user-select: none;">
+                    Lihat detail panduan & cara kerja angka sensitivitas
+                </summary>
+                <div style="margin-top: 10px; font-size: 13px; color: var(--on-surface-variant); line-height: 1.6;">
+                    <p style="margin-bottom: 8px;">
+                        <strong>Cara kerja toleransi pencocokan:</strong> Sistem mengenali wajah dengan mengukur jarak matematis (jarak Euclidean) antara pola wajah jamaah di database dengan wajah yang ditangkap kamera. Semakin kecil angkanya, semakin identik wajah tersebut.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+                        <div>
+                            <strong>Angka lebih besar (misal 1.20 - 1.30):</strong> Pengenalan lebih sensitif/mudah cocok. Cocok untuk CCTV sudut tinggi, pencahayaan minim, atau jamaah bergerak cepat. Potensi salah orang (false positive) sedikit meningkat.
+                        </div>
+                        <div>
+                            <strong>Angka lebih kecil (misal 0.90 - 1.05):</strong> Pengenalan sangat ketat dan akurat. Mengurangi risiko salah deteksi, namun wajah yang sedikit menunduk atau bayangan redup bisa tidak terdeteksi.
+                        </div>
+                        <div>
+                            <strong>Ukuran Minimum Wajah:</strong> Membatasi ukuran kotak wajah terkecil (dalam piksel) yang akan diproses AI. Angka 40 px pada CCTV membuat jamaah di saf belakang tetap bisa teridentifikasi.
+                        </div>
+                    </div>
+                    <p style="margin: 0; color: var(--on-surface);">
+                        Pengaturan yang disimpan di sini langsung dimuat oleh pemindai latar belakang (background worker) pada putaran pemindaian berikutnya secara otomatis.
+                    </p>
+                </div>
+            </details>
+
+            <div class="form-actions" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <button class="btn btn-primary" type="submit">
+                    Simpan Sensitivitas Wajah
+                </button>
+                <button class="btn btn-outline" type="submit" name="reset_defaults" value="1" formnovalidate
+                    data-confirm="Kembalikan semua nilai sensitivitas wajah ke rekomendasi standar bawaan sistem?">
+                    Kembalikan ke Rekomendasi Bawaan
+                </button>
+            </div>
+        </form>
+    </section>
+
     {{-- Pengaturan Foto Bukti Absensi --}}
     <section class="card" style="margin-bottom: 24px;">
         <div class="section-head">

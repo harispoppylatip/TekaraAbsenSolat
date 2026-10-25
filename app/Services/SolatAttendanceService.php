@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PrayerTime;
+use App\Models\Setting;
 use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Models\User;
@@ -124,11 +125,11 @@ class SolatAttendanceService
         $faces = [];
         $isCctv = $deviceId !== null && str_starts_with($deviceId, 'cctv-');
         $minFaceSize = $isCctv
-            ? (int) config('face.cctv_min_face_size', 40)
-            : (int) config('face.min_face_size', 80);
+            ? Setting::faceCctvMinFaceSize()
+            : Setting::faceMinFaceSize();
         $customTolerance = $isCctv
-            ? (float) config('face.cctv_tolerance', 1.15)
-            : null;
+            ? Setting::faceCctvTolerance()
+            : Setting::faceTolerance();
 
         $srcW = (int) ($detected['width'] ?? 0);
         $srcH = (int) ($detected['height'] ?? 0);
@@ -254,9 +255,13 @@ class SolatAttendanceService
             ];
         }
 
-        // Susun daftar wajah untuk anotasi gambar bukti
+        // Susun daftar wajah untuk anotasi gambar bukti (hanya wajah anggota terdaftar)
         $facesForOverlay = [];
         foreach ($evaluated as $item) {
+            if ($item['type'] !== 'matched' || empty($item['user'])) {
+                continue;
+            }
+
             $facesForOverlay[] = [
                 'box' => $item['box'],
                 'label' => $item['label'],
@@ -267,10 +272,10 @@ class SolatAttendanceService
                     'status' => $item['status'],
                     'display_message' => $item['display'],
                 ],
-                'member' => isset($item['user']) ? [
+                'member' => [
                     'id' => $item['user']->getKey(),
                     'name' => $item['user']->name,
-                ] : null,
+                ],
             ];
         }
 
