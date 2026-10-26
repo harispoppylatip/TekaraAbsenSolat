@@ -856,7 +856,7 @@
                                 <th>Anggota</th>
                                 <th>Status Pendaftaran</th>
                                 <th>Kemajuan Foto</th>
-                                <th style="text-align: right;">Aksi Tindakan</th>
+                                <th style="text-align: right; min-width: 260px;">Aksi Tindakan</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -901,14 +901,14 @@
                                         </div>
                                     </td>
                                     <td style="text-align: right;">
-                                        <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+                                        <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: nowrap;">
                                             @if ($st === \App\Models\User::EnrollmentNeedsReenrollment)
-                                                <span style="font-size: 12px; color: #64748b; font-weight: 500;">Sudah diminta daftar ulang</span>
+                                                <span style="font-size: 12px; color: #64748b; font-weight: 500; white-space: nowrap;">Sudah diminta daftar ulang</span>
                                             @else
                                                 <form method="POST" action="{{ route('face.enrollment.reopen', $anggota) }}" style="display: inline-block;">
                                                     @csrf
                                                     @method('PUT')
-                                                    <button class="btn btn-small btn-outline" type="submit"
+                                                    <button class="btn btn-small btn-outline" type="submit" style="white-space: nowrap;"
                                                         data-confirm="Buka dan minta {{ $anggota->name }} mendaftarkan wajahnya kembali? Foto lamanya tetap tersimpan sampai foto barunya diverifikasi.">
                                                         Minta daftar ulang
                                                     </button>
@@ -920,7 +920,7 @@
                                                 @method('PUT')
                                                 <button class="btn btn-small btn-secondary" type="submit"
                                                     data-confirm="Tandai {{ $anggota->name }} ({{ $anggota->roleLabel() }}) sebagai tidak wajib mendaftarkan wajah? Akun ini tidak akan muncul di daftar antrean."
-                                                    style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;" title="Bebaskan anggota ini dari kewajiban mendaftarkan wajah">
+                                                    style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap;" title="Bebaskan anggota ini dari kewajiban mendaftarkan wajah">
                                                     Tidak Wajib Wajah
                                                 </button>
                                             </form>
@@ -1239,8 +1239,6 @@
                                             </form>
                                         @endif
                                     </div>
-                                </div>
-                            </details>
                                 </div>
                             </details>
                         @endforeach
