@@ -4,268 +4,501 @@
 @section('note', 'Pilih dan daftarkan anggota yang diizinkan memakai mode absen sidik jari')
 
 @section('content')
-    <div data-live="sidik-jari">
-        <section class="stats-grid">
-            <div class="stat-card">
-                <p class="stat-label">Anggota sidik jari</p>
-                <p class="stat-value">{{ $stats['terdaftar'] }}</p>
-                <p class="stat-note">Dari {{ $stats['total_anggota'] }} anggota terdaftar</p>
+    <style>
+        /* ========================================================
+           Desain Modern Halaman Data Sidik Jari
+           Sesuai Pedoman Rules.md (No dot indicators, clean UI)
+           ======================================================== */
+        .fp-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .fp-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        @media (max-width: 992px) {
+            .fp-stats-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 576px) {
+            .fp-stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .fp-stat-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 18px 20px;
+            box-shadow: 0 1px 4px rgba(0, 30, 64, 0.03);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .fp-stat-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .fp-stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .fp-stat-pill {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+
+        .fp-stat-value {
+            font-size: 26px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.15;
+            margin-bottom: 4px;
+        }
+
+        .fp-stat-subtext {
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        /* Pending Enroll Banner */
+        .fp-enroll-banner {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .fp-enroll-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .fp-enroll-icon {
+            color: #15803d;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .fp-enroll-text h4 {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #166534;
+            margin: 0 0 3px 0;
+        }
+
+        .fp-enroll-text p {
+            font-size: 12.5px;
+            color: #15803d;
+            margin: 0;
+        }
+
+        /* Layout Grid Tengah */
+        .fp-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .fp-grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .fp-panel-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 22px 24px;
+            box-shadow: 0 2px 8px rgba(0, 30, 64, 0.04);
+        }
+
+        .fp-panel-title h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 3px 0;
+        }
+
+        .fp-panel-title p {
+            font-size: 12.5px;
+            color: #64748b;
+            margin: 0 0 16px 0;
+        }
+
+        .btn-fp-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-fp-primary {
+            background: #0284c7;
+            color: #ffffff;
+        }
+
+        .btn-fp-primary:hover {
+            background: #0369a1;
+        }
+
+        .btn-fp-ghost {
+            background: #f8fafc;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+
+        .btn-fp-ghost:hover {
+            background: #f1f5f9;
+        }
+
+        /* Table */
+        .fp-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .fp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .fp-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 18px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .fp-table td {
+            padding: 13px 18px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #1e293b;
+            vertical-align: middle;
+        }
+
+        .fp-table tr:hover td {
+            background: #fafafa;
+        }
+
+        .fp-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+
+        .fp-badge.status-open {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .fp-badge.status-closed {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+
+    <div class="fp-container" data-live="sidik-jari">
+        {{-- Metric Stats --}}
+        <section class="fp-stats-grid">
+            <div class="fp-stat-card">
+                <div class="fp-stat-top">
+                    <span class="fp-stat-label">Anggota Terdaftar</span>
+                    <span class="fp-stat-pill">SIDIK JARI</span>
+                </div>
+                <div class="fp-stat-value">
+                    {{ $stats['terdaftar'] }}
+                </div>
+                <div class="fp-stat-subtext">
+                    Dari total {{ $stats['total_anggota'] }} anggota
+                </div>
             </div>
 
-            <div class="stat-card">
-                <p class="stat-label">Template tersimpan</p>
-                <p class="stat-value">{{ $stats['template'] }}</p>
-                <p class="stat-note">Mode absen kedua selain wajah</p>
+            <div class="fp-stat-card">
+                <div class="fp-stat-top">
+                    <span class="fp-stat-label">Template Tersimpan</span>
+                    <span class="fp-stat-pill">SIDIK JARI</span>
+                </div>
+                <div class="fp-stat-value">
+                    {{ $stats['template'] }}
+                </div>
+                <div class="fp-stat-subtext">
+                    Mode cadangan selain wajah
+                </div>
             </div>
 
-            <div class="stat-card">
-                <p class="stat-label">Sensor aktif</p>
-                <p class="stat-value">{{ $stats['perangkat_aktif'] }}</p>
-                <p class="stat-note">Perangkat yang siap menerima pindai</p>
+            <div class="fp-stat-card">
+                <div class="fp-stat-top">
+                    <span class="fp-stat-label">Sensor Aktif</span>
+                    <span class="fp-stat-pill">PERANGKAT</span>
+                </div>
+                <div class="fp-stat-value">
+                    {{ $stats['perangkat_aktif'] }}
+                </div>
+                <div class="fp-stat-subtext">
+                    Siap menerima scan jari
+                </div>
             </div>
 
-            <div class="stat-card">
-                <p class="stat-label">Absen sidik jari hari ini</p>
-                <p class="stat-value">{{ $stats['absen_hari_ini'] }}</p>
-                <p class="stat-note">Tercatat lewat sensor sidik jari</p>
+            <div class="fp-stat-card">
+                <div class="fp-stat-top">
+                    <span class="fp-stat-label">Presensi Hari Ini</span>
+                    <span class="fp-stat-pill">LOG</span>
+                </div>
+                <div class="fp-stat-value">
+                    {{ $stats['absen_hari_ini'] }}
+                </div>
+                <div class="fp-stat-subtext">
+                    Tercatat lewat sensor AS608
+                </div>
             </div>
         </section>
 
+        {{-- Pending Enrollment Alert --}}
         @if (is_array($pendingEnroll))
-            <div class="alert alert-info" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
-                <div>
-                    <strong>Menunggu perekaman jari di sensor untuk {{ $pendingEnroll['name'] ?? '-' }} ({{ $pendingEnroll['user_id'] ?? '-' }})</strong>
-                    <p>
-                        Posisi jari: {{ $pendingEnroll['finger_position'] ?? 'Telunjuk Kanan' }}.
-                        Target alat: {{ $pendingEnroll['device_id'] ?? 'Semua sensor aktif' }}.
-                        Tempelkan jari 2 kali pada sensor AS608 sebelum pukul {{ $pendingEnroll['expires_at'] ?? '-' }}.
-                    </p>
+            <div class="fp-enroll-banner">
+                <div class="fp-enroll-left">
+                    <svg class="fp-enroll-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 3"></path>
+                        <path d="M14 13.12c0 2.38 0 6.38-1 8.88"></path>
+                        <path d="M2 16h.01"></path>
+                        <path d="M21.8 16c.2-2 .131-5.354 0-6"></path>
+                        <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"></path>
+                        <path d="M8.65 22c.21-.66.45-1.32.57-2"></path>
+                        <path d="M9 6.8a6 6 0 0 1 9 5.2v2"></path>
+                    </svg>
+                    <div class="fp-enroll-text">
+                        <h4>Menunggu Tempelan Jari: {{ $pendingEnroll['name'] ?? '-' }}</h4>
+                        <p>
+                            Posisi: <strong>{{ $pendingEnroll['finger_position'] ?? 'Telunjuk Kanan' }}</strong> &bull;
+                            Tempelkan jari 2 kali ke sensor AS608 sebelum jam {{ $pendingEnroll['expires_at'] ?? '-' }}.
+                        </p>
+                    </div>
                 </div>
 
                 <form method="POST" action="{{ route('fingerprint.command.cancel') }}">
                     @csrf
                     @method('DELETE')
-                    <button class="btn btn-secondary btn-small" type="submit">Batalkan perintah</button>
+                    <button class="btn-fp-action" style="background: #ffffff; color: #dc2626; border: 1px solid #fecaca;" type="submit">
+                        Batalkan Perintah
+                    </button>
                 </form>
             </div>
         @endif
 
-        <div class="grid-2">
-            <section class="card">
-                <div class="section-head">
-                    <div>
-                        <h2 class="section-title">Pilih dan daftarkan anggota</h2>
-                        <p class="section-note">
-                            Sidik jari adalah mode absen kedua. Hanya anggota yang dipilih dan didaftarkan jarinya di sini yang bisa absen menggunakan sensor sidik jari.
-                        </p>
-                    </div>
+        {{-- Form Rekam & Petunjuk --}}
+        <div class="fp-grid-2">
+            <section class="fp-panel-card">
+                <div class="fp-panel-title">
+                    <h3>Daftarkan Anggota Baru</h3>
+                    <p>Pilih nama anggota dan kirim perintah perekaman ke sensor AS608.</p>
                 </div>
 
                 <form method="POST" action="{{ route('fingerprint.enroll') }}">
                     @csrf
 
-                    <div class="form-grid">
-                        <div class="field">
-                            <label class="field-label" for="enroll-user-id">Pilih anggota</label>
-                            <select class="select-field" id="enroll-user-id" name="user_id" required>
-                                <option value="">Pilih nama anggota</option>
+                    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;" for="enroll-user-id">Pilih Anggota</label>
+                            <select class="select-field" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1;" id="enroll-user-id" name="user_id" required>
+                                <option value="">Pilih nama anggota...</option>
                                 @foreach ($allMembers as $item)
                                     <option value="{{ $item->id }}" @selected((int) old('user_id') === $item->id)>
                                         {{ $item->name }} ({{ $item->identifier_number }}{{ $item->class_name ? ' / ' . $item->class_name : '' }})
-                                        {{ $item->fingerprints_count > 0 ? '[Sudah terdaftar]' : '' }}
+                                        {{ $item->fingerprints_count > 0 ? '[Sudah Ada]' : '' }}
                                     </option>
                                 @endforeach
                             </select>
-                            @error('user_id')
-                                <p class="field-error">{{ $message }}</p>
-                            @enderror
+                            @error('user_id')<p class="field-error">{{ $message }}</p>@enderror
                         </div>
 
-                        <div class="field">
-                            <label class="field-label" for="enroll-finger-position">Posisi jari</label>
-                            <select class="select-field" id="enroll-finger-position" name="finger_position">
-                                @foreach ($fingerPositions as $pos)
-                                    <option value="{{ $pos }}" @selected(old('finger_position', 'Telunjuk Kanan') === $pos)>
-                                        {{ $pos }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;" for="enroll-finger-position">Posisi Jari</label>
+                                <select class="select-field" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1;" id="enroll-finger-position" name="finger_position">
+                                    @foreach ($fingerPositions as $pos)
+                                        <option value="{{ $pos }}" @selected(old('finger_position', 'Telunjuk Kanan') === $pos)>{{ $pos }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                        <div class="field">
-                            <label class="field-label" for="enroll-device-id">Sensor tujuan</label>
-                            <select class="select-field" id="enroll-device-id" name="device_id">
-                                <option value="">Semua sensor aktif (otomatis)</option>
-                                @foreach ($activeDevices as $device)
-                                    <option value="{{ $device->device_id }}" @selected(old('device_id') === $device->device_id)>
-                                        {{ $device->name }} ({{ $device->device_id }})
-                                    </option>
-                                @endforeach
-                            </select>
+                            <div>
+                                <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;" for="enroll-device-id">Sensor Tujuan</label>
+                                <select class="select-field" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1;" id="enroll-device-id" name="device_id">
+                                    <option value="">Semua Sensor Aktif</option>
+                                    @foreach ($activeDevices as $device)
+                                        <option value="{{ $device->device_id }}" @selected(old('device_id') === $device->device_id)>{{ $device->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-actions">
-                        <button class="btn btn-primary" type="submit">Kirim perintah rekam ke sensor</button>
-                        <a class="btn btn-outline" href="{{ route('devices.index') }}">Kelola perangkat sensor</a>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-fp-action btn-fp-primary" type="submit">
+                            Kirim Perintah Rekam
+                        </button>
+                        <a class="btn-fp-action btn-fp-ghost" href="{{ route('devices.index') }}">
+                            Kelola Perangkat
+                        </a>
                     </div>
                 </form>
             </section>
 
-            <section class="card">
-                <div class="section-head">
-                    <div>
-                        <h2 class="section-title">Alur kerja absen sidik jari</h2>
-                        <p class="section-note">Cara mendaftarkan jari dan cara kerja absen saat waktu solat</p>
-                    </div>
+            <section class="fp-panel-card">
+                <div class="fp-panel-title">
+                    <h3>Alur Presensi Sidik Jari</h3>
+                    <p>Cara kerja perekaman jari dan integrasi sensor AS608.</p>
                 </div>
 
-                <div class="fold-note-body" style="margin-top: 0;">
-                    <p>
-                        1. Pastikan perangkat ESP32 sudah terdaftar dan berstatus aktif di halaman <a href="{{ route('devices.index') }}">Perangkat</a>.
-                    </p>
-                    <p style="margin-top: 8px;">
-                        2. Pilih nama anggota pada formulir di samping lalu tekan tombol <strong>Kirim perintah rekam ke sensor</strong>.
-                    </p>
-                    <p style="margin-top: 8px;">
-                        3. Layar LCD alat akan menampilkan tulisan <strong>Daftar: Nomor Induk</strong>. Minta anggota menempelkan jarinya 2 kali sampai muncul <strong>Daftar berhasil</strong>.
-                    </p>
-                    <p style="margin-top: 8px;">
-                        4. Saat sesi waktu solat (atau mode uji coba) dibuka, anggota yang sudah terdaftar cukup menempelkan jarinya pada sensor. Kehadiran langsung masuk ke log dengan keterangan <strong>absen via sidik jari</strong>.
-                    </p>
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; color: #475569; line-height: 1.5;">
+                    <div><strong>1.</strong> Pastikan perangkat terhubung dan berstatus aktif di menu Perangkat.</div>
+                    <div><strong>2.</strong> Pilih anggota di formulir lalu tekan tombol Kirim Perintah.</div>
+                    <div><strong>3.</strong> LCD alat menampilkan ID anggota. Tempelkan jari 2 kali di sensor hingga muncul notifikasi sukses.</div>
+                    <div><strong>4.</strong> Saat sesi solat dibuka, anggota cukup menempelkan jari untuk mencatat kehadiran.</div>
                 </div>
 
-                <details class="tool-panel" data-record="konfigurasi-api-iot" style="margin-top: 14px;">
-                    <summary>
-                        <span class="tool-name">Alamat API Mesin IoT (Offline dan Online)</span>
-                        <span class="tool-note">Mode aktif di .env: {{ strtoupper($apiMode) }}</span>
-                        <span class="tool-hint">
-                            <span class="tool-hint-open">Lihat alamat</span>
-                            <span class="tool-hint-close">Tutup</span>
-                        </span>
-                    </summary>
-
-                    <div class="tool-body">
-                        <p class="field-hint">
-                            Alamat di bawah ini digunakan oleh firmware ESP32 pada folder proyek PlatformIO <code>tekara v2</code> (komunikasi HTTP REST API, bukan MQTT):
-                        </p>
-                        <div class="table-wrap" style="margin-top: 10px;">
-                            <table class="data-table">
-                                <tbody>
-                                    <tr>
-                                        <td class="cell-strong">API Offline / Lokal</td>
-                                        <td><code>{{ $apiUrlOffline }}</code></td>
-                                    </tr>
-                                    <tr>
-                                        <td class="cell-strong">API Online / Domain</td>
-                                        <td><code>{{ $apiUrlOnline }}</code></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                <details class="info-disclosure" style="margin-top: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
+                    <summary style="font-size: 12px; font-weight: 600; color: #0284c7; cursor: pointer;">Alamat API IoT (Mode: {{ strtoupper($apiMode) }})</summary>
+                    <div style="margin-top: 8px; font-size: 11.5px; color: #475569;">
+                        <div>Lokal: <code>{{ $apiUrlOffline }}</code></div>
+                        <div style="margin-top: 4px;">Online: <code>{{ $apiUrlOnline }}</code></div>
                     </div>
                 </details>
             </section>
         </div>
 
-        <section class="card">
-            <div class="section-head">
-                <div>
-                    <h2 class="section-title">Daftar anggota pengguna sidik jari</h2>
-                    <p class="section-note">
-                        Kelola anggota yang diizinkan absen menggunakan sidik jari, rekam ulang jari, atau cabut aksesnya.
-                    </p>
+        {{-- Daftar Anggota Sidik Jari --}}
+        <section class="fp-panel-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 18px 22px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <div class="fp-panel-title" style="margin: 0;">
+                    <h3 style="margin: 0 0 2px 0;">Daftar Anggota Pengguna Sidik Jari</h3>
+                    <p style="margin: 0;">Kelola hak akses presensi sidik jari dan rekam ulang jari.</p>
                 </div>
+
+                <form method="GET" action="{{ route('fingerprint.index') }}" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <input class="input-field" style="padding: 6px 12px; font-size: 12.5px; border-radius: 8px; border: 1px solid #cbd5e1;" type="search" name="q" value="{{ $search }}" placeholder="Cari nama atau nomor induk...">
+                    <select class="select-field" style="padding: 6px 10px; font-size: 12.5px; border-radius: 8px; border: 1px solid #cbd5e1;" name="filter">
+                        <option value="terdaftar" @selected($filter === 'terdaftar')>Sudah Terdaftar</option>
+                        <option value="belum" @selected($filter === 'belum')>Belum Terdaftar</option>
+                        <option value="semua" @selected($filter === 'semua')>Semua</option>
+                    </select>
+                    <button class="btn-fp-action btn-fp-primary" style="padding: 6px 12px;" type="submit">Cari</button>
+                    @if ($search !== '' || $filter !== 'terdaftar')
+                        <a class="btn-fp-action btn-fp-ghost" style="padding: 6px 12px;" href="{{ route('fingerprint.index') }}">Reset</a>
+                    @endif
+                </form>
             </div>
 
-            <form method="GET" action="{{ route('fingerprint.index') }}" class="search-toolbar-form" style="margin-bottom: 16px;">
-                <div class="search-toolbar-row">
-                    <input class="input-field search-toolbar-input" type="search" name="q" value="{{ $search }}"
-                        placeholder="Cari nama, nomor induk, atau kelas">
-
-                    <select class="select-field search-toolbar-select" name="filter" aria-label="Filter status sidik jari">
-                        <option value="terdaftar" @selected($filter === 'terdaftar')>Sudah terdaftar sidik jari</option>
-                        <option value="belum" @selected($filter === 'belum')>Belum terdaftar sidik jari</option>
-                        <option value="semua" @selected($filter === 'semua')>Semua anggota</option>
-                    </select>
-
-                    <div class="search-toolbar-buttons">
-                        <button class="btn btn-primary btn-small" type="submit">Cari</button>
-                        @if ($search !== '' || $filter !== 'terdaftar')
-                            <a class="btn btn-text btn-small" href="{{ route('fingerprint.index') }}">Reset</a>
-                        @endif
-                    </div>
-                </div>
-            </form>
-
             @if ($members->isEmpty())
-                <p class="empty-state">
-                    @if ($filter === 'terdaftar')
-                        Belum ada anggota yang didaftarkan sidik jarinya. Pilih anggota pada formulir di atas atau ubah filter menjadi Semua anggota.
-                    @else
-                        Tidak ada anggota yang cocok dengan pencarian ini.
-                    @endif
-                </p>
+                <div style="padding: 32px 18px; text-align: center; color: #64748b; font-size: 13.5px;">
+                    Tidak ada anggota yang cocok dengan filter tersebut.
+                </div>
             @else
-                <div class="table-wrap">
-                    <table class="data-table">
+                <div class="fp-table-wrap">
+                    <table class="fp-table">
                         <thead>
                             <tr>
-                                <th>Nama anggota</th>
-                                <th>Nomor induk</th>
+                                <th>Nama Anggota</th>
+                                <th>Nomor Induk</th>
                                 <th>Kelas / Peran</th>
-                                <th>Posisi jari</th>
+                                <th>Posisi Jari</th>
                                 <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($members as $member)
-                                @php
-                                    $latestFp = $member->fingerprints->first();
-                                @endphp
+                                @php($latestFp = $member->fingerprints->first())
                                 <tr>
                                     <td>
-                                        <span class="cell-strong">{{ $member->name }}</span>
+                                        <strong style="color: #0f172a;">{{ $member->name }}</strong>
                                     </td>
                                     <td>{{ $member->identifier_number ?: '-' }}</td>
                                     <td>{{ $member->class_name ?: $member->roleLabel() }}</td>
                                     <td>
                                         @if ($latestFp)
-                                            <span>{{ $latestFp->finger_position ?: 'Telunjuk Kanan' }}</span>
-                                            <span class="cell-note">Diperbarui {{ $latestFp->updated_at?->translatedFormat('d M Y H:i') }}</span>
+                                            <span style="font-weight: 600;">{{ $latestFp->finger_position ?: 'Telunjuk Kanan' }}</span>
                                         @else
-                                            <span class="cell-note">Belum ada template</span>
+                                            <span style="color: #94a3b8;">Belum ada template</span>
                                         @endif
                                     </td>
                                     <td>
                                         @if ($member->fingerprints_count > 0)
-                                            <span class="status status-success">Bisa absen sidik jari</span>
+                                            <span class="fp-badge status-open">Bisa Absen</span>
                                         @else
-                                            <span class="status status-neutral">Belum didaftarkan</span>
+                                            <span class="fp-badge status-closed">Belum Terdaftar</span>
                                         @endif
                                     </td>
                                     <td>
-                                        <div class="cell-actions">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
                                             @if ($member->fingerprints_count > 0)
                                                 <form method="POST" action="{{ route('fingerprint.replace', $member) }}"
-                                                    data-confirm="Hapus sidik jari lama {{ $member->name }} lalu kirim perintah rekam ulang ke sensor?">
+                                                    data-confirm="Hapus sidik jari lama {{ $member->name }} lalu kirim perintah rekam ulang?">
                                                     @csrf
-                                                    <button class="btn btn-small btn-outline" type="submit">Rekam ulang</button>
+                                                    <button class="btn-fp-action btn-fp-ghost" style="padding: 5px 9px; font-size: 11.5px;" type="submit">Rekam Ulang</button>
                                                 </form>
 
                                                 <form method="POST" action="{{ route('fingerprint.member.destroy', $member) }}"
-                                                    data-confirm="Hapus data sidik jari {{ $member->name }}? Anggota ini tidak akan bisa absen via sidik jari lagi.">
+                                                    data-confirm="Hapus data sidik jari {{ $member->name }}?">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button class="btn btn-small btn-danger" type="submit">Hapus</button>
+                                                    <button class="btn-fp-action" style="padding: 5px 9px; font-size: 11.5px; background: #ffffff; color: #dc2626; border-color: #fecaca;" type="submit">Hapus</button>
                                                 </form>
                                             @else
                                                 <form method="POST" action="{{ route('fingerprint.enroll') }}">
                                                     @csrf
                                                     <input type="hidden" name="user_id" value="{{ $member->id }}">
                                                     <input type="hidden" name="finger_position" value="Telunjuk Kanan">
-                                                    <button class="btn btn-small btn-primary" type="submit">Pilih dan rekam jari</button>
+                                                    <button class="btn-fp-action btn-fp-primary" style="padding: 5px 9px; font-size: 11.5px;" type="submit">Rekam Jari</button>
                                                 </form>
                                             @endif
                                         </div>
@@ -276,31 +509,34 @@
                     </table>
                 </div>
 
-                {{ $members->links('pagination.records') }}
+                <div style="padding: 14px 20px; border-top: 1px solid #f1f5f9;">
+                    {{ $members->links('pagination.records') }}
+                </div>
             @endif
         </section>
 
-        <section class="card">
-            <div class="section-head">
-                <div>
-                    <h2 class="section-title">Log absen via sidik jari terbaru</h2>
-                    <p class="section-note">
-                        Lima belas catatan kehadiran terakhir yang dipindai dari mesin sensor sidik jari.
-                    </p>
+        {{-- Log Presensi Sidik Jari Terbaru --}}
+        <section class="fp-panel-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 18px 22px; border-bottom: 1px solid #f1f5f9;">
+                <div class="fp-panel-title" style="margin: 0;">
+                    <h3 style="margin: 0 0 2px 0;">Log Presensi Sidik Jari Terbaru</h3>
+                    <p style="margin: 0;">15 catatan kehadiran terakhir yang masuk dari sensor AS608.</p>
                 </div>
             </div>
 
             @if ($recentLogs->isEmpty())
-                <p class="empty-state">Belum ada catatan kehadiran dari sensor sidik jari.</p>
+                <div style="padding: 32px 18px; text-align: center; color: #64748b; font-size: 13.5px;">
+                    Belum ada catatan presensi dari sensor sidik jari.
+                </div>
             @else
-                <div class="table-wrap">
-                    <table class="data-table">
+                <div class="fp-table-wrap">
+                    <table class="fp-table">
                         <thead>
                             <tr>
-                                <th>Catatan log</th>
+                                <th>Nama Jamaah</th>
                                 <th>Kelas</th>
-                                <th>Waktu solat</th>
-                                <th>Tanggal &amp; jam</th>
+                                <th>Waktu Solat</th>
+                                <th>Waktu Scan</th>
                                 <th>Perangkat</th>
                                 <th>Keadaan</th>
                             </tr>
@@ -309,15 +545,21 @@
                             @foreach ($recentLogs as $log)
                                 <tr>
                                     <td>
-                                        <span class="cell-strong">{{ $log->user?->name ?? 'Anggota terhapus' }} absen via sidik jari</span>
-                                        <span class="cell-note">{{ $log->summaryLine() }}</span>
+                                        <strong style="color: #0f172a; display: block;">{{ $log->user?->name ?? 'Anggota terhapus' }}</strong>
+                                        <span style="font-size: 11.5px; color: #64748b;">{{ $log->summaryLine() }}</span>
                                     </td>
                                     <td>{{ $log->user?->class_name ?: '-' }}</td>
-                                    <td>{{ $log->session?->prayerLabel() ?? '-' }}</td>
-                                    <td>{{ $log->scanned_at?->translatedFormat('d M Y') }} pukul {{ $log->scanned_at?->format('H:i:s') }}</td>
+                                    <td>
+                                        <span class="fp-badge status-closed">{{ $log->session?->prayerLabel() ?? '-' }}</span>
+                                    </td>
+                                    <td>
+                                        <strong style="color: #0f172a;">{{ $log->scanned_at?->translatedFormat('d M Y') }}</strong> {{ $log->scanned_at?->format('H:i:s') }}
+                                    </td>
                                     <td><code>{{ $log->device_id }}</code></td>
                                     <td>
-                                        <span class="status {{ \App\Support\Status::log($log->status) }}">{{ $log->statusLabel() }}</span>
+                                        <span class="fp-badge {{ $log->status === \App\Models\SolatAttendanceLog::StatusTerlambat ? 'status-late' : 'status-open' }}">
+                                            {{ $log->statusLabel() }}
+                                        </span>
                                     </td>
                                 </tr>
                             @endforeach
@@ -328,4 +570,3 @@
         </section>
     </div>
 @endsection
-

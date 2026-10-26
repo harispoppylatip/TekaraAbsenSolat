@@ -327,9 +327,10 @@ div[data-live]:empty {
 
 .card {
     background: var(--surface-container);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 2px 10px var(--shadow);
-    padding: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 30, 64, 0.04);
+    padding: 22px 24px;
     min-width: 0;
 }
 
@@ -347,14 +348,15 @@ div[data-live]:empty {
 
 .section-title {
     font-family: var(--font-heading);
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
+    color: #0f172a;
     margin: 0;
 }
 
 .section-note {
     font-size: 13px;
-    color: var(--on-surface-variant);
+    color: #64748b;
     margin-top: 3px;
     max-width: 80ch;
 }
@@ -374,23 +376,34 @@ div[data-live]:empty {
 
 .stat-card {
     background: var(--surface-container);
-    border-radius: var(--radius);
-    padding: 16px 18px;
-    box-shadow: 0 2px 10px var(--shadow);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 4px rgba(0, 30, 64, 0.03);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 30, 64, 0.06);
 }
 
 .stat-label {
-    font-size: 12.5px;
-    color: var(--on-surface-variant);
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .stat-value {
     font-family: var(--font-heading);
     font-size: 26px;
-    font-weight: 700;
-    color: var(--primary);
+    font-weight: 800;
+    color: #0f172a;
     margin-top: 4px;
-    line-height: 1.1;
+    margin-bottom: 4px;
+    line-height: 1.15;
 }
 
 /* Angka statistik yang isinya tulisan, misalnya tanggal. Ukurannya
@@ -400,9 +413,9 @@ div[data-live]:empty {
 }
 
 .stat-note {
-    font-size: 12.5px;
-    color: var(--on-surface-variant);
-    margin-top: 4px;
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
 }
 
 .grid-2 {
@@ -425,18 +438,19 @@ div[data-live]:empty {
     justify-content: center;
     gap: 6px;
     border: 1px solid transparent;
-    border-radius: var(--radius-sm);
+    border-radius: 9px;
     font-family: var(--font-body);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    padding: 10px 18px;
+    padding: 8px 16px;
     cursor: pointer;
     text-decoration: none;
     transition:
         background 0.15s ease,
         color 0.15s ease,
-        border-color 0.15s ease;
-    line-height: 1.2;
+        border-color 0.15s ease,
+        transform 0.15s ease;
+    line-height: 1.25;
 }
 
 .btn:hover {
@@ -444,57 +458,65 @@ div[data-live]:empty {
 }
 
 .btn-primary {
-    background: var(--primary);
-    color: var(--on-primary);
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
 }
 
 .btn-primary:hover {
-    background: var(--primary-container);
+    background: #0369a1;
+    border-color: #0369a1;
+    color: #ffffff;
 }
 
 .btn-secondary {
-    background: var(--secondary-container);
-    color: var(--on-secondary-container);
+    background: #f1f5f9;
+    color: #334155;
+    border-color: #cbd5e1;
 }
 
 .btn-secondary:hover {
-    background: var(--secondary-fixed);
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .btn-outline {
     background: transparent;
-    border-color: var(--outline);
-    color: var(--on-surface);
+    border-color: #cbd5e1;
+    color: #334155;
 }
 
 .btn-outline:hover {
-    background: var(--surface-variant);
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
 }
 
 .btn-text {
     background: transparent;
-    color: var(--primary-container);
+    color: #0284c7;
     padding: 8px 10px;
 }
 
 .btn-text:hover {
-    background: var(--surface-variant);
+    background: #f0f9ff;
+    color: #0369a1;
 }
 
 .btn-danger {
     background: transparent;
-    border-color: var(--error);
-    color: var(--error);
+    border-color: #fecaca;
+    color: #dc2626;
 }
 
 .btn-danger:hover {
-    background: var(--error-container);
-    color: var(--on-error-container);
+    background: #fef2f2;
+    color: #b91c1c;
 }
 
 .btn-small {
-    padding: 7px 12px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 12.5px;
 }
 
 .btn-block {
@@ -516,19 +538,19 @@ div[data-live]:empty {
 }
 
 .field-label {
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
-    color: var(--on-surface);
+    color: #334155;
 }
 
 .field-hint {
-    font-size: 12.5px;
-    color: var(--on-surface-variant);
+    font-size: 12px;
+    color: #64748b;
 }
 
 .field-error {
-    font-size: 12.5px;
-    color: var(--error);
+    font-size: 12px;
+    color: #dc2626;
     font-weight: 500;
 }
 
@@ -536,13 +558,13 @@ div[data-live]:empty {
 .select-field,
 .textarea-field {
     width: 100%;
-    border: 1px solid var(--outline-variant);
-    border-radius: var(--radius-sm);
-    background: var(--surface-container);
-    color: var(--on-surface);
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #0f172a;
     font-family: var(--font-body);
-    font-size: 14.5px;
-    padding: 10px 12px;
+    font-size: 13.5px;
+    padding: 8px 12px;
     outline: none;
     transition:
         border-color 0.15s ease,
@@ -552,8 +574,8 @@ div[data-live]:empty {
 .input-field:focus,
 .select-field:focus,
 .textarea-field:focus {
-    border-color: var(--primary-container);
-    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.12);
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
 .textarea-field {
@@ -606,39 +628,44 @@ select.select-field {
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 13px;
     min-width: 520px;
 }
 
 .data-table th {
     text-align: left;
-    font-family: var(--font-heading);
-    font-size: 12.5px;
+    background: #f8fafc;
+    color: #475569;
     font-weight: 600;
-    color: var(--on-surface-variant);
-    padding: 10px 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
     white-space: nowrap;
 }
 
 .data-table td {
-    padding: 12px;
-    border-top: 1px solid var(--outline-variant);
+    padding: 13px 16px;
+    border-top: none;
+    border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
+    color: #1e293b;
 }
 
 .data-table tbody tr:hover td {
-    background: var(--surface-variant);
+    background: #fafafa;
 }
 
 .data-table .cell-strong {
     font-weight: 600;
-    color: var(--on-surface);
+    color: #0f172a;
 }
 
 .data-table .cell-note {
     display: block;
-    font-size: 12.5px;
-    color: var(--on-surface-variant);
+    font-size: 12px;
+    color: #64748b;
 }
 
 /* Kotak centang pemilihan baris, dipakai di daftar sesi absen supaya beberapa
