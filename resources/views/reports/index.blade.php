@@ -663,7 +663,10 @@
                 <div class="report-panel-header">
                     <div class="report-panel-title">
                         <h3>Rincian Tiap Sesi Solat</h3>
-                        <p>Memperlihatkan perbandingan kehadiran pada masing-masing waktu solat dalam periode ini.</p>
+                        <p>
+                            Menampilkan data {{ $breakdown->firstItem() ?? 0 }} sampai {{ $breakdown->lastItem() ?? 0 }}
+                            dari {{ $breakdown->total() }} sesi solat dalam periode ini.
+                        </p>
                     </div>
                 </div>
 
@@ -711,6 +714,10 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+
+                    <div style="padding: 14px 20px; border-top: 1px solid #f1f5f9;">
+                        {{ $breakdown->links('pagination.records') }}
                     </div>
                 @endif
             </section>

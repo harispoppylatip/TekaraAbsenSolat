@@ -93,6 +93,27 @@ class SolatReportService
     }
 
     /**
+     * Rincian tiap sesi pada rentang tanggal dengan pagination, 10 data terbaru per halaman.
+     *
+     * @return LengthAwarePaginator<int, SolatSession>
+     */
+    public function sessionBreakdownPaginated(CarbonInterface $from, CarbonInterface $to, int $perPage = 10, string $pageName = 'sessions_page'): LengthAwarePaginator
+    {
+        return SolatSession::query()
+            ->real()
+            ->betweenDates($from, $to)
+            ->withCount([
+                'logs as log_count',
+                'logs as present_count' => fn (Builder $query) => $query->where('status', SolatAttendanceLog::StatusHadir),
+                'logs as late_count' => fn (Builder $query) => $query->where('status', SolatAttendanceLog::StatusTerlambat),
+            ])
+            ->orderByDesc('date')
+            ->orderBy('start_time')
+            ->paginate($perPage, ['*'], $pageName)
+            ->withQueryString();
+    }
+
+    /**
      * Riwayat kehadiran satu anggota, dipakai portal murid.
      *
      * @return LengthAwarePaginator<int, SolatAttendanceLog>

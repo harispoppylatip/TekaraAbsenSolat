@@ -35,7 +35,7 @@ class ReportController extends Controller
             'filters' => $filters,
             'summary' => $reports->summary($from, $to, $prayer),
             'members' => $reports->perMember($from, $to, $filters, self::PerPage),
-            'breakdown' => $reports->sessionBreakdown($from, $to),
+            'breakdown' => $reports->sessionBreakdownPaginated($from, $to, 10, 'sessions_page'),
             'prayers' => PrayerTime::query()->ordered()->get(),
             'classes' => User::query()
                 ->whereNotNull('class_name')
