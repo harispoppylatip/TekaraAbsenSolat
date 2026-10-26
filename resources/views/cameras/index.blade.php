@@ -115,7 +115,21 @@
                                         $identity = $log->user?->class_name ?: $log->user?->roleLabel();
                                     @endphp
                                     <div class="log-row">
-                                        @include('partials.proof-photo', ['log' => $log])
+                                        @if ($log->isFingerprint())
+                                            <div class="proof-thumb proof-thumb-fingerprint" title="Absen via sidik jari{{ $log->device_id ? ' (' . $log->device_id . ')' : '' }}" aria-label="Absen via sidik jari" style="width: 44px; height: 44px; min-width: 44px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; flex-shrink: 0;">
+                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 3"></path>
+                                                    <path d="M14 13.12c0 2.38 0 6.38-1 8.88"></path>
+                                                    <path d="M2 16h.01"></path>
+                                                    <path d="M21.8 16c.2-2 .131-5.354 0-6"></path>
+                                                    <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"></path>
+                                                    <path d="M8.65 22c.21-.66.45-1.32.57-2"></path>
+                                                    <path d="M9 6.8a6 6 0 0 1 9 5.2v2"></path>
+                                                </svg>
+                                            </div>
+                                        @else
+                                            @include('partials.proof-photo', ['log' => $log])
+                                        @endif
 
                                         <div class="log-body">
                                             <div class="log-line">
@@ -128,6 +142,9 @@
                                                     <span>{{ $log->session?->prayerLabel() ?? 'Uji Coba' }}</span>
                                                     @if ($identity)
                                                         <span>{{ $identity }}</span>
+                                                    @endif
+                                                    @if ($log->isFingerprint())
+                                                        <span style="color: #0284c7; font-weight: 600;">(Sidik Jari)</span>
                                                     @endif
                                                 </span>
                                                 <span class="status {{ \App\Support\Status::log($log->status) }}">{{ $log->statusLabel() }}</span>
@@ -917,11 +934,25 @@
                     const row = document.createElement('div');
                     row.className = 'log-row';
 
-                    let photoHtml = '<span class="avatar-wrap avatar-none" style="width: 44px; height: 44px; font-size: 15px;">' + ((log.name && log.name.charAt(0)) || 'A') + '</span>';
-                    if (log.proof_photo_url) {
+                    let photoHtml = '';
+                    if (log.is_fingerprint) {
+                        photoHtml = '<div class="proof-thumb proof-thumb-fingerprint" title="Absen via sidik jari' + (log.device_id ? ' (' + log.device_id + ')' : '') + '" aria-label="Absen via sidik jari" style="width: 44px; height: 44px; min-width: 44px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; flex-shrink: 0;">' +
+                            '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+                                '<path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 3"></path>' +
+                                '<path d="M14 13.12c0 2.38 0 6.38-1 8.88"></path>' +
+                                '<path d="M2 16h.01"></path>' +
+                                '<path d="M21.8 16c.2-2 .131-5.354 0-6"></path>' +
+                                '<path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"></path>' +
+                                '<path d="M8.65 22c.21-.66.45-1.32.57-2"></path>' +
+                                '<path d="M9 6.8a6 6 0 0 1 9 5.2v2"></path>' +
+                            '</svg>' +
+                        '</div>';
+                    } else if (log.proof_photo_url) {
                         photoHtml = '<a class="proof-link" href="' + log.proof_photo_url + '" target="_blank" rel="noopener">' +
-                                    '<img class="proof-thumb" src="' + log.proof_photo_url + '" alt="Bukti CCTV" width="44" height="44" style="border-radius: 6px; object-fit: cover;">' +
+                                    '<img class="proof-thumb" src="' + log.proof_photo_url + '" alt="Bukti CCTV" width="44" height="44" style="border-radius: 8px; object-fit: cover;">' +
                                     '</a>';
+                    } else {
+                        photoHtml = '<span class="avatar-wrap avatar-none" style="width: 44px; height: 44px; font-size: 15px; border-radius: 8px;">' + ((log.name && log.name.charAt(0)) || 'A') + '</span>';
                     }
 
                     row.innerHTML = photoHtml +
@@ -934,6 +965,7 @@
                                 '<span class="log-sub">' +
                                     '<span>' + (log.session || 'Uji Coba') + '</span>' +
                                     (log.identity ? '<span>' + log.identity + '</span>' : '') +
+                                    (log.is_fingerprint ? '<span style="color: #0284c7; font-weight: 600;">(Sidik Jari)</span>' : '') +
                                 '</span>' +
                                 '<span class="status ' + (log.status === 'Terlambat' ? 'status-terlambat' : 'status-hadir') + '">' + (log.status || 'Hadir') + '</span>' +
                             '</div>' +

@@ -297,7 +297,9 @@ class CameraController extends Controller
                     'time' => $log->scanned_at?->format('H:i:s'),
                     'session' => $log->session?->prayerLabel() ?? 'Uji Coba',
                     'status' => $log->statusLabel(),
-                    'proof_photo_url' => $proofs->url($log),
+                    'is_fingerprint' => $log->isFingerprint(),
+                    'device_id' => $log->device_id,
+                    'proof_photo_url' => $log->isFingerprint() ? null : $proofs->url($log),
                 ];
             });
 
