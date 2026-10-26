@@ -457,7 +457,9 @@
                         </thead>
                         <tbody>
                             @foreach ($members as $member)
-                                @php($latestFp = $member->fingerprints->first())
+                                @php
+                                    $latestFp = $member->fingerprints->first();
+                                @endphp
                                 <tr>
                                     <td>
                                         <strong style="color: #0f172a;">{{ $member->name }}</strong>

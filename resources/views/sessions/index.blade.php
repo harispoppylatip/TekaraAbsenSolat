@@ -3,10 +3,11 @@
 @section('title', 'Sesi Absen')
 @section('note', 'Sesi absen dibuka dan ditutup sendiri setiap waktu solat')
 
-@php($sessionService = app(\App\Services\SolatSessionService::class))
-@php($isAdmin = auth()->user()?->isAdmin() ?? false)
-
 @section('content')
+    @php
+        $sessionService = app(\App\Services\SolatSessionService::class);
+        $isAdmin = auth()->user()?->isAdmin() ?? false;
+    @endphp
     <style>
         /* ========================================================
            Desain Modern Halaman Sesi Absen Sholat
@@ -1153,7 +1154,9 @@
 
                         <div class="session-item-list">
                             @foreach ($sessions as $session)
-                                @php($isSelected = $selected && $selected->is($session))
+                                @php
+                                    $isSelected = $selected && $selected->is($session);
+                                @endphp
                                 <div class="session-item-card {{ $isSelected ? 'is-selected' : '' }} {{ $session->isOpen() ? 'is-open' : '' }}">
                                     <div class="session-item-left">
                                         @if ($isAdmin)

@@ -308,7 +308,9 @@
 
                 <div class="day-chips-grid">
                     @foreach ($dayOptions as $dayNumber => $dayLabel)
-                        @php($checked = in_array($dayNumber, old('days', $activeDays), false))
+                        @php
+                            $checked = in_array($dayNumber, old('days', $activeDays), false);
+                        @endphp
                         <label class="day-chip-label" for="day-{{ $dayNumber }}">
                             <input type="checkbox" id="day-{{ $dayNumber }}" name="days[]" value="{{ $dayNumber }}" @checked($checked)>
                             <span class="day-chip-name">{{ $dayLabel }}</span>

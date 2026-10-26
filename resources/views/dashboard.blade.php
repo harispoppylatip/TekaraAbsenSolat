@@ -3,10 +3,11 @@
 @section('title', 'Ringkasan')
 @section('note', 'Keadaan absen solat hari ini')
 
-@php($sessionService = app(\App\Services\SolatSessionService::class))
-@php($activeSession = $sessionService->activeSession())
-
 @section('content')
+    @php
+        $sessionService = app(\App\Services\SolatSessionService::class);
+        $activeSession = $sessionService->activeSession();
+    @endphp
     <style>
         /* ========================================================
            Desain Modern Halaman Ringkasan (Dashboard)

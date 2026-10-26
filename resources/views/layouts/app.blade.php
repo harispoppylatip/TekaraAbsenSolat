@@ -1,4 +1,6 @@
-@php($menuGroups = \App\Support\Menu::groups(auth()->user()))
+@php
+    $menuGroups = \App\Support\Menu::groups(auth()->user());
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 
