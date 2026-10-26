@@ -65,8 +65,10 @@ class FaceDataController extends Controller
                 // dari jumlah foto, supaya terlihat juga anggota yang sudah
                 // mulai mengirim tetapi belum cukup, dan yang fotonya ditolak.
                 'selesai' => User::query()->where('enrollment_status', User::EnrollmentCompleted)->count(),
+                'tidak_wajib' => User::query()->where('enrollment_status', User::EnrollmentExempted)->count(),
                 'belum' => User::query()->whereNotIn('enrollment_status', [
                     User::EnrollmentCompleted,
+                    User::EnrollmentExempted,
                 ])->count(),
                 'sedang' => User::query()->where('enrollment_status', User::EnrollmentProcessing)->count(),
                 'perlu_daftar_ulang' => User::query()->where('enrollment_status', User::EnrollmentNeedsReenrollment)->count(),
@@ -106,6 +108,11 @@ class FaceDataController extends Controller
             // sebab kalau memakai kunci yang sama, membuka halaman dua pada
             // salah satunya akan menggeser halaman yang lain.
             'pending' => $this->pendingEnrollment(),
+            'exempted' => User::query()
+                ->where('enrollment_status', User::EnrollmentExempted)
+                ->withCount('faceEmbeddings')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -118,7 +125,10 @@ class FaceDataController extends Controller
     private function pendingEnrollment(): LengthAwarePaginator
     {
         return User::query()
-            ->where('enrollment_status', '!=', User::EnrollmentCompleted)
+            ->whereNotIn('enrollment_status', [
+                User::EnrollmentCompleted,
+                User::EnrollmentExempted,
+            ])
             ->withCount('faceEmbeddings')
             ->orderByRaw(
                 'CASE enrollment_status'
@@ -303,5 +313,41 @@ class FaceDataController extends Controller
         $member->forceFill(['enrollment_status' => User::EnrollmentNeedsReenrollment])->save();
 
         return back()->with('status', $member->name.' diminta mendaftarkan wajahnya kembali. Minta dia membuka halaman pendaftaran wajah setelah masuk.');
+    }
+
+    /**
+     * Bebaskan anggota dari kewajiban mendaftarkan wajah (misalnya admin atau petugas).
+     */
+    public function exempt(Request $request, ?User $member = null): RedirectResponse
+    {
+        if ($member === null && $request->filled('user_id')) {
+            $member = User::findOrFail((int) $request->input('user_id'));
+        }
+
+        if ($member === null) {
+            return back()->with('error', 'Pilih anggota yang ingin dibebaskan dari pendaftaran wajah.');
+        }
+
+        $member->forceFill([
+            'enrollment_status' => User::EnrollmentExempted,
+        ])->save();
+
+        return back()->with('status', $member->name.' ('.$member->roleLabel().') telah ditandai tidak wajib mendaftarkan wajah.');
+    }
+
+    /**
+     * Batalkan pembebasan pendaftaran wajah dan aktifkan kembali kewajiban pendaftaran wajah.
+     */
+    public function unexempt(User $member): RedirectResponse
+    {
+        $status = $member->faceEmbeddings()->count() > 0
+            ? User::EnrollmentNeedsReenrollment
+            : User::EnrollmentNotStarted;
+
+        $member->forceFill([
+            'enrollment_status' => $status,
+        ])->save();
+
+        return back()->with('status', 'Kewajiban pendaftaran wajah untuk '.$member->name.' telah diaktifkan kembali.');
     }
 }

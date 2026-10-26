@@ -789,7 +789,7 @@
 
         {{-- 4. BAGIAN PENTING DITONJOLKAN: Menunggu Pendaftaran Wajah (Belum Selesai / Perlu Tindakan) --}}
         <section class="modern-card" style="border-left: 4px solid #d97706;">
-            <div class="modern-card-header">
+            <div class="modern-card-header" style="flex-wrap: wrap; gap: 12px;">
                 <div class="modern-header-left">
                     <div class="modern-header-icon amber">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -802,8 +802,41 @@
                         <p class="modern-header-sub">Anggota berikut belum menyelesaikan pendaftaran wajah atau perlu melakukan pendaftaran ulang.</p>
                     </div>
                 </div>
-                <div class="badge-counter amber">
-                    {{ $pending->total() }} Anggota Perlu Perhatian
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <details class="tool-panel" style="margin: 0; border: none; padding: 0; position: relative;">
+                        <summary style="list-style: none; display: inline-flex;">
+                            <span class="btn btn-small btn-outline" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <line x1="17" y1="8" x2="23" y2="8"></line>
+                                </svg>
+                                + Bebaskan Anggota
+                            </span>
+                        </summary>
+                        <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-top: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); width: 330px; position: absolute; right: 0; z-index: 20;">
+                            <form method="POST" action="{{ route('face.member.exempt-post') }}">
+                                @csrf
+                                <div style="font-size: 13.5px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">Bebaskan dari Pendaftaran Wajah</div>
+                                <p style="font-size: 11.5px; color: #64748b; margin-bottom: 12px; line-height: 1.4;">
+                                    Gunakan ini untuk Petugas, Admin, atau anggota yang tidak wajib diabsen menggunakan wajah.
+                                </p>
+                                <label for="exempt_user_id" style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 5px;">Pilih Anggota</label>
+                                <select name="user_id" id="exempt_user_id" class="select-field" style="width: 100%; font-size: 13px; padding: 7px 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 12px;" required>
+                                    <option value="">-- Pilih anggota --</option>
+                                    @foreach ($candidates as $cand)
+                                        <option value="{{ $cand->id }}">
+                                            {{ $cand->name }} ({{ config('solat.roles')[$cand->role] ?? $cand->role }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="btn btn-small btn-primary" style="width: 100%;">Tandai Tidak Wajib Wajah</button>
+                            </form>
+                        </div>
+                    </details>
+                    <div class="badge-counter amber">
+                        {{ $pending->total() }} Anggota Perlu Perhatian
+                    </div>
                 </div>
             </div>
 
@@ -868,18 +901,30 @@
                                         </div>
                                     </td>
                                     <td style="text-align: right;">
-                                        @if ($st === \App\Models\User::EnrollmentNeedsReenrollment)
-                                            <span style="font-size: 12px; color: #64748b; font-weight: 500;">Sudah diminta daftar ulang</span>
-                                        @else
-                                            <form method="POST" action="{{ route('face.enrollment.reopen', $anggota) }}" style="display: inline-block;">
+                                        <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+                                            @if ($st === \App\Models\User::EnrollmentNeedsReenrollment)
+                                                <span style="font-size: 12px; color: #64748b; font-weight: 500;">Sudah diminta daftar ulang</span>
+                                            @else
+                                                <form method="POST" action="{{ route('face.enrollment.reopen', $anggota) }}" style="display: inline-block;">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <button class="btn btn-small btn-outline" type="submit"
+                                                        data-confirm="Buka dan minta {{ $anggota->name }} mendaftarkan wajahnya kembali? Foto lamanya tetap tersimpan sampai foto barunya diverifikasi.">
+                                                        Minta daftar ulang
+                                                    </button>
+                                                </form>
+                                            @endif
+
+                                            <form method="POST" action="{{ route('face.member.exempt', $anggota) }}" style="display: inline-block;">
                                                 @csrf
                                                 @method('PUT')
-                                                <button class="btn btn-small btn-outline" type="submit"
-                                                    data-confirm="Buka dan minta {{ $anggota->name }} mendaftarkan wajahnya kembali? Foto lamanya tetap tersimpan sampai foto barunya diverifikasi.">
-                                                    Minta daftar ulang
+                                                <button class="btn btn-small btn-secondary" type="submit"
+                                                    data-confirm="Tandai {{ $anggota->name }} ({{ $anggota->roleLabel() }}) sebagai tidak wajib mendaftarkan wajah? Akun ini tidak akan muncul di daftar antrean."
+                                                    style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;" title="Bebaskan anggota ini dari kewajiban mendaftarkan wajah">
+                                                    Tidak Wajib Wajah
                                                 </button>
                                             </form>
-                                        @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -890,6 +935,53 @@
                 <div style="margin-top: 14px;">
                     {{ $pending->links('pagination.records') }}
                 </div>
+            @endif
+
+            @if ($exempted->isNotEmpty())
+                <details style="margin-top: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
+                    <summary style="font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                        <span>Anggota yang Dibebaskan dari Wajah ({{ $exempted->count() }} orang)</span>
+                        <span style="font-size: 11.5px; color: #0284c7; font-weight: 500;">Buka daftar</span>
+                    </summary>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                        <table class="pending-table" style="font-size: 12.5px;">
+                            <thead>
+                                <tr>
+                                    <th>Nama Anggota</th>
+                                    <th>Peran</th>
+                                    <th>Status Wajah</th>
+                                    <th style="text-align: right;">Aksi Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($exempted as $ex)
+                                    <tr>
+                                        <td>
+                                            <strong style="color: #0f172a;">{{ $ex->name }}</strong>
+                                            <div style="font-size: 11px; color: #64748b;">{{ $ex->identifier_number ?: 'Tanpa NIS/NIP' }}</div>
+                                        </td>
+                                        <td>
+                                            <span class="status-pill neutral">{{ $ex->roleLabel() }}</span>
+                                        </td>
+                                        <td>
+                                            <span style="font-size: 12px; color: #64748b;">Tidak wajib ({{ $ex->face_embeddings_count }} foto tersimpan)</span>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <form method="POST" action="{{ route('face.member.unexempt', $ex) }}" style="display: inline-block;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="btn btn-small btn-outline" type="submit"
+                                                    data-confirm="Aktifkan kembali kewajiban pendaftaran wajah untuk {{ $ex->name }}?">
+                                                    Wajibkan Daftar Wajah
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
             @endif
         </section>
 
@@ -1014,7 +1106,9 @@
                                     </div>
 
                                     <div class="member-summary-meta">
-                                        @if ($hasCompleted)
+                                        @if ($member->isExemptFromEnrollment())
+                                            <span class="status-pill neutral" style="background: #f1f5f9; color: #475569;">Tidak Wajib Wajah</span>
+                                        @elseif ($hasCompleted)
                                             <span class="status-pill success">Mandiri Selesai</span>
                                         @endif
 
@@ -1022,7 +1116,7 @@
                                             <span class="status-pill info">{{ $faceCount }} Foto Tersimpan</span>
                                         @elseif ($faceCount > 0)
                                             <span class="status-pill warning">{{ $faceCount }} / {{ $photosNeeded }} Foto (Kurang)</span>
-                                        @else
+                                        @elseif (! $member->isExemptFromEnrollment())
                                             <span class="status-pill neutral">Belum Ada Foto</span>
                                         @endif
 
@@ -1038,7 +1132,11 @@
                                 <div class="member-card-body">
                                     @if ($member->faceEmbeddings->isEmpty())
                                         <div style="padding: 16px 0; color: #64748b; font-size: 13px;">
-                                            Anggota ini belum memiliki foto wajah tersimpan. Gunakan tombol <strong>+ Unggah Foto Wajah Manual</strong> di atas atau minta anggota melakukan pendaftaran wajah mandiri di akunnya.
+                                            @if ($member->isExemptFromEnrollment())
+                                                Anggota ini ditandai <strong>tidak wajib mendaftarkan wajah</strong> (misalnya untuk akun petugas / administrator).
+                                            @else
+                                                Anggota ini belum memiliki foto wajah tersimpan. Gunakan tombol <strong>+ Unggah Foto Wajah Manual</strong> di atas atau minta anggota melakukan pendaftaran wajah mandiri di akunnya.
+                                            @endif
                                         </div>
                                     @else
                                         @if ($faceCount < $photosNeeded)
@@ -1085,10 +1183,12 @@
                                                 </div>
                                             @endforeach
                                         </div>
+                                    @endif
 
-                                        {{-- Aksi Kartu Anggota --}}
-                                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 14px;">
-                                            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                    {{-- Aksi Kartu Anggota --}}
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 14px; margin-top: 14px;">
+                                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                            @if (! $member->faceEmbeddings->isEmpty())
                                                 {{-- Tombol 1-Klik: Hapus Semua Foto & Buka Pendaftaran Ulang --}}
                                                 <form method="POST" action="{{ route('face.member.reset-reenroll', $member) }}"
                                                     data-confirm="Hapus seluruh foto wajah {{ $member->name }} dan langsung buka pendaftaran ulang agar anggota dapat mendaftar dari awal?">
@@ -1101,23 +1201,46 @@
                                                         Hapus Semua Foto & Buka Pendaftaran Ulang
                                                     </button>
                                                 </form>
+                                            @endif
 
-                                                <a class="btn btn-small btn-outline" href="{{ route('members.edit', $member) }}">Ubah Data Anggota</a>
-                                            </div>
+                                            <a class="btn btn-small btn-outline" href="{{ route('members.edit', $member) }}">Ubah Data Anggota</a>
 
-                                            @if ($hasCompleted)
-                                                {{-- Opsi Buka Pendaftaran Ulang Tetapi Tetap Simpan Foto Lama --}}
-                                                <form method="POST" action="{{ route('face.enrollment.reopen', $member) }}"
-                                                    data-confirm="Buka pendaftaran ulang wajah {{ $member->name }} tanpa menghapus foto lamanya? (Foto lama tetap aktif sampai foto baru diverifikasi).">
+                                            {{-- Tombol Toggle Bebas Wajah --}}
+                                            @if ($member->isExemptFromEnrollment())
+                                                <form method="POST" action="{{ route('face.member.unexempt', $member) }}" style="display: inline-block;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button class="btn btn-small btn-outline" type="submit" style="color: #0284c7; border-color: #93c5fd;"
+                                                        data-confirm="Wajibkan {{ $member->name }} mendaftarkan wajah?">
+                                                        Wajibkan Daftar Wajah
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('face.member.exempt', $member) }}" style="display: inline-block;">
                                                     @csrf
                                                     @method('PUT')
-                                                    <button class="btn btn-small btn-outline" type="submit" style="color: #2563eb; border-color: #93c5fd;" title="Buka pendaftaran ulang tetapi simpan foto lama">
-                                                        Buka Pendaftaran Saja (Simpan Foto)
+                                                    <button class="btn btn-small btn-secondary" type="submit" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;"
+                                                        data-confirm="Tandai {{ $member->name }} sebagai tidak wajib mendaftarkan wajah?">
+                                                        Bebaskan dari Wajah
                                                     </button>
                                                 </form>
                                             @endif
                                         </div>
-                                    @endif
+
+                                        @if ($hasCompleted)
+                                            {{-- Opsi Buka Pendaftaran Ulang Tetapi Tetap Simpan Foto Lama --}}
+                                            <form method="POST" action="{{ route('face.enrollment.reopen', $member) }}"
+                                                data-confirm="Buka pendaftaran ulang wajah {{ $member->name }} tanpa menghapus foto lamanya? (Foto lama tetap aktif sampai foto baru diverifikasi).">
+                                                @csrf
+                                                @method('PUT')
+                                                <button class="btn btn-small btn-outline" type="submit" style="color: #2563eb; border-color: #93c5fd;" title="Buka pendaftaran ulang tetapi simpan foto lama">
+                                                    Buka Pendaftaran Saja (Simpan Foto)
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </div>
+                            </details>
                                 </div>
                             </details>
                         @endforeach

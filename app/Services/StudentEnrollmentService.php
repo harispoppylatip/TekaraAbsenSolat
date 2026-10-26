@@ -307,6 +307,14 @@ class StudentEnrollmentService
             return User::EnrollmentCompleted;
         }
 
+        // Akun yang ditandai tidak wajib mendaftarkan wajah tetap dikecualikan,
+        // kecuali jika ada foto yang sedang diproses.
+        if ($user->isExemptFromEnrollment()) {
+            if ($photo['usable'] === 0 && ! $this->hasPending($user)) {
+                return User::EnrollmentExempted;
+            }
+        }
+
         // Ketika foto sudah mencapai target (misal 5 foto), pendaftaran TIDAK
         // otomatis terkunci agar pemilik akun bisa memeriksa fotonya di tabel,
         // menghapus foto yang kurang bagus, lalu menekan tombol konfirmasi.

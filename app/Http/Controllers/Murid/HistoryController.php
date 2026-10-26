@@ -74,7 +74,7 @@ class HistoryController extends Controller
             'logs' => $reports->memberHistory($user, 15),
             'faceCount' => $user->faceEmbeddings()->count(),
             'isFaceEnrolled' => $user->hasCompletedEnrollment(),
-            'needsEnrollment' => ! $user->hasCompletedEnrollment() || $user->faceEmbeddings()->count() < 5,
+            'needsEnrollment' => ! $user->isExemptFromEnrollment() && (! $user->hasCompletedEnrollment() || $user->faceEmbeddings()->count() < 5),
         ]);
     }
 

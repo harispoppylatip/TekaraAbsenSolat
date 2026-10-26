@@ -136,6 +136,7 @@ return [
         'completed' => 'Sudah terdaftar',
         'rejected' => 'Fotonya ditolak',
         'needs_reenrollment' => 'Perlu daftar ulang',
+        'exempted' => 'Tidak wajib wajah',
     ],
 
     /*

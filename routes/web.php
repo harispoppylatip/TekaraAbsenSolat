@@ -105,6 +105,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/wajah/anggota/{member}', [FaceDataController::class, 'destroyMember'])->name('face.member.destroy');
         Route::post('/wajah/anggota/{member}/reset-daftar-ulang', [FaceDataController::class, 'resetAndReenroll'])->name('face.member.reset-reenroll');
         Route::put('/wajah/anggota/{member}/daftar-ulang', [FaceDataController::class, 'requestReenrollment'])->name('face.enrollment.reopen');
+        Route::post('/wajah/bebas-wajah', [FaceDataController::class, 'exempt'])->name('face.member.exempt-post');
+        Route::put('/wajah/anggota/{member}/bebas-wajah', [FaceDataController::class, 'exempt'])->name('face.member.exempt');
+        Route::delete('/wajah/anggota/{member}/bebas-wajah', [FaceDataController::class, 'unexempt'])->name('face.member.unexempt');
         Route::put('/wajah/petugas/{member}', [FaceDataController::class, 'updateOperator'])->name('face.operator.update');
 
         Route::get('/sidik-jari', [FingerprintDataController::class, 'index'])->name('fingerprint.index');

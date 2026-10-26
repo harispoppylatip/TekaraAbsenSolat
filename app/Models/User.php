@@ -55,6 +55,9 @@ class User extends Authenticatable
     /** Angka wajahnya ada, tetapi berasal dari mesin atau model yang berbeda. */
     public const EnrollmentNeedsReenrollment = 'needs_reenrollment';
 
+    /** Dikecualikan / tidak wajib mendaftarkan wajah (misalnya admin atau petugas). */
+    public const EnrollmentExempted = 'exempted';
+
     /**
      * Seluruh keadaan pendaftaran wajah yang dikenali.
      *
@@ -71,6 +74,7 @@ class User extends Authenticatable
         self::EnrollmentCompleted,
         self::EnrollmentRejected,
         self::EnrollmentNeedsReenrollment,
+        self::EnrollmentExempted,
     ];
 
     /**
@@ -176,6 +180,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Dikecualikan dari kewajiban mendaftarkan wajah (misalnya admin atau petugas).
+     */
+    public function isExemptFromEnrollment(): bool
+    {
+        return $this->enrollmentStatus() === self::EnrollmentExempted;
+    }
+
+    /**
      * Keadaan yang masih boleh dilanjutkan atau diperbaiki sendiri pemiliknya.
      *
      * `processing` dan `needs_reenrollment` ikut di sini. `needs_reenrollment`
@@ -187,6 +199,10 @@ class User extends Authenticatable
      */
     public function needsEnrollment(): bool
     {
+        if ($this->isExemptFromEnrollment()) {
+            return false;
+        }
+
         return in_array($this->enrollmentStatus(), [
             self::EnrollmentNotStarted,
             self::EnrollmentInProgress,
