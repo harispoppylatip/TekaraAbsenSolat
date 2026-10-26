@@ -151,30 +151,54 @@
             justify-content: space-between;
         }
 
-        .btn-device-save {
-            padding: 6px 14px;
-            border-radius: 7px;
-            font-size: 12px;
+        .btn-device-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 12.5px;
             font-weight: 600;
-            background: #0284c7;
-            color: #ffffff;
-            border: none;
             cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
         }
 
-        .btn-device-save:hover {
+        .btn-device-primary {
+            background: #0284c7;
+            color: #ffffff;
+        }
+
+        .btn-device-primary:hover {
             background: #0369a1;
         }
 
+        .btn-device-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border-color: #cbd5e1;
+        }
+
+        .btn-device-secondary:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .btn-device-ghost {
+            background: #f8fafc;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+
+        .btn-device-ghost:hover {
+            background: #f1f5f9;
+        }
+
         .btn-device-del {
-            padding: 6px 10px;
-            border-radius: 7px;
-            font-size: 12px;
-            font-weight: 600;
             background: #ffffff;
             color: #dc2626;
-            border: 1px solid #fecaca;
-            cursor: pointer;
+            border-color: #fecaca;
         }
 
         .btn-device-del:hover {
@@ -225,13 +249,13 @@
             </div>
         </section>
 
-        {{-- Perangkat Baru Menunggu --}}
+        {{-- Perangkat Baru Menunggu Pendaftaran --}}
         @if ($pending->isNotEmpty())
             <section class="device-panel-card" style="border-color: #fde68a; background: #fffdf5;">
                 <div class="device-panel-header">
                     <div class="device-panel-title">
                         <h2>Perangkat Baru Terdeteksi</h2>
-                        <p>Perangkat yang baru terhubung belum bisa dipakai. Beri nama, tentukan jenis, lalu aktifkan.</p>
+                        <p>Perangkat yang baru terhubung belum bisa dipakai. Beri nama, tentukan jenis, lalu daftarkan.</p>
                     </div>
                 </div>
 
@@ -244,7 +268,7 @@
                                     <span class="device-badge status-wait">Menunggu</span>
                                 </div>
                                 <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
-                                    ID: <code>{{ $device->device_id }}</code> &bull; Terakhir aktif: {{ $device->last_seen_at?->translatedFormat('d M H:i') ?? 'Belum pernah' }}
+                                    ID Alat: <code>{{ $device->device_id }}</code> &bull; Terakhir aktif: {{ $device->last_seen_at?->translatedFormat('d M H:i') ?? 'Belum pernah' }}
                                 </p>
                             </div>
 
@@ -252,7 +276,7 @@
                                 @csrf
                                 @method('PUT')
 
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                                     <div>
                                         <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 3px;">Nama Perangkat</label>
                                         <input class="input-field" style="padding: 6px 10px; font-size: 12.5px; width: 100%; border-radius: 7px; border: 1px solid #cbd5e1;" type="text" name="name" value="{{ $device->name }}" required>
@@ -268,10 +292,25 @@
                                     </div>
                                 </div>
 
-                                <button class="btn-device-save" type="submit" style="width: 100%;">
-                                    Daftarkan Perangkat Ini
-                                </button>
+                                <div style="margin-bottom: 12px;">
+                                    <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 3px;">Letak Perangkat</label>
+                                    <input class="input-field" style="padding: 6px 10px; font-size: 12.5px; width: 100%; border-radius: 7px; border: 1px solid #cbd5e1;" type="text" name="location" value="{{ $device->location }}" placeholder="Musala lantai 1">
+                                </div>
+
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn-device-action btn-device-ghost" style="padding: 6px 12px;" type="submit">
+                                        Simpan
+                                    </button>
                             </form>
+
+                                    <form method="POST" action="{{ route('devices.register', $device) }}"
+                                        data-confirm="Daftarkan perangkat {{ $device->name }}? Status awalnya akan dimatikan sampai Anda menyalakannya.">
+                                        @csrf
+                                        <button class="btn-device-action btn-device-primary" style="padding: 6px 12px;" type="submit">
+                                            Daftarkan
+                                        </button>
+                                    </form>
+                                </div>
                         </div>
                     @endforeach
                 </div>
@@ -287,13 +326,13 @@
                 </div>
             </div>
 
-            @if ($devices->isEmpty())
+            @if ($registered->isEmpty())
                 <div style="padding: 32px 18px; text-align: center; color: #64748b; font-size: 13.5px;">
-                    Belum ada perangkat yang terdaftar di sistem.
+                    Belum ada perangkat yang didaftarkan di sistem.
                 </div>
             @else
                 <div class="device-grid-cards">
-                    @foreach ($devices as $device)
+                    @foreach ($registered as $device)
                         <div class="device-item-card">
                             <div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -304,7 +343,9 @@
                                 </div>
 
                                 <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
-                                    ID: <code>{{ $device->device_id }}</code> &bull; Terakhir aktif: {{ $device->last_seen_at?->translatedFormat('d M H:i') ?? 'Belum pernah' }}
+                                    {{ $device->typeLabel() }}{{ $device->location ? ' · ' . $device->location : '' }} &bull;
+                                    ID: <code>{{ $device->device_id }}</code> &bull;
+                                    Terakhir: {{ $device->last_seen_at?->translatedFormat('d M H:i') ?? 'Belum pernah' }}
                                 </p>
                             </div>
 
@@ -312,7 +353,7 @@
                                 @csrf
                                 @method('PUT')
 
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                                     <div>
                                         <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 3px;">Nama</label>
                                         <input class="input-field" style="padding: 6px 10px; font-size: 12.5px; width: 100%; border-radius: 7px; border: 1px solid #cbd5e1;" type="text" name="name" value="{{ $device->name }}" required>
@@ -329,28 +370,35 @@
                                 </div>
 
                                 <div style="margin-bottom: 10px;">
-                                    <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 3px;">Status</label>
-                                    <select class="select-field" style="padding: 6px 10px; font-size: 12.5px; width: 100%; border-radius: 7px; border: 1px solid #cbd5e1;" name="status" required>
-                                        @foreach ($statuses as $value => $label)
-                                            <option value="{{ $value }}" @selected($device->status === $value)>{{ $label }}</option>
-                                        @endforeach
-                                    </select>
+                                    <label style="display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 3px;">Letak Perangkat</label>
+                                    <input class="input-field" style="padding: 6px 10px; font-size: 12.5px; width: 100%; border-radius: 7px; border: 1px solid #cbd5e1;" type="text" name="location" value="{{ $device->location }}">
                                 </div>
 
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                                    <button class="btn-device-save" type="submit">
-                                        Perbarui
+                                    <button class="btn-device-action btn-device-ghost" style="padding: 6px 12px;" type="submit">
+                                        Simpan
                                     </button>
                             </form>
 
-                                    <form method="POST" action="{{ route('devices.destroy', $device) }}"
-                                        data-confirm="Hapus perangkat {{ $device->name }}?">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="btn-device-del" type="submit">
-                                            Hapus
-                                        </button>
-                                    </form>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <form method="POST" action="{{ route('devices.status', $device) }}">
+                                            @csrf
+                                            @method('PUT')
+                                            <input type="hidden" name="active" value="{{ $device->isActive() ? 0 : 1 }}">
+                                            <button class="btn-device-action {{ $device->isActive() ? 'btn-device-secondary' : 'btn-device-primary' }}" style="padding: 6px 12px;" type="submit">
+                                                {{ $device->isActive() ? 'Matikan' : 'Nyalakan' }}
+                                            </button>
+                                        </form>
+
+                                        <form method="POST" action="{{ route('devices.destroy', $device) }}"
+                                            data-confirm="Hapus perangkat {{ $device->name }}? Riwayat absen tetap tersimpan.">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn-device-action btn-device-del" style="padding: 6px 10px;" type="submit" title="Hapus perangkat">
+                                                Hapus
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                         </div>
                     @endforeach
