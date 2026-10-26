@@ -266,6 +266,148 @@
             background: #fee2e2;
             color: #991b1b;
         }
+
+        /* 5. Dropdown Per Hari Catatan Kehadiran */
+        .daily-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .daily-history-item {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            overflow: hidden;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .daily-history-item:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+        }
+
+        .daily-history-item[open] {
+            border-color: #94a3b8;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+        }
+
+        .daily-history-header {
+            list-style: none;
+            padding: 14px 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            user-select: none;
+            background: #ffffff;
+            transition: background 0.15s ease;
+        }
+
+        .daily-history-header::-webkit-details-marker {
+            display: none;
+        }
+
+        .daily-history-header:hover {
+            background: #f8fafc;
+        }
+
+        .daily-history-item[open] .daily-history-header {
+            background: #f8fafc;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .daily-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .daily-date-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .daily-prayers-summary {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .daily-prayer-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+
+        .daily-prayer-tag.hadir {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #dcfce7;
+        }
+
+        .daily-prayer-tag.terlambat {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fee2e2;
+        }
+
+        .daily-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .daily-count-badge {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0369a1;
+            background: #e0f2fe;
+            padding: 4px 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .daily-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #2563eb;
+            background: #eff6ff;
+            padding: 5px 12px;
+            border-radius: 8px;
+            border: 1px solid #dbeafe;
+            transition: all 0.15s ease;
+        }
+
+        .daily-history-item:hover .daily-toggle-btn {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+
+        .toggle-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .daily-history-item[open] .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .daily-history-content {
+            padding: 16px 20px;
+            background: #ffffff;
+        }
     </style>
 
     <div class="my-history-container">
@@ -483,56 +625,89 @@
                 @endif
             </section>
 
-            {{-- 5. Riwayat Catatan Kehadiran Terbaru --}}
+            {{-- 5. Riwayat Catatan Kehadiran Terbaru Dikelompokkan Per Hari --}}
             <section class="history-table-card" style="margin-top: 20px;">
                 <div class="history-table-head">
-                    <h2 class="history-section-title">Riwayat Presensi Terbaru</h2>
-                    <p class="history-section-subtitle">Catatan kehadiran terbaru Anda beserta bukti pemindaian kamera.</p>
+                    <h2 class="history-section-title">Riwayat Presensi per Hari</h2>
+                    <p class="history-section-subtitle">Catatan waktu solat yang berhasil Anda ikuti dikelompokkan berdasarkan tanggal kehadiran.</p>
                 </div>
 
-                @if ($logs->isEmpty())
-                    <p class="empty-state">Belum ada catatan kehadiran. Lakukan absensi dengan berdiri tegak di depan kamera sekolah.</p>
+                @if ($dailyHistory->isEmpty())
+                    <p class="empty-state">Belum ada catatan kehadiran pada rentang waktu ini. Lakukan absensi dengan berdiri di depan kamera sekolah atau gunakan sidik jari.</p>
                 @else
-                    <div class="table-wrap">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Hari & Tanggal</th>
-                                    <th>Waktu Sholat</th>
-                                    <th>Waktu Pindai</th>
-                                    <th>Status</th>
-                                    <th>Foto Bukti</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($logs as $log)
-                                    <tr>
-                                        <td class="cell-strong" style="font-weight: 600; color: #0f172a;">
-                                            {{ $log->scanned_at?->translatedFormat('l, d F Y') }}
-                                        </td>
-                                        <td>{{ $log->session?->prayerLabel() ?? 'Sesi Terhapus' }}</td>
-                                        <td><code style="font-size: 13px;">{{ $log->scanned_at?->format('H:i:s') }}</code></td>
-                                        <td>
-                                            @if ($log->status === 'hadir')
-                                                <span class="badge-status hadir">Hadir</span>
-                                            @else
-                                                <span class="badge-status terlambat">Terlambat</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @include('partials.proof-photo', [
-                                                'log' => $log,
-                                                'proofFallback' => 'Tanpa Bukti',
-                                            ])
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                    <div class="daily-history-list">
+                        @foreach ($dailyHistory as $index => $day)
+                            <details class="daily-history-item" @if ($index === 0) open @endif>
+                                <summary class="daily-history-header">
+                                    <div class="daily-header-left">
+                                        <div class="daily-date-title">
+                                            {{ $day['date']->translatedFormat('l, d F Y') }}
+                                        </div>
+                                        <div class="daily-prayers-summary">
+                                            @foreach ($day['logs'] as $log)
+                                                <span class="daily-prayer-tag {{ $log->status }}">
+                                                    {{ $log->session?->prayerLabel() ?? 'Solat' }} ({{ $log->status === 'hadir' ? 'Hadir' : 'Terlambat' }})
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div class="daily-header-right">
+                                        <span class="daily-count-badge">
+                                            {{ $day['total_count'] }} Waktu Solat
+                                        </span>
+                                        <span class="daily-toggle-btn">
+                                            <span class="toggle-text">Lihat Detail</span>
+                                            <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </summary>
+
+                                <div class="daily-history-content">
+                                    <div class="table-wrap">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Waktu Sholat</th>
+                                                    <th>Waktu Pindai</th>
+                                                    <th>Status</th>
+                                                    <th>Metode & Bukti</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($day['logs'] as $log)
+                                                    <tr>
+                                                        <td class="cell-strong" style="font-weight: 700; color: #0f172a;">
+                                                            {{ $log->session?->prayerLabel() ?? 'Sesi Terhapus' }}
+                                                        </td>
+                                                        <td><code style="font-size: 13px; font-weight: 600;">{{ $log->scanned_at?->format('H:i:s') }}</code></td>
+                                                        <td>
+                                                            @if ($log->status === 'hadir')
+                                                                <span class="badge-status hadir">Hadir</span>
+                                                            @else
+                                                                <span class="badge-status terlambat">Terlambat</span>
+                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            @include('partials.proof-photo', [
+                                                                'log' => $log,
+                                                                'proofFallback' => 'Tanpa Bukti',
+                                                            ])
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </details>
+                        @endforeach
                     </div>
 
-                    <div style="margin-top: 14px;">
-                        {{ $logs->links('pagination.records') }}
+                    <div style="margin-top: 16px;">
+                        {{ $dailyHistory->links('pagination.records') }}
                     </div>
                 @endif
             </section>

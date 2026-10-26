@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Models\User;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator as LengthAwarePaginatorContract;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Penyusun angka rekap kehadiran solat.
@@ -126,6 +129,81 @@ class SolatReportService
             ->orderByDesc('scanned_at')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Riwayat kehadiran per hari seorang anggota, dikelompokkan berdasarkan tanggal solat/pindai.
+     *
+     * @return LengthAwarePaginator<int, array{date: Carbon, date_string: string, logs: Collection<int, SolatAttendanceLog>, present_count: int, late_count: int, total_count: int}>
+     */
+    public function memberDailyHistory(User $user, ?CarbonInterface $from = null, ?CarbonInterface $to = null, int $perPage = 10): LengthAwarePaginator
+    {
+        $datesQuery = SolatAttendanceLog::query()
+            ->where('user_id', $user->id)
+            ->whereHas('session', fn (Builder $query) => $query->real())
+            ->when($from, fn (Builder $q) => $q->where('scanned_at', '>=', $from->copy()->startOfDay()))
+            ->when($to, fn (Builder $q) => $q->where('scanned_at', '<=', $to->copy()->endOfDay()))
+            ->selectRaw('DATE(scanned_at) as log_date')
+            ->distinct()
+            ->orderByDesc('log_date');
+
+        $paginatedDates = $datesQuery->paginate($perPage)->withQueryString();
+
+        $dates = collect($paginatedDates->items())->pluck('log_date')->filter()->values()->all();
+
+        if (empty($dates)) {
+            $emptyPaginator = new LengthAwarePaginator(
+                collect(),
+                $paginatedDates->total(),
+                $paginatedDates->perPage(),
+                $paginatedDates->currentPage(),
+                [
+                    'path' => LengthAwarePaginator::resolveCurrentPath(),
+                    'pageName' => $paginatedDates->getPageName(),
+                ]
+            );
+            $emptyPaginator->withQueryString();
+
+            return $emptyPaginator;
+        }
+
+        $logs = SolatAttendanceLog::query()
+            ->where('user_id', $user->id)
+            ->whereHas('session', fn (Builder $query) => $query->real())
+            ->whereIn(DB::raw('DATE(scanned_at)'), $dates)
+            ->with('session')
+            ->orderBy('scanned_at')
+            ->get()
+            ->groupBy(fn (SolatAttendanceLog $log) => $log->scanned_at->toDateString());
+
+        $days = collect($dates)->map(function (string $dateStr) use ($logs) {
+            $dayLogs = $logs->get($dateStr, collect());
+            $present = $dayLogs->where('status', SolatAttendanceLog::StatusHadir)->count();
+            $late = $dayLogs->where('status', SolatAttendanceLog::StatusTerlambat)->count();
+
+            return [
+                'date' => Carbon::parse($dateStr),
+                'date_string' => $dateStr,
+                'logs' => $dayLogs,
+                'present_count' => $present,
+                'late_count' => $late,
+                'total_count' => $dayLogs->count(),
+            ];
+        });
+
+        $paginator = new LengthAwarePaginator(
+            $days,
+            $paginatedDates->total(),
+            $paginatedDates->perPage(),
+            $paginatedDates->currentPage(),
+            [
+                'path' => LengthAwarePaginator::resolveCurrentPath(),
+                'pageName' => $paginatedDates->getPageName(),
+            ]
+        );
+        $paginator->withQueryString();
+
+        return $paginator;
     }
 
     /**

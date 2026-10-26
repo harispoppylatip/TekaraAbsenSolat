@@ -61,6 +61,7 @@ class HistoryController extends Controller
             ->values();
 
         $activeSession = app(SolatSessionService::class)->activeSession();
+        $dailyHistory = $reports->memberDailyHistory($user, $from, $to, 10);
 
         return view('murid.riwayat', [
             'user' => $user,
@@ -71,7 +72,8 @@ class HistoryController extends Controller
             'activeSession' => $activeSession,
             'openedSessions' => $activeSession ? 1 : 0,
             'perPrayer' => $perPrayer,
-            'logs' => $reports->memberHistory($user, 15),
+            'dailyHistory' => $dailyHistory,
+            'logs' => $dailyHistory,
             'faceCount' => $user->faceEmbeddings()->count(),
             'isFaceEnrolled' => $user->hasCompletedEnrollment(),
             'needsEnrollment' => ! $user->isExemptFromEnrollment() && (! $user->hasCompletedEnrollment() || $user->faceEmbeddings()->count() < 5),
