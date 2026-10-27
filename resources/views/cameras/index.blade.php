@@ -923,6 +923,15 @@
 
             const logsUrl = monitorBox.dataset.logsUrl;
 
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
             function renderCctvLogs(logs) {
                 if (!logList || !Array.isArray(logs) || logs.length === 0) return;
 
@@ -934,9 +943,18 @@
                     const row = document.createElement('div');
                     row.className = 'log-row';
 
+                    const safeName = escapeHtml(log.name || 'Anggota');
+                    const safeTime = escapeHtml(log.time || '');
+                    const safeSession = escapeHtml(log.session || 'Uji Coba');
+                    const safeIdentity = log.identity ? escapeHtml(log.identity) : '';
+                    const safeDeviceId = log.device_id ? escapeHtml(log.device_id) : '';
+                    const safeStatus = escapeHtml(log.status || 'Hadir');
+                    const safeProofUrl = log.proof_photo_url ? escapeHtml(log.proof_photo_url) : '';
+                    const safeInitial = escapeHtml((log.name && String(log.name).charAt(0)) || 'A');
+
                     let photoHtml = '';
                     if (log.is_fingerprint) {
-                        photoHtml = '<div class="proof-thumb proof-thumb-fingerprint" title="Absen via sidik jari' + (log.device_id ? ' (' + log.device_id + ')' : '') + '" aria-label="Absen via sidik jari" style="width: 44px; height: 44px; min-width: 44px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; flex-shrink: 0;">' +
+                        photoHtml = '<div class="proof-thumb proof-thumb-fingerprint" title="Absen via sidik jari' + (safeDeviceId ? ' (' + safeDeviceId + ')' : '') + '" aria-label="Absen via sidik jari" style="width: 44px; height: 44px; min-width: 44px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; flex-shrink: 0;">' +
                             '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
                                 '<path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 3"></path>' +
                                 '<path d="M14 13.12c0 2.38 0 6.38-1 8.88"></path>' +
@@ -947,27 +965,27 @@
                                 '<path d="M9 6.8a6 6 0 0 1 9 5.2v2"></path>' +
                             '</svg>' +
                         '</div>';
-                    } else if (log.proof_photo_url) {
-                        photoHtml = '<a class="proof-link" href="' + log.proof_photo_url + '" target="_blank" rel="noopener">' +
-                                    '<img class="proof-thumb" src="' + log.proof_photo_url + '" alt="Bukti CCTV" width="44" height="44" style="border-radius: 8px; object-fit: cover;">' +
+                    } else if (safeProofUrl) {
+                        photoHtml = '<a class="proof-link" href="' + safeProofUrl + '" target="_blank" rel="noopener">' +
+                                    '<img class="proof-thumb" src="' + safeProofUrl + '" alt="Bukti CCTV" width="44" height="44" style="border-radius: 8px; object-fit: cover;">' +
                                     '</a>';
                     } else {
-                        photoHtml = '<span class="avatar-wrap avatar-none" style="width: 44px; height: 44px; font-size: 15px; border-radius: 8px;">' + ((log.name && log.name.charAt(0)) || 'A') + '</span>';
+                        photoHtml = '<span class="avatar-wrap avatar-none" style="width: 44px; height: 44px; font-size: 15px; border-radius: 8px;">' + safeInitial + '</span>';
                     }
 
                     row.innerHTML = photoHtml +
                         '<div class="log-body">' +
                             '<div class="log-line">' +
-                                '<span class="log-name">' + (log.name || 'Anggota') + '</span>' +
-                                '<span class="log-time">' + (log.time || '') + '</span>' +
+                                '<span class="log-name">' + safeName + '</span>' +
+                                '<span class="log-time">' + safeTime + '</span>' +
                             '</div>' +
                             '<div class="log-line log-line-meta">' +
                                 '<span class="log-sub">' +
-                                    '<span>' + (log.session || 'Uji Coba') + '</span>' +
-                                    (log.identity ? '<span>' + log.identity + '</span>' : '') +
+                                    '<span>' + safeSession + '</span>' +
+                                    (safeIdentity ? '<span>' + safeIdentity + '</span>' : '') +
                                     (log.is_fingerprint ? '<span style="color: #0284c7; font-weight: 600;">(Sidik Jari)</span>' : '') +
                                 '</span>' +
-                                '<span class="status ' + (log.status === 'Terlambat' ? 'status-terlambat' : 'status-hadir') + '">' + (log.status || 'Hadir') + '</span>' +
+                                '<span class="status ' + (log.status === 'Terlambat' ? 'status-terlambat' : 'status-hadir') + '">' + safeStatus + '</span>' +
                             '</div>' +
                         '</div>';
 
@@ -1011,23 +1029,28 @@
                 const row = document.createElement('div');
                 row.className = 'log-row';
 
-                let photoHtml = '<span class="avatar-wrap avatar-none" style="width: 44px; height: 44px; font-size: 15px;">' + (name.charAt(0) || 'A') + '</span>';
-                if (proofUrl) {
-                    photoHtml = '<a class="proof-link" href="' + proofUrl + '" target="_blank" rel="noopener">' +
-                                '<img class="proof-thumb" src="' + proofUrl + '" alt="Bukti CCTV" width="44" height="44" style="border-radius: 6px; object-fit: cover;">' +
+                const safeName = escapeHtml(name || 'Anggota');
+                const safeIdentity = identity ? escapeHtml(identity) : '';
+                const safeProofUrl = proofUrl ? escapeHtml(proofUrl) : '';
+                const safeInitial = escapeHtml((name && String(name).charAt(0)) || 'A');
+
+                let photoHtml = '<span class="avatar-wrap avatar-none" style="width: 44px; height: 44px; font-size: 15px;">' + safeInitial + '</span>';
+                if (safeProofUrl) {
+                    photoHtml = '<a class="proof-link" href="' + safeProofUrl + '" target="_blank" rel="noopener">' +
+                                '<img class="proof-thumb" src="' + safeProofUrl + '" alt="Bukti CCTV" width="44" height="44" style="border-radius: 6px; object-fit: cover;">' +
                                 '</a>';
                 }
 
                 row.innerHTML = photoHtml +
                     '<div class="log-body">' +
                         '<div class="log-line">' +
-                            '<span class="log-name">' + name + '</span>' +
+                            '<span class="log-name">' + safeName + '</span>' +
                             '<span class="log-time">' + timeStr + '</span>' +
                         '</div>' +
                         '<div class="log-line log-line-meta">' +
                             '<span class="log-sub">' +
                                 '<span>Dari CCTV</span>' +
-                                (identity ? '<span>' + identity + '</span>' : '') +
+                                (safeIdentity ? '<span>' + safeIdentity + '</span>' : '') +
                             '</span>' +
                             '<span class="status status-hadir">Hadir</span>' +
                         '</div>' +

@@ -6,13 +6,14 @@
             : null;
 
     $proofFallback = $proofFallback ?? null;
+    $showDeviceId = auth()->check() && auth()->user()->isAdmin() && !empty($log->device_id);
 @endphp
 
 @if ($isFingerprint)
     @if ($proofFallback !== null)
-        <span class="cell-note">Via sidik jari{{ $log->device_id ? ' (' . $log->device_id . ')' : '' }}</span>
+        <span class="cell-note">Via sidik jari{{ $showDeviceId ? ' (' . $log->device_id . ')' : '' }}</span>
     @else
-        <div class="proof-thumb proof-thumb-fingerprint" title="Absen via sidik jari{{ $log->device_id ? ' (' . $log->device_id . ')' : '' }}" aria-label="Absen via sidik jari">
+        <div class="proof-thumb proof-thumb-fingerprint" title="Absen via sidik jari{{ $showDeviceId ? ' (' . $log->device_id . ')' : '' }}" aria-label="Absen via sidik jari">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 3"></path>
                 <path d="M14 13.12c0 2.38 0 6.38-1 8.88"></path>

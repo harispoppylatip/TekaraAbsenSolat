@@ -20,6 +20,24 @@ trait GuardsDevice
      */
     protected function guardDevice(Request $request, DeviceRegistryService $devices): array
     {
+        $expectedToken = trim((string) env('DEVICE_API_TOKEN', ''));
+        if ($expectedToken !== '') {
+            $providedToken = (string) $request->header('X-Device-Token', (string) $request->input('api_token', ''));
+            if ($providedToken === '' || ! hash_equals($expectedToken, $providedToken)) {
+                return [null, response()->json([
+                    'ok' => false,
+                    'blocked' => true,
+                    'status' => 'device_token_invalid',
+                    'label' => 'Token salah',
+                    'message' => 'Token keamanan perangkat tidak sah.',
+                    'display_message' => 'Token ditolak',
+                    'display_detail' => 'Lapor operator',
+                    'member' => null,
+                    'log' => null,
+                ], 401)];
+            }
+        }
+
         $raw = $request->input('device_id', $request->header('X-Device-Id'));
         $device = $devices->find(is_string($raw) ? $raw : null);
 

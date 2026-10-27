@@ -15,17 +15,41 @@ use Illuminate\Support\Carbon;
 class DeviceRegistryService
 {
     /**
+     * Batas maksimum antrean perangkat berstatus belum_didaftarkan
+     * untuk mencegah banjir baris basis data dari permintaan tanpa autentikasi.
+     */
+    public const MaxPendingDevices = 30;
+
+    /**
      * Cari perangkat, dan catat perangkat baru bila belum dikenal.
      */
     public function find(?string $deviceId, ?string $fallbackName = null): ?Device
     {
         $id = trim((string) $deviceId);
 
-        if ($id === '') {
+        if ($id === '' || ! preg_match('/^[A-Za-z0-9._:-]{1,50}$/', $id)) {
             return null;
         }
 
-        $device = Device::query()->firstOrCreate(
+        $existing = Device::query()->where('device_id', $id)->first();
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $pendingCount = Device::query()
+            ->where('status', Device::StatusBelumDidaftarkan)
+            ->count();
+
+        if ($pendingCount >= self::MaxPendingDevices) {
+            return new Device([
+                'device_id' => $id,
+                'name' => $fallbackName ?: $id,
+                'type' => Device::TypeGerbang,
+                'status' => Device::StatusBelumDidaftarkan,
+            ]);
+        }
+
+        return Device::query()->firstOrCreate(
             ['device_id' => $id],
             [
                 'name' => $fallbackName ?: $id,
@@ -33,8 +57,6 @@ class DeviceRegistryService
                 'status' => Device::StatusBelumDidaftarkan,
             ],
         );
-
-        return $device;
     }
 
     /**
