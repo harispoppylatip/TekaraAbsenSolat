@@ -137,8 +137,8 @@ services:
             TZ: ${APP_TIMEZONE:-Asia/Makassar}
         ports:
             # Port dibuka supaya basis datanya bisa diambil dari luar wadah.
-            # 0.0.0.0 berarti seluruh jaringan; 127.0.0.1 berarti komputer ini saja.
-            - "${DB_PUBLISH_HOST:-0.0.0.0}:${DB_PUBLISH_PORT:-3307}:3306"
+            # 127.0.0.1 berarti komputer ini saja (aman dari internet publik).
+            - "${DB_PUBLISH_HOST:-127.0.0.1}:${DB_PUBLISH_PORT:-3307}:3306"
         volumes:
             - dbdata:/var/lib/mysql
         healthcheck:
@@ -291,7 +291,7 @@ services:
         container_name: absen-solat-go2rtc
         restart: unless-stopped
         ports:
-            - "1984:1984"
+            - "127.0.0.1:1984:1984"
             - "18555:18555/tcp"
             - "18555:18555/udp"
         volumes:

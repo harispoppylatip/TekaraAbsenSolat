@@ -10,6 +10,47 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class CameraStreamService
 {
     /**
+     * Validasi keamanan URL siaran kamera (mencegah SSRF, skema file://, exec:, atau injeksi baris baru).
+     */
+    public function validateStreamUrl(string $url, string $streamType): ?string
+    {
+        $url = trim($url);
+
+        if ($url === '') {
+            return 'Alamat URL siaran kamera wajib diisi.';
+        }
+
+        if (preg_match('/[\r\n\0]/', $url)) {
+            return 'Alamat URL siaran mengandung karakter baris baru yang tidak diizinkan.';
+        }
+
+        if ($streamType === Camera::TypeRtsp) {
+            if (! preg_match('/^rtsps?:\/\/[^\s\/]+/i', $url)) {
+                return 'Alamat URL untuk RTSP harus diawali dengan rtsp:// atau rtsps://.';
+            }
+        } else {
+            if (! preg_match('/^https?:\/\/[^\s\/]+/i', $url)) {
+                return 'Alamat URL untuk Web Stream harus diawali dengan http:// atau https://.';
+            }
+        }
+
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($host === '' || in_array($host, ['go2rtc', 'db', 'wajah', 'app', 'web', '169.254.169.254'], true)) {
+            return 'Host tujuan URL siaran tidak diizinkan.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Validasi keamanan URL snapshot HTTP/HTTPS.
+     */
+    public function validateSnapshotUrl(string $url): ?string
+    {
+        return $this->validateStreamUrl($url, Camera::TypeWebStream);
+    }
+
+    /**
      * Uji koneksi ke siaran kamera (RTSP atau Web Stream).
      *
      * @return array{success: bool, message: string}
@@ -18,11 +59,22 @@ class CameraStreamService
     {
         $streamUrl = trim($streamUrl);
 
-        if ($streamUrl === '') {
+        $error = $this->validateStreamUrl($streamUrl, $streamType);
+        if ($error !== null) {
             return [
                 'success' => false,
-                'message' => 'Alamat URL siaran kamera tidak boleh kosong.',
+                'message' => $error,
             ];
+        }
+
+        if ($snapshotUrl !== null && trim($snapshotUrl) !== '') {
+            $snapError = $this->validateSnapshotUrl($snapshotUrl);
+            if ($snapError !== null) {
+                return [
+                    'success' => false,
+                    'message' => $snapError,
+                ];
+            }
         }
 
         if ($streamType === Camera::TypeRtsp) {
@@ -174,7 +226,11 @@ class CameraStreamService
         ];
 
         foreach ($rtspCameras as $cam) {
-            $url = str_replace('"', '\\"', trim($cam->stream_url));
+            $rawUrl = trim((string) $cam->stream_url);
+            if ($this->validateStreamUrl($rawUrl, Camera::TypeRtsp) !== null) {
+                continue;
+            }
+            $url = str_replace(['\\', '"', "\r", "\n", "\0"], ['\\\\', '\\"', '', '', ''], $rawUrl);
             $lines[] = "  cam_{$cam->id}:";
             $lines[] = "    - \"{$url}\"";
         }
@@ -451,6 +507,10 @@ class CameraStreamService
 
     protected function captureRtspFrame(string $streamUrl): ?string
     {
+        if ($this->validateStreamUrl($streamUrl, Camera::TypeRtsp) !== null) {
+            return null;
+        }
+
         $urlsToTry = [$streamUrl];
         if (str_contains($streamUrl, '/Channels/101')) {
             $urlsToTry[] = str_replace('/Channels/101', '/Channels/102', $streamUrl);
@@ -460,6 +520,7 @@ class CameraStreamService
             $command = [
                 'ffmpeg',
                 '-y',
+                '-protocol_whitelist', 'rtsp,rtsps,rtp,udp,tcp,tls',
                 '-rtsp_transport', 'tcp',
                 '-analyzeduration', '500000',
                 '-probesize', '500000',
@@ -487,9 +548,14 @@ class CameraStreamService
 
     protected function captureWebStreamFrame(string $streamUrl): ?string
     {
+        if ($this->validateStreamUrl($streamUrl, Camera::TypeWebStream) !== null) {
+            return null;
+        }
+
         $command = [
             'ffmpeg',
             '-y',
+            '-protocol_whitelist', 'http,https,tcp,tls',
             '-analyzeduration', '500000',
             '-probesize', '500000',
             '-i', $streamUrl,
@@ -516,6 +582,10 @@ class CameraStreamService
     protected function streamWebProxy(string $streamUrl): StreamedResponse
     {
         return response()->stream(function () use ($streamUrl) {
+            if ($this->validateStreamUrl($streamUrl, Camera::TypeWebStream) !== null) {
+                return;
+            }
+
             $context = stream_context_create([
                 'http' => [
                     'method' => 'GET',
@@ -548,15 +618,18 @@ class CameraStreamService
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
-            'Access-Control-Allow-Origin' => '*',
         ]);
     }
 
     protected function streamRtspMjpeg(string $streamUrl): StreamedResponse
     {
         return response()->stream(function () use ($streamUrl) {
+            if ($this->validateStreamUrl($streamUrl, Camera::TypeRtsp) !== null) {
+                return;
+            }
+
             $cmd = sprintf(
-                'ffmpeg -rtsp_transport tcp -i %s -f mjpeg -q:v 4 -r 5 -an pipe:1',
+                'ffmpeg -protocol_whitelist rtsp,rtsps,rtp,udp,tcp,tls -rtsp_transport tcp -i %s -f mjpeg -q:v 4 -r 5 -an pipe:1',
                 escapeshellarg($streamUrl)
             );
 
@@ -591,7 +664,6 @@ class CameraStreamService
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
-            'Access-Control-Allow-Origin' => '*',
         ]);
     }
 

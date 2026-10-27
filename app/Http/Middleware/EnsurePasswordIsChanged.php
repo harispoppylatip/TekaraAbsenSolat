@@ -21,8 +21,15 @@ class EnsurePasswordIsChanged
             return $next($request);
         }
 
-        if ($request->routeIs('password.*', 'logout', 'login.*') || $request->expectsJson()) {
+        if ($request->routeIs('password.*', 'logout', 'login.*')) {
             return $next($request);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'password_change_required',
+                'message' => 'Sandi Anda masih sandi bawaan. Ganti dulu sebelum memakai halaman lain.',
+            ], 403);
         }
 
         return redirect()

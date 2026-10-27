@@ -80,19 +80,7 @@ class CameraController extends Controller
      */
     public function store(Request $request, CameraStreamService $streamService): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'stream_type' => ['required', 'in:' . Camera::TypeWebStream . ',' . Camera::TypeRtsp],
-            'stream_url' => ['required', 'string'],
-            'snapshot_url' => ['nullable', 'string'],
-            'location' => ['nullable', 'string', 'max:100'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'is_active' => ['sometimes', 'boolean'],
-        ], [
-            'name.required' => 'Nama kamera wajib diisi.',
-            'stream_type.required' => 'Pilih jenis siaran kamera.',
-            'stream_url.required' => 'Alamat URL siaran kamera wajib diisi.',
-        ]);
+        $validated = $this->validateCameraInput($request, $streamService);
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
@@ -128,19 +116,7 @@ class CameraController extends Controller
      */
     public function update(Request $request, Camera $camera, CameraStreamService $streamService): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'stream_type' => ['required', 'in:' . Camera::TypeWebStream . ',' . Camera::TypeRtsp],
-            'stream_url' => ['required', 'string'],
-            'snapshot_url' => ['nullable', 'string'],
-            'location' => ['nullable', 'string', 'max:100'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'is_active' => ['sometimes', 'boolean'],
-        ], [
-            'name.required' => 'Nama kamera wajib diisi.',
-            'stream_type.required' => 'Pilih jenis siaran kamera.',
-            'stream_url.required' => 'Alamat URL siaran kamera wajib diisi.',
-        ]);
+        $validated = $this->validateCameraInput($request, $streamService);
 
         $validated['is_active'] = $request->boolean('is_active', false);
 
@@ -189,8 +165,32 @@ class CameraController extends Controller
     {
         $validated = $request->validate([
             'stream_type' => ['required', 'in:' . Camera::TypeWebStream . ',' . Camera::TypeRtsp],
-            'stream_url' => ['required', 'string'],
-            'snapshot_url' => ['nullable', 'string'],
+            'stream_url' => [
+                'required',
+                'string',
+                'max:1000',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request, $service): void {
+                    $type = (string) $request->input('stream_type', Camera::TypeWebStream);
+                    $error = $service->validateStreamUrl((string) $value, $type);
+                    if ($error !== null) {
+                        $fail($error);
+                    }
+                },
+            ],
+            'snapshot_url' => [
+                'nullable',
+                'string',
+                'max:1000',
+                function (string $attribute, mixed $value, \Closure $fail) use ($service): void {
+                    if ($value === null || trim((string) $value) === '') {
+                        return;
+                    }
+                    $error = $service->validateSnapshotUrl((string) $value);
+                    if ($error !== null) {
+                        $fail($error);
+                    }
+                },
+            ],
         ]);
 
         $result = $service->testConnection(
@@ -222,7 +222,6 @@ class CameraController extends Controller
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
-            'Access-Control-Allow-Origin' => '*',
         ]);
     }
 
@@ -311,6 +310,50 @@ class CameraController extends Controller
             'logs' => $recent,
             'worker_active' => $isWorkerActive,
             'last_scan' => $lastScan,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateCameraInput(Request $request, CameraStreamService $service): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'stream_type' => ['required', 'in:' . Camera::TypeWebStream . ',' . Camera::TypeRtsp],
+            'stream_url' => [
+                'required',
+                'string',
+                'max:1000',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request, $service): void {
+                    $type = (string) $request->input('stream_type', Camera::TypeWebStream);
+                    $error = $service->validateStreamUrl((string) $value, $type);
+                    if ($error !== null) {
+                        $fail($error);
+                    }
+                },
+            ],
+            'snapshot_url' => [
+                'nullable',
+                'string',
+                'max:1000',
+                function (string $attribute, mixed $value, \Closure $fail) use ($service): void {
+                    if ($value === null || trim((string) $value) === '') {
+                        return;
+                    }
+                    $error = $service->validateSnapshotUrl((string) $value);
+                    if ($error !== null) {
+                        $fail($error);
+                    }
+                },
+            ],
+            'location' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'is_active' => ['sometimes', 'boolean'],
+        ], [
+            'name.required' => 'Nama kamera wajib diisi.',
+            'stream_type.required' => 'Pilih jenis siaran kamera.',
+            'stream_url.required' => 'Alamat URL siaran kamera wajib diisi.',
         ]);
     }
 }

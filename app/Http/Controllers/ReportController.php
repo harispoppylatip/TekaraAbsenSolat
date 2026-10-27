@@ -86,10 +86,10 @@ class ReportController extends Controller
 
             foreach ($rows as $member) {
                 fputcsv($handle, [
-                    $member->identifier_number,
-                    $member->name,
-                    $member->roleLabel(),
-                    $member->class_name ?? '-',
+                    $this->sanitizeCsvCell($member->identifier_number),
+                    $this->sanitizeCsvCell($member->name),
+                    $this->sanitizeCsvCell($member->roleLabel()),
+                    $this->sanitizeCsvCell($member->class_name ?? '-'),
                     $member->present_count,
                     $member->late_count,
                     $member->log_count,
@@ -102,7 +102,7 @@ class ReportController extends Controller
 
             foreach ($reports->sessionBreakdown($from, $to, 500) as $session) {
                 fputcsv($handle, [
-                    $session->label(),
+                    $this->sanitizeCsvCell($session->label()),
                     $session->log_count,
                     $session->present_count,
                     $session->late_count,
@@ -111,6 +111,19 @@ class ReportController extends Controller
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Cegah CSV Formula Injection (CSV Injection) saat berkas dibuka di Excel.
+     */
+    private function sanitizeCsvCell(mixed $value): string
+    {
+        $text = (string) ($value ?? '');
+        if ($text !== '' && in_array($text[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'".$text;
+        }
+
+        return $text;
     }
 
     /**

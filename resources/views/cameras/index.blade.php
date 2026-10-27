@@ -493,7 +493,7 @@
                 const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsHost = window.location.hostname || '127.0.0.1';
                 const streamKey = 'cam_' + camId;
-                const preferProxy = Boolean(useProxyPath) || window.location.protocol === 'https:';
+                const preferProxy = useProxyPath !== false;
                 const wsUrl = preferProxy
                     ? (wsProto + '//' + window.location.host + '/go2rtc/ws?src=' + encodeURIComponent(streamKey))
                     : (wsProto + '//' + wsHost + ':1984/api/ws?src=' + encodeURIComponent(streamKey));
@@ -506,12 +506,12 @@
                 video.srcObject = null;
                 video.src = URL.createObjectURL(ms);
 
-                // Fallback ke jalur alternatif (/go2rtc/ws atau snapshot) bila dalam 6 detik belum mengalirkan paket video
+                // Fallback ke jalur alternatif (:1984 lokal atau snapshot) bila dalam 6 detik belum mengalirkan paket video
                 rtcFallbackTimer = setTimeout(function () {
                     if (!hasStartedVideo) {
                         cleanupGo2Rtc();
-                        if (!preferProxy) {
-                            startGo2RtcStream(true);
+                        if (preferProxy && window.location.protocol === 'http:') {
+                            startGo2RtcStream(false);
                         } else {
                             startSnapshotStream();
                         }
@@ -610,8 +610,8 @@
                     rtcWs.onerror = function () {
                         if (!hasStartedVideo) {
                             cleanupGo2Rtc();
-                            if (!preferProxy) {
-                                startGo2RtcStream(true);
+                            if (preferProxy && window.location.protocol === 'http:') {
+                                startGo2RtcStream(false);
                             } else {
                                 startSnapshotStream();
                             }

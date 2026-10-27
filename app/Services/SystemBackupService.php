@@ -374,6 +374,13 @@ class SystemBackupService
         $entries = [];
         $cursor = (int) $eocd['centralOffset'];
         $totalEntries = (int) $eocd['totalEntries'];
+        $totalUncompressedBytes = 0;
+        $maxEntryBytes = 128 * 1024 * 1024; // Maksimal 128 MB per berkas di dalam zip
+        $maxTotalBytes = 600 * 1024 * 1024; // Maksimal 600 MB total ekstraksi (proteksi Zip Bomb)
+
+        if ($totalEntries > 25000) {
+            throw new RuntimeException('Jumlah berkas di dalam arsip .zip melebihi batas wajar (maksimal 25.000 berkas).');
+        }
 
         for ($i = 0; $i < $totalEntries; $i++) {
             if ($cursor + 46 > $length || substr($zipBytes, $cursor, 4) !== "PK\x01\x02") {
@@ -399,20 +406,30 @@ class SystemBackupService
             $localHeader = unpack('vverNeed/vflags/vmethod/vmtime/vmdate/Vcrc/VcompSize/VuncompSize/vnameLen/vextraLen', substr($zipBytes, $localOffset + 4, 26));
             $dataOffset = $localOffset + 30 + (int) $localHeader['nameLen'] + (int) $localHeader['extraLen'];
             $compSize = (int) $header['compSize'];
+            $uncompSize = (int) $header['uncompSize'];
             $method = (int) $header['method'];
+
+            if ($uncompSize > $maxEntryBytes) {
+                throw new RuntimeException("Ukuran berkas '{$entryName}' di dalam .zip terlalu besar.");
+            }
 
             $rawData = substr($zipBytes, $dataOffset, $compSize);
 
             if ($method === 0) {
                 $content = $rawData;
             } elseif ($method === 8) {
-                $inflated = @gzinflate($rawData);
+                $inflated = @gzinflate($rawData, $maxEntryBytes);
                 if ($inflated === false) {
                     throw new RuntimeException("Gagal mengekstrak isi berkas '{$entryName}' dari arsip .zip.");
                 }
                 $content = $inflated;
             } else {
                 throw new RuntimeException("Metode kompresi berkas '{$entryName}' tidak didukung.");
+            }
+
+            $totalUncompressedBytes += strlen($content);
+            if ($totalUncompressedBytes > $maxTotalBytes) {
+                throw new RuntimeException('Total ukuran ekstraksi arsip .zip melebihi batas keamanan memori.');
             }
 
             $entries[$entryName] = $content;
