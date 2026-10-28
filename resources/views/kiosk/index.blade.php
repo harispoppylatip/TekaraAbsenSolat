@@ -73,56 +73,74 @@
         .kiosk-header {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 8px 14px;
+            border-radius: 16px;
+            padding: 10px 18px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
+            gap: 16px;
             flex-wrap: nowrap;
             flex-shrink: 0;
-            min-height: 56px;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
         }
 
         .kiosk-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             flex-shrink: 0;
         }
 
         .kiosk-logo {
-            width: 38px;
-            height: 38px;
+            width: 48px;
+            height: 48px;
             object-fit: contain;
             flex-shrink: 0;
         }
 
         .kiosk-brand-title {
             font-family: 'Montserrat', sans-serif;
-            font-size: 15.5px;
+            font-size: 16.5px;
             font-weight: 700;
             color: var(--text-main);
-            line-height: 1.2;
+            line-height: 1.25;
             white-space: nowrap;
         }
 
         .kiosk-brand-sub {
-            font-size: 11.5px;
+            font-size: 12px;
             color: var(--text-sub);
-            margin-top: 1px;
+            margin-top: 2px;
             white-space: nowrap;
+        }
+
+        .kiosk-session-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         .kiosk-session-box {
             display: flex;
             align-items: center;
             gap: 10px;
-            background: var(--surface-muted);
+            background: #f1f5f9;
             border: 1px solid var(--border);
-            border-radius: 9px;
-            padding: 5px 12px;
+            border-radius: 12px;
+            padding: 7px 14px;
+            flex-shrink: 0;
+        }
+
+        .kiosk-icon-circle {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
         }
 
@@ -132,7 +150,7 @@
         }
 
         .kiosk-session-name {
-            font-size: 13.5px;
+            font-size: 13px;
             font-weight: 700;
             color: var(--text-main);
             white-space: nowrap;
@@ -141,40 +159,58 @@
         .kiosk-session-window {
             font-size: 11px;
             color: var(--text-sub);
+            margin-top: 1px;
             white-space: nowrap;
         }
 
         .kiosk-session-count {
-            background: var(--primary-soft);
-            color: var(--primary);
-            border: 1px solid #bfdbfe;
-            border-radius: 7px;
-            padding: 4px 8px;
-            font-size: 12px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #dbeafe;
+            border-radius: 999px;
+            padding: 7px 14px;
+            font-size: 12.5px;
             font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             white-space: nowrap;
         }
 
-        .kiosk-controls-right {
+        .kiosk-controls-stack {
             display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: nowrap;
+            flex-direction: column;
+            gap: 7px;
             flex-shrink: 0;
         }
 
-        .kiosk-select-group {
+        .kiosk-controls-top {
             display: flex;
-            align-items: center;
-            gap: 6px;
+            align-items: flex-end;
+            gap: 10px;
             flex-wrap: nowrap;
-            flex-shrink: 0;
+        }
+
+        .kiosk-field {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .kiosk-field-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-sub);
+            padding-left: 2px;
         }
 
         .kiosk-select {
-            padding: 6px 10px;
+            padding: 5px 10px;
             border: 1px solid var(--border-strong);
-            border-radius: 8px;
+            border-radius: 9px;
             background: var(--surface);
             color: var(--text-main);
             font-size: 12px;
@@ -182,51 +218,31 @@
             font-family: inherit;
             cursor: pointer;
             outline: none;
-            max-width: 175px;
+            min-width: 155px;
+            max-width: 195px;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        #kiosk-webcam-device {
-            max-width: 135px;
-        }
-
         .kiosk-select:focus {
-            border-color: var(--primary);
+            border-color: #2563eb;
         }
 
-        .kiosk-clock-box {
-            text-align: right;
-            min-width: 85px;
-            padding-left: 8px;
-            border-left: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-
-        .kiosk-clock-time {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 17px;
-            font-weight: 800;
-            color: var(--text-main);
-            line-height: 1.1;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .kiosk-clock-date {
-            font-size: 10.5px;
-            color: var(--text-muted);
-            margin-top: 1px;
-            white-space: nowrap;
+        .kiosk-controls-bottom {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
         }
 
         .kiosk-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
-            padding: 6px 10px;
+            gap: 6px;
+            padding: 5px 12px;
             border: 1px solid var(--border-strong);
-            border-radius: 8px;
+            border-radius: 9px;
             background: var(--surface);
             color: var(--text-sub);
             font-size: 12px;
@@ -236,12 +252,48 @@
             cursor: pointer;
             white-space: nowrap;
             flex-shrink: 0;
-            transition: background 0.15s ease, color 0.15s ease;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
 
         .kiosk-btn:hover {
             background: var(--surface-muted);
             color: var(--text-main);
+            border-color: #94a3b8;
+        }
+
+        .kiosk-clock-wrapper {
+            display: flex;
+            align-items: center;
+            padding-left: 14px;
+            border-left: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .kiosk-clock-box {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            flex-shrink: 0;
+        }
+
+        .kiosk-clock-time {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1.15;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kiosk-clock-date {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            white-space: nowrap;
         }
 
         /* ================= MAIN GRID (CAMERA LEFT, LOGS RIGHT) ================= */
@@ -314,8 +366,7 @@
             border-radius: inherit;
         }
 
-        .kiosk-video-stage.is-unmirrored video,
-        .kiosk-video-stage.is-unmirrored img {
+        .kiosk-video-stage.is-mirrored video {
             transform: scaleX(-1);
         }
 
@@ -542,6 +593,7 @@
 
         {{-- ================= HEADER ATAS ================= --}}
         <header class="kiosk-header">
+            {{-- 1. KIRI: LOGO & IDENTITAS SEKOLAH --}}
             <div class="kiosk-brand">
                 <img class="kiosk-logo" src="{{ asset('images/logo-smkim4.webp') }}" alt="Logo SMKIM4">
                 <div>
@@ -550,83 +602,125 @@
                 </div>
             </div>
 
-            <div class="kiosk-session-box" id="kiosk-session-box">
-                <div class="kiosk-session-info">
-                    <span class="kiosk-session-name" id="kiosk-session-label">{{ $sessionPayload['label'] }}</span>
-                    <span class="kiosk-session-window" id="kiosk-session-window">{{ $sessionPayload['window'] }}</span>
+            {{-- 2. TENGAH-KIRI: INFO SESI & PILL HADIR --}}
+            <div class="kiosk-session-group" id="kiosk-session-box">
+                <div class="kiosk-session-box">
+                    <div class="kiosk-icon-circle" aria-hidden="true">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                    </div>
+                    <div class="kiosk-session-info">
+                        <span class="kiosk-session-name" id="kiosk-session-label">{{ $sessionPayload['label'] }}</span>
+                        <span class="kiosk-session-window" id="kiosk-session-window">{{ $sessionPayload['window'] }}</span>
+                    </div>
                 </div>
-                <div class="kiosk-session-count" id="kiosk-session-count">
-                    {{ $sessionPayload['total'] }} Hadir
+
+                <div class="kiosk-session-count">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span id="kiosk-session-count">{{ $sessionPayload['total'] }} Hadir</span>
                 </div>
             </div>
 
-            <div class="kiosk-controls-right">
-                <div class="kiosk-select-group">
-                    <label for="kiosk-source-select" style="font-size: 12.5px; font-weight: 600; color: var(--text-sub);">Kamera:</label>
-                    <select id="kiosk-source-select" class="kiosk-select" aria-label="Pilih Sumber Kamera">
-                        <option value="webcam">Webcam PC / Monitor Ini</option>
-                        @foreach ($cameras as $cam)
-                            <option value="cctv:{{ $cam->id }}">
-                                CCTV: {{ $cam->name }}{{ $cam->location ? ' (' . $cam->location . ')' : '' }}
-                            </option>
-                        @endforeach
-                    </select>
+            {{-- 3. TENGAH-KANAN: KONTROL KAMERA (ATAS) & TOMBOL AKSI (BAWAH) --}}
+            <div class="kiosk-controls-stack">
+                <div class="kiosk-controls-top">
+                    <div class="kiosk-field">
+                        <label class="kiosk-field-label" for="kiosk-source-select">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                            <span>Kamera</span>
+                        </label>
+                        <select id="kiosk-source-select" class="kiosk-select" aria-label="Pilih Sumber Kamera">
+                            <option value="webcam">Webcam PC / Monitor</option>
+                            @foreach ($cameras as $cam)
+                                <option value="cctv:{{ $cam->id }}">
+                                    CCTV: {{ $cam->name }}{{ $cam->location ? ' (' . $cam->location . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
-                    <select id="kiosk-webcam-device" class="kiosk-select" aria-label="Pilih Perangkat Webcam" hidden>
-                        <option value="facing:user">Kamera Depan (Default)</option>
-                        <option value="facing:environment">Kamera Belakang</option>
-                    </select>
+                    <div class="kiosk-field" id="kiosk-webcam-device-group">
+                        <label class="kiosk-field-label" for="kiosk-webcam-device">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="10" r="7"></circle>
+                                <circle cx="12" cy="10" r="3"></circle>
+                                <path d="M7 21h10"></path>
+                                <path d="M12 17v4"></path>
+                            </svg>
+                            <span>Perangkat</span>
+                        </label>
+                        <select id="kiosk-webcam-device" class="kiosk-select" aria-label="Pilih Perangkat Webcam">
+                            <option value="facing:user">Kamera Depan (Default)</option>
+                            <option value="facing:environment">Kamera Belakang</option>
+                        </select>
+                    </div>
                 </div>
 
-                <button type="button" class="kiosk-btn" id="btn-kiosk-mirror" title="Balik Arah Kamera Horizontal (Jangan Mirror / Mirror)">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 3v18M8 7l-4 4 4 4M16 7l4 4-4 4"></path>
-                    </svg>
-                    <span id="btn-kiosk-mirror-label">Jangan Mirror</span>
-                </button>
-
-                <button type="button" class="kiosk-btn" id="btn-kiosk-fit" title="Ubah Ukuran Tampilan Kamera (Isi Penuh / Proporsional)">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
-                    </svg>
-                    <span id="btn-kiosk-fit-label">Isi Penuh</span>
-                </button>
-
-                <button type="button" class="kiosk-btn" id="btn-kiosk-fullscreen" title="Tampilan Layar Penuh">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                    </svg>
-                    <span>Layar Penuh</span>
-                </button>
-
-                @if (auth()->user()->isAdmin() || auth()->user()->isPetugas())
-                    <a href="{{ route('dashboard') }}" class="kiosk-btn" title="Kembali ke Panel Admin">
+                <div class="kiosk-controls-bottom">
+                    <button type="button" class="kiosk-btn" id="btn-kiosk-fit" title="Ubah Ukuran Tampilan Kamera (Isi Penuh / Proporsional)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
                         </svg>
-                        <span>Admin</span>
-                    </a>
-                @else
-                    <form method="POST" action="{{ route('logout') }}" style="display: inline-flex; margin: 0; align-items: center;">
-                        @csrf
-                        <button type="submit" class="kiosk-btn" title="Keluar dari akun layar">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                <polyline points="16 17 21 12 16 7"></polyline>
-                                <line x1="21" y1="12" x2="9" y2="12"></line>
-                            </svg>
-                            <span>Keluar</span>
-                        </button>
-                    </form>
-                @endif
+                        <span id="btn-kiosk-fit-label">Isi Penuh</span>
+                    </button>
 
+                    <button type="button" class="kiosk-btn" id="btn-kiosk-fullscreen" title="Tampilan Layar Penuh">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                        </svg>
+                        <span>Layar Penuh</span>
+                    </button>
+
+                    @if (auth()->user()->isAdmin() || auth()->user()->isPetugas())
+                        <a href="{{ route('dashboard') }}" class="kiosk-btn" title="Kembali ke Panel Admin">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                            <span>Panel Admin</span>
+                        </a>
+                    @else
+                        <form method="POST" action="{{ route('logout') }}" style="display: inline-flex; margin: 0; align-items: center;">
+                            @csrf
+                            <button type="submit" class="kiosk-btn" title="Keluar dari akun layar">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                                <span>Keluar</span>
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+
+            {{-- 4. KANAN: KARTU JAM DIGITAL --}}
+            <div class="kiosk-clock-wrapper">
                 <div class="kiosk-clock-box">
-                    <div class="kiosk-clock-time" id="kiosk-clock-time">{{ now()->format('H:i:s') }}</div>
-                    <div class="kiosk-clock-date" id="kiosk-clock-date">{{ now()->translatedFormat('l, d F Y') }}</div>
+                    <div class="kiosk-icon-circle" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="kiosk-clock-time" id="kiosk-clock-time">{{ now()->format('H:i:s') }}</div>
+                        <div class="kiosk-clock-date" id="kiosk-clock-date">{{ now()->translatedFormat('l, d F Y') }}</div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -718,13 +812,11 @@
             const STORAGE_SOURCE_KEY = 'absen_solat_kiosk_source';
             const STORAGE_WEBCAM_KEY = 'absen_solat_kiosk_webcam_device';
             const STORAGE_FIT_KEY = 'absen_solat_kiosk_fit_mode';
-            const STORAGE_UNMIRROR_KEY = 'absen_solat_kiosk_unmirrored';
 
             const videoStageEl = document.getElementById('kiosk-video-stage');
+            const webcamDeviceGroup = document.getElementById('kiosk-webcam-device-group');
             const fitBtn = document.getElementById('btn-kiosk-fit');
             const fitBtnLabel = document.getElementById('btn-kiosk-fit-label');
-            const mirrorBtn = document.getElementById('btn-kiosk-mirror');
-            const mirrorBtnLabel = document.getElementById('btn-kiosk-mirror-label');
 
             let mediaStream = null;
             let rtcConnection = null;
@@ -738,7 +830,6 @@
             let knownLogIds = new Set(initialLogs.map(l => Number(l.id)));
             let welcomeTimeout = null;
             let currentFitMode = localStorage.getItem(STORAGE_FIT_KEY) || 'cover';
-            let isUnmirrored = localStorage.getItem(STORAGE_UNMIRROR_KEY) !== 'false';
 
             let activeSource = localStorage.getItem(STORAGE_SOURCE_KEY) || defaultSource;
             // Pastikan pilihan tersimpan masih valid
@@ -914,13 +1005,15 @@
                 const colorSaved = '#16a34a';
                 const colorUnknown = '#d97706';
 
+                const isMirrored = Boolean(videoStageEl && videoStageEl.classList.contains('is-mirrored'));
+
                 faces.forEach(function (face) {
                     if (!face.box) return;
 
                     const bw = Math.max(2, (Number(face.box.right || 0) - Number(face.box.left || 0)) * map.scaleX);
                     const bh = Math.max(2, (Number(face.box.bottom || 0) - Number(face.box.top || 0)) * map.scaleY);
                     const by = map.offsetY + Number(face.box.top || 0) * map.scaleY;
-                    const bx = isUnmirrored
+                    const bx = isMirrored
                         ? (displayW - map.offsetX - Number(face.box.right || 0) * map.scaleX)
                         : (map.offsetX + Number(face.box.left || 0) * map.scaleX);
 
@@ -1003,31 +1096,6 @@
             }
             applyFitMode(currentFitMode);
 
-            function applyMirrorMode(unmirrored) {
-                isUnmirrored = Boolean(unmirrored);
-                localStorage.setItem(STORAGE_UNMIRROR_KEY, isUnmirrored ? 'true' : 'false');
-                if (videoStageEl) {
-                    if (isUnmirrored) {
-                        videoStageEl.classList.add('is-unmirrored');
-                    } else {
-                        videoStageEl.classList.remove('is-unmirrored');
-                    }
-                }
-                if (mirrorBtnLabel) {
-                    mirrorBtnLabel.textContent = isUnmirrored ? 'Jangan Mirror' : 'Mirror';
-                }
-                if (currentFaces.length > 0 && currentFrame) {
-                    drawOverlayFaces(currentFaces, currentFrame);
-                }
-            }
-
-            if (mirrorBtn) {
-                mirrorBtn.addEventListener('click', function () {
-                    applyMirrorMode(!isUnmirrored);
-                });
-            }
-            applyMirrorMode(isUnmirrored);
-
             // ================= 4. MANAJEMEN SUMBER KAMERA (WEBCAM PC ATAU CCTV) =================
             function stopAllStreams() {
                 if (scanTimer) {
@@ -1065,13 +1133,7 @@
                 try {
                     const devices = await navigator.mediaDevices.enumerateDevices();
                     const cams = devices.filter(d => d.kind === 'videoinput' && d.deviceId);
-                    if (cams.length <= 1) {
-                        webcamDeviceSelect.hidden = true;
-                        if (cams.length === 1) {
-                            webcamDeviceSelect.innerHTML = '<option value="device:' + cams[0].deviceId + '">Webcam Utama</option>';
-                        }
-                        return;
-                    }
+                    if (cams.length === 0) return;
 
                     const savedDevice = localStorage.getItem(STORAGE_WEBCAM_KEY) || '';
                     webcamDeviceSelect.innerHTML = '';
@@ -1088,7 +1150,6 @@
                     if (savedDevice && Array.from(webcamDeviceSelect.options).some(o => o.value === savedDevice)) {
                         webcamDeviceSelect.value = savedDevice;
                     }
-                    webcamDeviceSelect.hidden = false;
                 } catch (e) {
                     // Abaikan bila gagal membaca daftar perangkat
                 }
@@ -1097,11 +1158,8 @@
             async function startWebcamMode() {
                 stopAllStreams();
                 isSnapshotMode = false;
-                if (webcamDeviceSelect.options.length > 1) {
-                    webcamDeviceSelect.hidden = false;
-                } else {
-                    webcamDeviceSelect.hidden = true;
-                }
+                if (webcamDeviceGroup) webcamDeviceGroup.hidden = false;
+                if (videoStageEl) videoStageEl.classList.add('is-mirrored');
                 snapshotImg.hidden = true;
                 snapshotImg.style.display = 'none';
                 snapshotImg.removeAttribute('src');
@@ -1155,7 +1213,8 @@
 
             function startCctvMode(cameraId) {
                 stopAllStreams();
-                webcamDeviceSelect.hidden = true;
+                if (webcamDeviceGroup) webcamDeviceGroup.hidden = true;
+                if (videoStageEl) videoStageEl.classList.remove('is-mirrored');
 
                 const cam = cameras.find(c => Number(c.id) === Number(cameraId));
                 if (!cam) {
