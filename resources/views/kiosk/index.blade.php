@@ -293,6 +293,11 @@
             border-radius: inherit;
         }
 
+        .kiosk-video-stage.is-unmirrored video,
+        .kiosk-video-stage.is-unmirrored img {
+            transform: scaleX(-1);
+        }
+
         .kiosk-video-stage.is-contain video,
         .kiosk-video-stage.is-contain img {
             object-fit: contain;
@@ -552,6 +557,13 @@
                     </select>
                 </div>
 
+                <button type="button" class="kiosk-btn" id="btn-kiosk-mirror" title="Balik Arah Kamera Horizontal (Jangan Mirror / Mirror)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3v18M8 7l-4 4 4 4M16 7l4 4-4 4"></path>
+                    </svg>
+                    <span id="btn-kiosk-mirror-label">Jangan Mirror</span>
+                </button>
+
                 <button type="button" class="kiosk-btn" id="btn-kiosk-fit" title="Ubah Ukuran Tampilan Kamera (Isi Penuh / Proporsional)">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -672,10 +684,13 @@
             const STORAGE_SOURCE_KEY = 'absen_solat_kiosk_source';
             const STORAGE_WEBCAM_KEY = 'absen_solat_kiosk_webcam_device';
             const STORAGE_FIT_KEY = 'absen_solat_kiosk_fit_mode';
+            const STORAGE_UNMIRROR_KEY = 'absen_solat_kiosk_unmirrored';
 
             const videoStageEl = document.getElementById('kiosk-video-stage');
             const fitBtn = document.getElementById('btn-kiosk-fit');
             const fitBtnLabel = document.getElementById('btn-kiosk-fit-label');
+            const mirrorBtn = document.getElementById('btn-kiosk-mirror');
+            const mirrorBtnLabel = document.getElementById('btn-kiosk-mirror-label');
 
             let mediaStream = null;
             let rtcConnection = null;
@@ -689,6 +704,7 @@
             let knownLogIds = new Set(initialLogs.map(l => Number(l.id)));
             let welcomeTimeout = null;
             let currentFitMode = localStorage.getItem(STORAGE_FIT_KEY) || 'cover';
+            let isUnmirrored = localStorage.getItem(STORAGE_UNMIRROR_KEY) !== 'false';
 
             let activeSource = localStorage.getItem(STORAGE_SOURCE_KEY) || defaultSource;
             // Pastikan pilihan tersimpan masih valid
@@ -867,10 +883,12 @@
                 faces.forEach(function (face) {
                     if (!face.box) return;
 
-                    const bx = map.offsetX + Number(face.box.left || 0) * map.scaleX;
-                    const by = map.offsetY + Number(face.box.top || 0) * map.scaleY;
                     const bw = Math.max(2, (Number(face.box.right || 0) - Number(face.box.left || 0)) * map.scaleX);
                     const bh = Math.max(2, (Number(face.box.bottom || 0) - Number(face.box.top || 0)) * map.scaleY);
+                    const by = map.offsetY + Number(face.box.top || 0) * map.scaleY;
+                    const bx = isUnmirrored
+                        ? (displayW - map.offsetX - Number(face.box.right || 0) * map.scaleX)
+                        : (map.offsetX + Number(face.box.left || 0) * map.scaleX);
 
                     const status = String((face.attendance && face.attendance.status) || face.status || '');
                     const isRecognized = Boolean(
@@ -950,6 +968,31 @@
                 });
             }
             applyFitMode(currentFitMode);
+
+            function applyMirrorMode(unmirrored) {
+                isUnmirrored = Boolean(unmirrored);
+                localStorage.setItem(STORAGE_UNMIRROR_KEY, isUnmirrored ? 'true' : 'false');
+                if (videoStageEl) {
+                    if (isUnmirrored) {
+                        videoStageEl.classList.add('is-unmirrored');
+                    } else {
+                        videoStageEl.classList.remove('is-unmirrored');
+                    }
+                }
+                if (mirrorBtnLabel) {
+                    mirrorBtnLabel.textContent = isUnmirrored ? 'Jangan Mirror' : 'Mirror';
+                }
+                if (currentFaces.length > 0 && currentFrame) {
+                    drawOverlayFaces(currentFaces, currentFrame);
+                }
+            }
+
+            if (mirrorBtn) {
+                mirrorBtn.addEventListener('click', function () {
+                    applyMirrorMode(!isUnmirrored);
+                });
+            }
+            applyMirrorMode(isUnmirrored);
 
             // ================= 4. MANAJEMEN SUMBER KAMERA (WEBCAM PC ATAU CCTV) =================
             function stopAllStreams() {
