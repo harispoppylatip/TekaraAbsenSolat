@@ -74,50 +74,56 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 10px 16px;
+            padding: 8px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            flex-wrap: nowrap;
             flex-shrink: 0;
+            min-height: 56px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         }
 
         .kiosk-brand {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         .kiosk-logo {
-            width: 44px;
-            height: 44px;
+            width: 38px;
+            height: 38px;
             object-fit: contain;
             flex-shrink: 0;
         }
 
         .kiosk-brand-title {
             font-family: 'Montserrat', sans-serif;
-            font-size: 18px;
+            font-size: 15.5px;
             font-weight: 700;
             color: var(--text-main);
-            line-height: 1.25;
+            line-height: 1.2;
+            white-space: nowrap;
         }
 
         .kiosk-brand-sub {
-            font-size: 13px;
+            font-size: 11.5px;
             color: var(--text-sub);
-            margin-top: 2px;
+            margin-top: 1px;
+            white-space: nowrap;
         }
 
         .kiosk-session-box {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 10px;
             background: var(--surface-muted);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 8px 16px;
+            border-radius: 9px;
+            padding: 5px 12px;
+            flex-shrink: 0;
         }
 
         .kiosk-session-info {
@@ -126,23 +132,25 @@
         }
 
         .kiosk-session-name {
-            font-size: 15px;
+            font-size: 13.5px;
             font-weight: 700;
             color: var(--text-main);
+            white-space: nowrap;
         }
 
         .kiosk-session-window {
-            font-size: 12.5px;
+            font-size: 11px;
             color: var(--text-sub);
+            white-space: nowrap;
         }
 
         .kiosk-session-count {
             background: var(--primary-soft);
             color: var(--primary);
             border: 1px solid #bfdbfe;
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 13px;
+            border-radius: 7px;
+            padding: 4px 8px;
+            font-size: 12px;
             font-weight: 700;
             white-space: nowrap;
         }
@@ -150,28 +158,37 @@
         .kiosk-controls-right {
             display: flex;
             align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+            gap: 6px;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
         }
 
         .kiosk-select-group {
             display: flex;
             align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
+            gap: 6px;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
         }
 
         .kiosk-select {
-            padding: 8px 12px;
+            padding: 6px 10px;
             border: 1px solid var(--border-strong);
             border-radius: 8px;
             background: var(--surface);
             color: var(--text-main);
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             font-family: inherit;
             cursor: pointer;
             outline: none;
+            max-width: 175px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #kiosk-webcam-device {
+            max-width: 135px;
         }
 
         .kiosk-select:focus {
@@ -180,41 +197,45 @@
 
         .kiosk-clock-box {
             text-align: right;
-            min-width: 110px;
+            min-width: 85px;
             padding-left: 8px;
             border-left: 1px solid var(--border);
+            flex-shrink: 0;
         }
 
         .kiosk-clock-time {
             font-family: 'Montserrat', sans-serif;
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 800;
             color: var(--text-main);
-            line-height: 1.15;
+            line-height: 1.1;
             font-variant-numeric: tabular-nums;
         }
 
         .kiosk-clock-date {
-            font-size: 11.5px;
+            font-size: 10.5px;
             color: var(--text-muted);
-            margin-top: 2px;
+            margin-top: 1px;
+            white-space: nowrap;
         }
 
         .kiosk-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            padding: 8px 12px;
+            gap: 5px;
+            padding: 6px 10px;
             border: 1px solid var(--border-strong);
             border-radius: 8px;
             background: var(--surface);
             color: var(--text-sub);
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 600;
             font-family: inherit;
             text-decoration: none;
             cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
             transition: background 0.15s ease, color 0.15s ease;
         }
 
@@ -581,12 +602,25 @@
 
                 @if (auth()->user()->isAdmin() || auth()->user()->isPetugas())
                     <a href="{{ route('dashboard') }}" class="kiosk-btn" title="Kembali ke Panel Admin">
-                        Panel Admin
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        <span>Admin</span>
                     </a>
                 @else
-                    <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                    <form method="POST" action="{{ route('logout') }}" style="display: inline-flex; margin: 0; align-items: center;">
                         @csrf
-                        <button type="submit" class="kiosk-btn" title="Keluar dari akun layar">Keluar</button>
+                        <button type="submit" class="kiosk-btn" title="Keluar dari akun layar">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            <span>Keluar</span>
+                        </button>
                     </form>
                 @endif
 
@@ -1031,7 +1065,13 @@
                 try {
                     const devices = await navigator.mediaDevices.enumerateDevices();
                     const cams = devices.filter(d => d.kind === 'videoinput' && d.deviceId);
-                    if (cams.length === 0) return;
+                    if (cams.length <= 1) {
+                        webcamDeviceSelect.hidden = true;
+                        if (cams.length === 1) {
+                            webcamDeviceSelect.innerHTML = '<option value="device:' + cams[0].deviceId + '">Webcam Utama</option>';
+                        }
+                        return;
+                    }
 
                     const savedDevice = localStorage.getItem(STORAGE_WEBCAM_KEY) || '';
                     webcamDeviceSelect.innerHTML = '';
@@ -1039,13 +1079,16 @@
                     cams.forEach(function (cam, idx) {
                         const opt = document.createElement('option');
                         opt.value = 'device:' + cam.deviceId;
-                        opt.textContent = cam.label || ('Webcam ' + (idx + 1));
+                        const cleanLabel = (cam.label || '').replace(/\s*\([0-9a-fA-F:]+\)$/, '').trim() || ('Kamera ' + (idx + 1));
+                        opt.textContent = cleanLabel;
+                        opt.title = cam.label || cleanLabel;
                         webcamDeviceSelect.appendChild(opt);
                     });
 
                     if (savedDevice && Array.from(webcamDeviceSelect.options).some(o => o.value === savedDevice)) {
                         webcamDeviceSelect.value = savedDevice;
                     }
+                    webcamDeviceSelect.hidden = false;
                 } catch (e) {
                     // Abaikan bila gagal membaca daftar perangkat
                 }
@@ -1054,7 +1097,11 @@
             async function startWebcamMode() {
                 stopAllStreams();
                 isSnapshotMode = false;
-                webcamDeviceSelect.hidden = false;
+                if (webcamDeviceSelect.options.length > 1) {
+                    webcamDeviceSelect.hidden = false;
+                } else {
+                    webcamDeviceSelect.hidden = true;
+                }
                 snapshotImg.hidden = true;
                 snapshotImg.style.display = 'none';
                 snapshotImg.removeAttribute('src');
