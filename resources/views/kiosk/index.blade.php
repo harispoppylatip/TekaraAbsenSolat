@@ -42,33 +42,45 @@
         }
 
         html, body {
-            height: 100%;
+            height: 100vh;
+            max-height: 100vh;
+            margin: 0;
+            padding: 0;
             background: var(--bg-page);
             color: var(--text-main);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            overflow-x: hidden;
+            overflow: hidden;
+        }
+
+        [hidden],
+        .kiosk-video-stage video[hidden],
+        .kiosk-video-stage img[hidden] {
+            display: none !important;
         }
 
         .kiosk-shell {
-            min-height: 100vh;
+            height: 100vh;
+            max-height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: 16px 20px;
-            gap: 16px;
+            padding: 12px 16px;
+            gap: 12px;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         /* ================= HEADER BAR ================= */
         .kiosk-header {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 14px 20px;
+            border-radius: 12px;
+            padding: 10px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+            gap: 12px;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         }
 
         .kiosk-brand {
@@ -215,9 +227,11 @@
         .kiosk-main {
             flex: 1;
             display: grid;
-            grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1fr);
-            gap: 16px;
+            grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+            gap: 12px;
             min-height: 0;
+            height: 100%;
+            overflow: hidden;
         }
 
         /* ---------- LEFT: CAMERA PANEL ---------- */
@@ -225,38 +239,43 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 14px;
-            padding: 16px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+            gap: 10px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .kiosk-card-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         .kiosk-card-title {
-            font-size: 16px;
+            font-size: 15.5px;
             font-weight: 700;
             color: var(--text-main);
         }
 
         .kiosk-card-sub {
-            font-size: 13px;
+            font-size: 12.5px;
             color: var(--text-muted);
+            margin-top: 1px;
         }
 
         .kiosk-video-stage {
             position: relative;
             width: 100%;
             flex: 1;
-            min-height: 420px;
-            background: #0f172a;
+            min-height: 0;
+            height: 100%;
+            background: #020617;
             border-radius: 12px;
             overflow: hidden;
             display: flex;
@@ -269,9 +288,14 @@
         .kiosk-video-stage img {
             width: 100%;
             height: 100%;
-            max-height: calc(100vh - 230px);
-            object-fit: contain;
+            object-fit: cover;
             display: block;
+            border-radius: inherit;
+        }
+
+        .kiosk-video-stage.is-contain video,
+        .kiosk-video-stage.is-contain img {
+            object-fit: contain;
         }
 
         .kiosk-overlay-canvas {
@@ -281,6 +305,7 @@
             height: 100%;
             pointer-events: none;
             z-index: 4;
+            border-radius: inherit;
         }
 
         .kiosk-stage-message {
@@ -308,13 +333,14 @@
             border: 1px solid #86efac;
             color: var(--success-text);
             border-radius: 10px;
-            padding: 12px 16px;
+            padding: 10px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            font-size: 15px;
+            font-size: 14.5px;
             font-weight: 700;
+            flex-shrink: 0;
             transition: opacity 0.2s ease;
         }
 
@@ -327,9 +353,9 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            font-size: 13px;
+            font-size: 12.5px;
             color: var(--text-sub);
-            flex-wrap: wrap;
+            flex-shrink: 0;
         }
 
         /* ---------- RIGHT: LOG PANEL ---------- */
@@ -337,12 +363,15 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 14px;
-            padding: 16px 18px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-            max-height: calc(100vh - 115px);
+            gap: 10px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            height: 100%;
+            min-height: 0;
+            max-height: none;
+            overflow: hidden;
         }
 
         .kiosk-log-list {
@@ -523,6 +552,14 @@
                     </select>
                 </div>
 
+                <button type="button" class="kiosk-btn" id="btn-kiosk-fit" title="Ubah Ukuran Tampilan Kamera (Isi Penuh / Proporsional)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
+                    </svg>
+                    <span id="btn-kiosk-fit-label">Isi Penuh</span>
+                </button>
+
                 <button type="button" class="kiosk-btn" id="btn-kiosk-fullscreen" title="Tampilan Layar Penuh">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -561,7 +598,7 @@
 
                 <div class="kiosk-video-stage" id="kiosk-video-stage">
                     <video id="kiosk-video" playsinline autoplay muted></video>
-                    <img id="kiosk-snapshot-img" alt="Siaran Kamera CCTV" hidden>
+                    <img id="kiosk-snapshot-img" alt="Siaran Kamera CCTV" hidden style="display: none;">
                     <canvas id="kiosk-capture-canvas" hidden></canvas>
                     <canvas id="kiosk-overlay-canvas" class="kiosk-overlay-canvas" aria-hidden="true"></canvas>
 
@@ -634,6 +671,37 @@
 
             const STORAGE_SOURCE_KEY = 'absen_solat_kiosk_source';
             const STORAGE_WEBCAM_KEY = 'absen_solat_kiosk_webcam_device';
+            const STORAGE_FIT_KEY = 'absen_solat_kiosk_fit_mode';
+
+            const videoStageEl = document.getElementById('kiosk-video-stage');
+            const fitBtn = document.getElementById('btn-kiosk-fit');
+            const fitBtnLabel = document.getElementById('btn-kiosk-fit-label');
+            let currentFitMode = localStorage.getItem(STORAGE_FIT_KEY) || 'cover';
+
+            function applyFitMode(mode) {
+                currentFitMode = (mode === 'contain') ? 'contain' : 'cover';
+                localStorage.setItem(STORAGE_FIT_KEY, currentFitMode);
+                if (videoStageEl) {
+                    if (currentFitMode === 'contain') {
+                        videoStageEl.classList.add('is-contain');
+                    } else {
+                        videoStageEl.classList.remove('is-contain');
+                    }
+                }
+                if (fitBtnLabel) {
+                    fitBtnLabel.textContent = (currentFitMode === 'cover') ? 'Isi Penuh' : 'Proporsional';
+                }
+                if (currentFaces.length > 0 && currentFrame) {
+                    drawOverlayFaces(currentFaces, currentFrame);
+                }
+            }
+
+            if (fitBtn) {
+                fitBtn.addEventListener('click', function () {
+                    applyFitMode(currentFitMode === 'cover' ? 'contain' : 'cover');
+                });
+            }
+            applyFitMode(currentFitMode);
 
             let activeSource = localStorage.getItem(STORAGE_SOURCE_KEY) || defaultSource;
             // Pastikan pilihan tersimpan masih valid
@@ -773,13 +841,15 @@
                 if (faceCounterEl) faceCounterEl.textContent = '0 wajah di layar';
             }
 
-            function containMapping(mediaEl, boxW, boxH, frame) {
+            function getMediaMapping(mediaEl, boxW, boxH, frame, fitMode = 'cover') {
                 const srcW = (frame && frame.width > 0) ? frame.width : ((mediaEl && (mediaEl.videoWidth || mediaEl.naturalWidth)) || 1280);
                 const srcH = (frame && frame.height > 0) ? frame.height : ((mediaEl && (mediaEl.videoHeight || mediaEl.naturalHeight)) || 720);
                 const contentW = (mediaEl && (mediaEl.videoWidth || mediaEl.naturalWidth)) || srcW;
                 const contentH = (mediaEl && (mediaEl.videoHeight || mediaEl.naturalHeight)) || srcH;
 
-                const scale = Math.min(boxW / contentW, boxH / contentH);
+                const scale = (fitMode === 'contain')
+                    ? Math.min(boxW / contentW, boxH / contentH)
+                    : Math.max(boxW / contentW, boxH / contentH);
 
                 return {
                     offsetX: (boxW - contentW * scale) / 2,
@@ -814,7 +884,7 @@
                 if (!faces || count === 0) return;
 
                 const activeMedia = (!isSnapshotMode && !videoEl.hidden) ? videoEl : snapshotImg;
-                const map = containMapping(activeMedia, displayW, displayH, frame);
+                const map = getMediaMapping(activeMedia, displayW, displayH, frame, currentFitMode);
 
                 const colorSaved = '#16a34a';
                 const colorUnknown = '#d97706';
@@ -906,6 +976,8 @@
                 videoEl.pause();
                 videoEl.srcObject = null;
                 videoEl.removeAttribute('src');
+                snapshotImg.hidden = true;
+                snapshotImg.style.display = 'none';
                 snapshotImg.removeAttribute('src');
                 currentFaces = [];
                 clearOverlay();
@@ -941,7 +1013,10 @@
                 isSnapshotMode = false;
                 webcamDeviceSelect.hidden = false;
                 snapshotImg.hidden = true;
+                snapshotImg.style.display = 'none';
+                snapshotImg.removeAttribute('src');
                 videoEl.hidden = false;
+                videoEl.style.display = 'block';
                 cameraHeading.textContent = 'Pemindai Wajah — Webcam PC / Monitor';
                 scanStatusEl.textContent = 'Menyalakan webcam PC...';
                 stageMessage.hidden = false;
@@ -1010,7 +1085,9 @@
                 } else {
                     isSnapshotMode = true;
                     videoEl.hidden = true;
+                    videoEl.style.display = 'none';
                     snapshotImg.hidden = false;
+                    snapshotImg.style.display = 'block';
                     snapshotImg.onload = function () {
                         stageMessage.hidden = true;
                     };
@@ -1026,7 +1103,9 @@
             function startSnapshotPolling(cam) {
                 isSnapshotMode = true;
                 videoEl.hidden = true;
+                videoEl.style.display = 'none';
                 snapshotImg.hidden = false;
+                snapshotImg.style.display = 'block';
 
                 function refreshSnap() {
                     const sep = cam.snapshot_url.includes('?') ? '&' : '?';
@@ -1048,7 +1127,10 @@
             function startGo2RtcStream(cam) {
                 isSnapshotMode = false;
                 snapshotImg.hidden = true;
+                snapshotImg.style.display = 'none';
+                snapshotImg.removeAttribute('src');
                 videoEl.hidden = false;
+                videoEl.style.display = 'block';
 
                 const wsUrl = buildGo2RtcWsUrl(cam.webrtc_src);
 
@@ -1342,3 +1424,4 @@
 </body>
 
 </html>
+
