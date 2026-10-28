@@ -23,8 +23,8 @@ class DashboardController extends Controller
             ->get();
 
         $stats = [
-            'anggota' => User::query()->count(),
-            'berwajah' => User::query()->has('faceEmbeddings')->count(),
+            'anggota' => User::query()->where('role', '!=', User::RoleKiosk)->count(),
+            'berwajah' => User::query()->where('role', '!=', User::RoleKiosk)->has('faceEmbeddings')->count(),
             'sesi' => $todaySessions->count(),
             'absen' => SolatAttendanceLog::query()
                 ->whereHas('session', fn ($query) => $query->real()->forDate($today))

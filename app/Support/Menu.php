@@ -27,6 +27,7 @@ class Menu
                 'items' => [
                     ['label' => 'Ringkasan', 'route' => 'dashboard', 'active' => 'dashboard', 'roles' => [User::RoleAdmin, User::RolePetugas]],
                     ['label' => 'Absen Wajah', 'route' => 'attendance.wajah', 'active' => 'attendance.wajah', 'roles' => [User::RoleAdmin, User::RolePetugas]],
+                    ['label' => 'Layar Monitor', 'route' => 'kiosk.index', 'active' => 'kiosk.*', 'roles' => [User::RoleAdmin, User::RolePetugas]],
                     ['label' => 'Riwayat Saya', 'route' => 'murid.riwayat', 'active' => 'murid.riwayat', 'roles' => [User::RoleMurid]],
                 ],
             ],

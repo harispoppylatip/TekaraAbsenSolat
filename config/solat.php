@@ -116,6 +116,7 @@ return [
         'admin' => 'Administrator',
         'petugas' => 'Petugas',
         'murid' => 'Murid / Jamaah',
+        'kiosk' => 'Layar Monitor (Kiosk)',
     ],
 
     /*

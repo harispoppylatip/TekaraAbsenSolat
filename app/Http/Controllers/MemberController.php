@@ -307,8 +307,13 @@ class MemberController extends Controller
             'class_name' => $data['class_name'] ?? null,
             'phone_number' => $data['phone_number'] ?? null,
             'can_scan_face' => $request->boolean('can_scan_face'),
+            'enrollment_status' => $data['role'] === User::RoleKiosk ? User::EnrollmentExempted : User::EnrollmentNotStarted,
             'password' => $data['password'] ?? User::defaultPasswordFor($data['role'], $data['identifier_number']),
         ]);
+
+        if ($member->isKiosk()) {
+            $member->forceFill(['password_changed_at' => now()])->save();
+        }
 
         $notice = 'Anggota '.$member->name.' tersimpan. Sandi awal: '
             .($data['password'] ?? User::defaultPasswordFor($data['role'], $data['identifier_number'])).'.';
@@ -354,7 +359,12 @@ class MemberController extends Controller
 
         if (filled($data['password'] ?? null)) {
             $member->password = $data['password'];
-            $member->password_changed_at = null;
+            $member->password_changed_at = $data['role'] === User::RoleKiosk ? now() : null;
+        }
+
+        if ($data['role'] === User::RoleKiosk) {
+            $member->enrollment_status = User::EnrollmentExempted;
+            $member->password_changed_at = $member->password_changed_at ?? now();
         }
 
         $member->save();

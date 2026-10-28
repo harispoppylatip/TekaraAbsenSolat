@@ -39,7 +39,7 @@ class LoginController extends Controller
                 ->withErrors([$errorKey => 'NISN atau Email atau sandi tidak cocok.']);
         }
 
-        Auth::login($user, $request->boolean('remember'));
+        Auth::login($user, $user->isKiosk() ? true : $request->boolean('remember'));
 
         $request->session()->regenerate();
         $request->session()->forget('error');
@@ -49,7 +49,11 @@ class LoginController extends Controller
         $intended = (string) $request->session()->get('url.intended');
 
         if ($intended !== '') {
-            if (str_contains($intended, 'absen-wajah') && ! $user->isAdmin() && ! $user->isCameraOperator()) {
+            if ($user->isKiosk()) {
+                if (! str_contains($intended, 'layar')) {
+                    $request->session()->forget('url.intended');
+                }
+            } elseif (str_contains($intended, 'absen-wajah') && ! $user->isAdmin() && ! $user->isCameraOperator()) {
                 $request->session()->forget('url.intended');
             } elseif ($user->isMurid()) {
                 $isAllowed = false;

@@ -17,7 +17,7 @@ class EnsurePasswordIsChanged
     {
         $user = $request->user();
 
-        if ($user === null || $user->password_changed_at !== null) {
+        if ($user === null || $user->isKiosk() || $user->password_changed_at !== null) {
             return $next($request);
         }
 

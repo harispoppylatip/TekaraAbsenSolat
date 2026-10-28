@@ -41,8 +41,8 @@ class SolatReportService
             'logs' => (clone $logs)->count(),
             'present' => (clone $logs)->where('status', SolatAttendanceLog::StatusHadir)->count(),
             'late' => (clone $logs)->where('status', SolatAttendanceLog::StatusTerlambat)->count(),
-            'members' => User::query()->count(),
-            'with_face' => User::query()->has('faceEmbeddings')->count(),
+            'members' => User::query()->where('role', '!=', User::RoleKiosk)->count(),
+            'with_face' => User::query()->where('role', '!=', User::RoleKiosk)->has('faceEmbeddings')->count(),
         ];
     }
 
@@ -57,6 +57,7 @@ class SolatReportService
         $prayer = $filters['prayer'] ?? null;
 
         return User::query()
+            ->where('role', '!=', User::RoleKiosk)
             ->search($filters['term'] ?? null)
             ->when(filled($filters['role'] ?? null), fn (Builder $query) => $query->where('role', $filters['role']))
             ->when(filled($filters['class_name'] ?? null), fn (Builder $query) => $query->where('class_name', $filters['class_name']))

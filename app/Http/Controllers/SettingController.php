@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Camera;
 use App\Models\Device;
 use App\Models\FaceEmbedding;
 use App\Models\FacePhotoUpload;
@@ -19,6 +20,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -40,7 +42,7 @@ class SettingController extends Controller
             'sessionCount' => SolatSession::query()->count(),
             'faceCount' => FaceEmbedding::query()->count(),
             'queueCount' => FacePhotoUpload::query()->count(),
-            'memberCount' => User::query()->where('role', '!=', User::RoleAdmin)->count(),
+            'memberCount' => User::query()->whereNotIn('role', [User::RoleAdmin, User::RoleKiosk])->count(),
             'adminCount' => User::query()->where('role', User::RoleAdmin)->count(),
             'deviceCount' => Device::query()->count(),
             'photoFileCount' => $storageSummary['file_count'],
@@ -50,7 +52,83 @@ class SettingController extends Controller
             'faceTolerance' => Setting::faceTolerance(),
             'faceCctvMinFaceSize' => Setting::faceCctvMinFaceSize(),
             'faceMinFaceSize' => Setting::faceMinFaceSize(),
+            'kioskUser' => User::query()->where('role', User::RoleKiosk)->first(),
+            'kioskCameras' => Camera::query()->where('is_active', true)->orderBy('name')->get(),
+            'kioskDefaultSource' => Setting::kioskDefaultSource(),
         ]);
+    }
+
+    /**
+     * Buat atau perbarui akun khusus Layar Monitor / Kiosk Masjid (/layar).
+     */
+    public function updateKioskAccount(Request $request): RedirectResponse
+    {
+        $kioskUser = User::query()->where('role', User::RoleKiosk)->first();
+
+        $validated = $request->validate([
+            'kiosk_name' => ['required', 'string', 'max:120'],
+            'kiosk_identifier' => [
+                'required',
+                'string',
+                'max:40',
+                Rule::unique('users', 'identifier_number')->ignore($kioskUser?->getKey()),
+            ],
+            'kiosk_password' => [
+                $kioskUser === null ? 'required' : 'nullable',
+                'string',
+                'min:6',
+                'max:100',
+            ],
+            'kiosk_default_source' => ['required', 'string', 'max:50'],
+        ], [
+            'kiosk_name.required' => 'Nama tampilan layar monitor wajib diisi.',
+            'kiosk_identifier.required' => 'Kode login / username layar monitor wajib diisi.',
+            'kiosk_identifier.unique' => 'Kode login tersebut sudah dipakai oleh akun lain.',
+            'kiosk_password.required' => 'Sandi awal akun layar monitor wajib diisi (minimal 6 karakter).',
+            'kiosk_password.min' => 'Sandi layar monitor minimal 6 karakter.',
+        ]);
+
+        Setting::set(Setting::KeyKioskDefaultSource, $validated['kiosk_default_source']);
+
+        if ($kioskUser === null) {
+            $kioskUser = new User([
+                'name' => trim($validated['kiosk_name']),
+                'identifier_number' => trim($validated['kiosk_identifier']),
+                'email' => null,
+                'role' => User::RoleKiosk,
+                'class_name' => null,
+                'can_scan_face' => false,
+                'enrollment_status' => User::EnrollmentExempted,
+                'password' => $validated['kiosk_password'],
+            ]);
+            $kioskUser->password_changed_at = now();
+            $kioskUser->save();
+
+            return back()->with(
+                'status',
+                "Akun Layar Monitor ({$kioskUser->identifier_number}) berhasil dibuat dan siap digunakan untuk masuk ke halaman /layar.",
+            );
+        }
+
+        $kioskUser->name = trim($validated['kiosk_name']);
+        $kioskUser->identifier_number = trim($validated['kiosk_identifier']);
+        $kioskUser->role = User::RoleKiosk;
+        $kioskUser->enrollment_status = User::EnrollmentExempted;
+
+        $passwordChanged = false;
+        if (filled($validated['kiosk_password'] ?? null)) {
+            $kioskUser->password = $validated['kiosk_password'];
+            $passwordChanged = true;
+        }
+
+        $kioskUser->password_changed_at = now();
+        $kioskUser->save();
+
+        $msg = $passwordChanged
+            ? "Akun dan sandi Layar Monitor ({$kioskUser->identifier_number}) berhasil diperbarui."
+            : "Pengaturan akun Layar Monitor ({$kioskUser->identifier_number}) berhasil disimpan.";
+
+        return back()->with('status', $msg);
     }
 
     /**
@@ -204,7 +282,7 @@ class SettingController extends Controller
         FaceEmbedding::query()->delete();
         FacePhotoUpload::query()->delete();
 
-        User::query()->update([
+        User::query()->where('role', '!=', User::RoleKiosk)->update([
             'enrollment_status' => User::EnrollmentNotStarted,
             'enrolled_at' => null,
         ]);
@@ -221,7 +299,7 @@ class SettingController extends Controller
      */
     public function clearMembers(SolatProofService $proofs): RedirectResponse
     {
-        $members = User::query()->where('role', '!=', User::RoleAdmin)->get();
+        $members = User::query()->whereNotIn('role', [User::RoleAdmin, User::RoleKiosk])->get();
         $count = $members->count();
 
         if ($count === 0) {
@@ -288,7 +366,7 @@ class SettingController extends Controller
             FacePhotoUpload::query()->delete();
             FaceEmbedding::query()->delete();
             Device::query()->delete();
-            User::query()->where('role', '!=', User::RoleAdmin)->delete();
+            User::query()->whereNotIn('role', [User::RoleAdmin, User::RoleKiosk])->delete();
 
             User::query()->where('role', User::RoleAdmin)->update([
                 'enrollment_status' => User::EnrollmentNotStarted,

@@ -973,7 +973,115 @@
             </div>
         </section>
 
-        {{-- 5. Sensitivitas & Pengenalan Wajah AI --}}
+        {{-- 5. Akun & Pengaturan Layar Monitor / Kiosk Masjid (/layar) --}}
+        <section class="clean-section-card">
+            <div class="clean-section-header" style="flex-wrap: wrap; gap: 12px;">
+                <div class="clean-header-title-row">
+                    <div class="clean-header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="clean-header-title">Akun & Akses Layar Monitor Masjid (/layar)</h2>
+                        <p class="clean-header-sub">
+                            Atur akun khusus peran <strong>Layar Monitor (Kiosk)</strong> untuk PC/TV di depan masjid. Akun ini hanya bisa membuka halaman <code>/layar</code> dan tidak memiliki akses ke menu admin.
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <a class="btn btn-outline btn-small" href="{{ route('kiosk.index') }}" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        Buka Halaman /layar
+                    </a>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('settings.kiosk-account') }}">
+                @csrf
+                @method('PUT')
+
+                <div class="form-grid" style="margin-bottom: 16px;">
+                    <div class="field">
+                        <label class="field-label" for="kiosk_identifier">
+                            Kode Login / Username Kiosk
+                        </label>
+                        <input class="input-field" type="text" id="kiosk_identifier" name="kiosk_identifier"
+                            value="{{ old('kiosk_identifier', $kioskUser?->identifier_number ?? 'layar-masjid') }}" required>
+                        <p class="field-hint">Dipakai pada kolom NISN / Email saat login di PC Masjid.</p>
+                        @error('kiosk_identifier')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="kiosk_password">
+                            {{ $kioskUser ? 'Sandi Baru Kiosk (Kosongkan jika tidak diubah)' : 'Sandi Awal Kiosk' }}
+                        </label>
+                        <input class="input-field" type="password" id="kiosk_password" name="kiosk_password"
+                            placeholder="{{ $kioskUser ? 'Ketik sandi baru bila ingin mengganti...' : 'Minimal 6 karakter' }}"
+                            @if (!$kioskUser) required @endif autocomplete="new-password">
+                        <p class="field-hint">
+                            @if ($kioskUser)
+                                Status akun: <strong>Aktif ({{ $kioskUser->identifier_number }})</strong>. Isi hanya bila ingin mengganti sandi.
+                            @else
+                                Akun layar monitor belum dibuat. Isi sandi lalu klik Simpan untuk membuatnya.
+                            @endif
+                        </p>
+                        @error('kiosk_password')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="kiosk_name">
+                            Nama Tampilan Akun
+                        </label>
+                        <input class="input-field" type="text" id="kiosk_name" name="kiosk_name"
+                            value="{{ old('kiosk_name', $kioskUser?->name ?? 'Layar Monitor Masjid') }}" required>
+                        <p class="field-hint">Nama identitas untuk layar pemantau.</p>
+                        @error('kiosk_name')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="kiosk_default_source">
+                            Sumber Kamera Bawaan di /layar
+                        </label>
+                        <select class="select-field" id="kiosk_default_source" name="kiosk_default_source">
+                            <option value="webcam" @selected(old('kiosk_default_source', $kioskDefaultSource) === 'webcam')>
+                                Webcam PC / Monitor Itu Sendiri
+                            </option>
+                            @foreach ($kioskCameras as $cam)
+                                <option value="cctv:{{ $cam->id }}" @selected(old('kiosk_default_source', $kioskDefaultSource) === 'cctv:' . $cam->id)>
+                                    Kamera CCTV: {{ $cam->name }}{{ $cam->location ? ' (' . $cam->location . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="field-hint">Sumber kamera juga tetap bisa diganti langsung dari bar atas halaman <code>/layar</code>.</p>
+                        @error('kiosk_default_source')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="form-actions" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-primary" type="submit">
+                        {{ $kioskUser ? 'Simpan Pengaturan & Sandi Kiosk' : 'Buat Akun Layar Monitor Sekarang' }}
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        {{-- 6. Sensitivitas & Pengenalan Wajah AI --}}
         <section class="clean-section-card">
             <div class="clean-section-header">
                 <div class="clean-header-title-row">

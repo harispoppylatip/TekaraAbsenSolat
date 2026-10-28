@@ -24,6 +24,7 @@ class Setting extends Model
     public const KeyFaceTolerance = 'face_tolerance';
     public const KeyFaceCctvMinFaceSize = 'face_cctv_min_face_size';
     public const KeyFaceMinFaceSize = 'face_min_face_size';
+    public const KeyKioskDefaultSource = 'kiosk_default_source';
 
     /**
      * Ambil nilai pengaturan berdasarkan kunci.
@@ -120,5 +121,15 @@ class Setting extends Model
         $val = static::get(self::KeyFaceMinFaceSize, config('face.min_face_size', 80));
 
         return (int) $val;
+    }
+
+    /**
+     * Sumber kamera bawaan untuk halaman Layar Monitor (/layar): 'webcam' atau 'cctv:{id}'.
+     */
+    public static function kioskDefaultSource(): string
+    {
+        $val = trim((string) static::get(self::KeyKioskDefaultSource, 'webcam'));
+
+        return $val !== '' ? $val : 'webcam';
     }
 }

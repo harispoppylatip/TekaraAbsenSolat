@@ -13,6 +13,7 @@ use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FaceDataController;
 use App\Http\Controllers\FingerprintDataController;
+use App\Http\Controllers\KioskController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Murid\HistoryController;
 use App\Http\Controllers\PrayerTimeController;
@@ -41,38 +42,54 @@ Route::post('/keluar', [LoginController::class, 'destroy'])
     ->name('logout');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/ganti-sandi', [PasswordController::class, 'edit'])->name('password.edit');
-    Route::put('/ganti-sandi', [PasswordController::class, 'update'])->name('password.update');
-    Route::put('/profil/email', [PasswordController::class, 'updateEmail'])->name('profile.email');
+    /*
+    | Halaman Layar Monitor / Kiosk Masjid (/layar).
+    | Boleh dibuka oleh akun khusus peran 'kiosk', maupun Admin dan Petugas.
+    | Akun 'kiosk' terkunci hanya pada rute-rute di kelompok ini.
+    */
+    Route::middleware('role:admin,petugas,kiosk')->prefix('layar')->group(function () {
+        Route::get('/', [KioskController::class, 'index'])->name('kiosk.index');
+        Route::get('/data', [KioskController::class, 'data'])->name('kiosk.data');
+        Route::post('/pindai', [KioskController::class, 'scanWebcam'])->name('kiosk.scan.webcam');
+        Route::post('/kamera/{camera}/pindai', [KioskController::class, 'scanCamera'])->name('kiosk.scan.camera');
+        Route::get('/kamera/{camera}/siaran', [CameraController::class, 'stream'])->name('kiosk.camera.stream');
+        Route::get('/kamera/{camera}/cuplikan', [CameraController::class, 'snapshot'])->name('kiosk.camera.snapshot');
+    });
+
+    Route::middleware('role:admin,petugas,murid')->group(function () {
+        Route::get('/ganti-sandi', [PasswordController::class, 'edit'])->name('password.edit');
+        Route::put('/ganti-sandi', [PasswordController::class, 'update'])->name('password.update');
+        Route::put('/profil/email', [PasswordController::class, 'updateEmail'])->name('profile.email');
+
+        Route::get('/riwayat', HistoryController::class)->name('murid.riwayat');
+
+        /*
+        | Pendaftaran wajah mandiri.
+        |
+        | Dibuka untuk SEMUA peran anggota yang sudah masuk (admin, petugas, murid),
+        | sebab semua orang absen di depan kamera dan guru baru juga perlu
+        | mendaftarkan wajahnya sendiri. Identitas foto selalu diambil dari akun yang
+        | sedang masuk, jadi tidak ada nomor akun yang dibaca dari peramban.
+        */
+        Route::get('/pendaftaran-wajah', [EnrollmentController::class, 'show'])->name('enrollment.show');
+        Route::get('/pendaftaran-wajah/proses', [EnrollmentController::class, 'progress'])->name('enrollment.progress');
+        Route::post('/pendaftaran-wajah/foto', [EnrollmentController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('enrollment.photos.store');
+        Route::get('/pendaftaran-wajah/foto/{faceEmbedding}', [EnrollmentController::class, 'showPhoto'])->name('enrollment.photos.show');
+        Route::delete('/pendaftaran-wajah/foto/{faceEmbedding}', [EnrollmentController::class, 'destroyPhoto'])->name('enrollment.photos.destroy');
+        Route::delete('/pendaftaran-wajah/foto', [EnrollmentController::class, 'destroyAll'])->name('enrollment.photos.clear');
+        Route::post('/pendaftaran-wajah/proses/{batch}/ulang', [EnrollmentController::class, 'retry'])->name('enrollment.retry');
+        Route::post('/pendaftaran-wajah/selesai', [EnrollmentController::class, 'complete'])->name('enrollment.complete');
+        Route::get('/pendaftaran-wajah/selesai', [EnrollmentController::class, 'done'])->name('enrollment.done');
+
+        // Foto bukti absen disajikan lewat rute berizin, bukan berkas publik.
+        Route::get('/bukti-absen/{log}', AttendanceProofController::class)->name('attendance.proof');
+    });
 
     Route::get('/ringkasan', DashboardController::class)
         ->middleware('role:admin,petugas')
         ->name('dashboard');
-
-    Route::get('/riwayat', HistoryController::class)->name('murid.riwayat');
-
-    /*
-    | Pendaftaran wajah mandiri.
-    |
-    | Dibuka untuk SEMUA peran yang sudah masuk, termasuk admin dan petugas,
-    | sebab semua orang absen di depan kamera dan guru baru juga perlu
-    | mendaftarkan wajahnya sendiri. Identitas foto selalu diambil dari akun yang
-    | sedang masuk, jadi tidak ada nomor akun yang dibaca dari peramban.
-    */
-    Route::get('/pendaftaran-wajah', [EnrollmentController::class, 'show'])->name('enrollment.show');
-    Route::get('/pendaftaran-wajah/proses', [EnrollmentController::class, 'progress'])->name('enrollment.progress');
-    Route::post('/pendaftaran-wajah/foto', [EnrollmentController::class, 'store'])
-        ->middleware('throttle:30,1')
-        ->name('enrollment.photos.store');
-    Route::get('/pendaftaran-wajah/foto/{faceEmbedding}', [EnrollmentController::class, 'showPhoto'])->name('enrollment.photos.show');
-    Route::delete('/pendaftaran-wajah/foto/{faceEmbedding}', [EnrollmentController::class, 'destroyPhoto'])->name('enrollment.photos.destroy');
-    Route::delete('/pendaftaran-wajah/foto', [EnrollmentController::class, 'destroyAll'])->name('enrollment.photos.clear');
-    Route::post('/pendaftaran-wajah/proses/{batch}/ulang', [EnrollmentController::class, 'retry'])->name('enrollment.retry');
-    Route::post('/pendaftaran-wajah/selesai', [EnrollmentController::class, 'complete'])->name('enrollment.complete');
-    Route::get('/pendaftaran-wajah/selesai', [EnrollmentController::class, 'done'])->name('enrollment.done');
-
-    // Foto bukti absen disajikan lewat rute berizin, bukan berkas publik.
-    Route::get('/bukti-absen/{log}', AttendanceProofController::class)->name('attendance.proof');
 
     Route::middleware('camera')->group(function () {
         Route::get('/absen-wajah', [AttendanceController::class, 'index'])->name('attendance.wajah');
@@ -132,6 +149,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/perangkat/{device}', [DeviceController::class, 'destroy'])->name('devices.destroy');
 
         Route::get('/pengaturan', [SettingController::class, 'index'])->name('settings.index');
+        Route::put('/pengaturan/layar-kiosk', [SettingController::class, 'updateKioskAccount'])->name('settings.kiosk-account');
         Route::put('/pengaturan/sensitivitas-wajah', [SettingController::class, 'updateFaceSensitivity'])->name('settings.face-sensitivity');
         Route::put('/pengaturan/foto-bukti', [SettingController::class, 'updateProofOverlay'])->name('settings.proof-overlay');
         Route::get('/pengaturan/backup', [SettingController::class, 'downloadBackup'])->name('settings.backup.download');

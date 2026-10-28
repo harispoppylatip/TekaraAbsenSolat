@@ -30,6 +30,7 @@ class FaceDataController extends Controller
         $service = app(FaceEncodingService::class);
         $health = $service->health();
         $members = User::query()
+            ->where('role', '!=', User::RoleKiosk)
             ->search($term !== '' ? $term : null)
             ->with(['faceEmbeddings' => fn ($query) => $query->orderBy('id')])
             ->withCount('faceEmbeddings')
@@ -56,23 +57,23 @@ class FaceDataController extends Controller
             'serviceModel' => $health['model'] ?? null,
             'expectedModel' => $service->expectedModel(),
             'stats' => [
-                'anggota' => User::query()->count(),
-                'berwajah' => User::query()->has('faceEmbeddings')->count(),
+                'anggota' => User::query()->where('role', '!=', User::RoleKiosk)->count(),
+                'berwajah' => User::query()->where('role', '!=', User::RoleKiosk)->has('faceEmbeddings')->count(),
                 'foto' => FaceEmbedding::query()->count(),
                 'batas' => (int) config('face.max_photos_per_user', 20),
                 'perlu' => $matcher->aggregatePhotos(),
                 // Keadaan pendaftaran mandiri. Dihitung dari kolom status, bukan
                 // dari jumlah foto, supaya terlihat juga anggota yang sudah
                 // mulai mengirim tetapi belum cukup, dan yang fotonya ditolak.
-                'selesai' => User::query()->where('enrollment_status', User::EnrollmentCompleted)->count(),
-                'tidak_wajib' => User::query()->where('enrollment_status', User::EnrollmentExempted)->count(),
-                'belum' => User::query()->whereNotIn('enrollment_status', [
+                'selesai' => User::query()->where('role', '!=', User::RoleKiosk)->where('enrollment_status', User::EnrollmentCompleted)->count(),
+                'tidak_wajib' => User::query()->where('role', '!=', User::RoleKiosk)->where('enrollment_status', User::EnrollmentExempted)->count(),
+                'belum' => User::query()->where('role', '!=', User::RoleKiosk)->whereNotIn('enrollment_status', [
                     User::EnrollmentCompleted,
                     User::EnrollmentExempted,
                 ])->count(),
-                'sedang' => User::query()->where('enrollment_status', User::EnrollmentProcessing)->count(),
-                'perlu_daftar_ulang' => User::query()->where('enrollment_status', User::EnrollmentNeedsReenrollment)->count(),
-                'pendaftaran_terakhir' => User::query()->whereNotNull('enrolled_at')->max('enrolled_at'),
+                'sedang' => User::query()->where('role', '!=', User::RoleKiosk)->where('enrollment_status', User::EnrollmentProcessing)->count(),
+                'perlu_daftar_ulang' => User::query()->where('role', '!=', User::RoleKiosk)->where('enrollment_status', User::EnrollmentNeedsReenrollment)->count(),
+                'pendaftaran_terakhir' => User::query()->where('role', '!=', User::RoleKiosk)->whereNotNull('enrolled_at')->max('enrolled_at'),
                 'wajib_foto' => (int) config('face.enrollment.required_photos', 5),
             ],
             'operators' => User::query()
@@ -125,6 +126,7 @@ class FaceDataController extends Controller
     private function pendingEnrollment(): LengthAwarePaginator
     {
         return User::query()
+            ->where('role', '!=', User::RoleKiosk)
             ->whereNotIn('enrollment_status', [
                 User::EnrollmentCompleted,
                 User::EnrollmentExempted,

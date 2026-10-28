@@ -35,6 +35,8 @@ class User extends Authenticatable
 
     public const RoleMurid = 'murid';
 
+    public const RoleKiosk = 'kiosk';
+
     public const DefaultPassword = 'solat123';
 
     /** Belum pernah membuka halaman pendaftaran wajah. */
@@ -141,6 +143,11 @@ class User extends Authenticatable
         return $this->role === self::RoleMurid;
     }
 
+    public function isKiosk(): bool
+    {
+        return $this->role === self::RoleKiosk;
+    }
+
     /**
      * Petugas yang ditugaskan memegang kamera absen.
      */
@@ -156,6 +163,10 @@ class User extends Authenticatable
 
     public function homeRoute(): string
     {
+        if ($this->isKiosk()) {
+            return 'kiosk.index';
+        }
+
         return $this->isMurid() ? 'murid.riwayat' : 'dashboard';
     }
 
@@ -180,11 +191,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Dikecualikan dari kewajiban mendaftarkan wajah (misalnya admin atau petugas).
+     * Dikecualikan dari kewajiban mendaftarkan wajah (misalnya admin, petugas, atau akun layar kiosk).
      */
     public function isExemptFromEnrollment(): bool
     {
-        return $this->enrollmentStatus() === self::EnrollmentExempted;
+        return $this->isKiosk() || $this->enrollmentStatus() === self::EnrollmentExempted;
     }
 
     /**
