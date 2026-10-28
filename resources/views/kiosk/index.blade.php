@@ -676,42 +676,6 @@
             const videoStageEl = document.getElementById('kiosk-video-stage');
             const fitBtn = document.getElementById('btn-kiosk-fit');
             const fitBtnLabel = document.getElementById('btn-kiosk-fit-label');
-            let currentFitMode = localStorage.getItem(STORAGE_FIT_KEY) || 'cover';
-
-            function applyFitMode(mode) {
-                currentFitMode = (mode === 'contain') ? 'contain' : 'cover';
-                localStorage.setItem(STORAGE_FIT_KEY, currentFitMode);
-                if (videoStageEl) {
-                    if (currentFitMode === 'contain') {
-                        videoStageEl.classList.add('is-contain');
-                    } else {
-                        videoStageEl.classList.remove('is-contain');
-                    }
-                }
-                if (fitBtnLabel) {
-                    fitBtnLabel.textContent = (currentFitMode === 'cover') ? 'Isi Penuh' : 'Proporsional';
-                }
-                if (currentFaces.length > 0 && currentFrame) {
-                    drawOverlayFaces(currentFaces, currentFrame);
-                }
-            }
-
-            if (fitBtn) {
-                fitBtn.addEventListener('click', function () {
-                    applyFitMode(currentFitMode === 'cover' ? 'contain' : 'cover');
-                });
-            }
-            applyFitMode(currentFitMode);
-
-            let activeSource = localStorage.getItem(STORAGE_SOURCE_KEY) || defaultSource;
-            // Pastikan pilihan tersimpan masih valid
-            if (activeSource.startsWith('cctv:')) {
-                const camId = Number(activeSource.split(':')[1]);
-                if (!cameras.some(c => c.id === camId)) {
-                    activeSource = defaultSource;
-                }
-            }
-            sourceSelect.value = activeSource;
 
             let mediaStream = null;
             let rtcConnection = null;
@@ -724,6 +688,17 @@
             let currentFrame = { width: 1280, height: 720 };
             let knownLogIds = new Set(initialLogs.map(l => Number(l.id)));
             let welcomeTimeout = null;
+            let currentFitMode = localStorage.getItem(STORAGE_FIT_KEY) || 'cover';
+
+            let activeSource = localStorage.getItem(STORAGE_SOURCE_KEY) || defaultSource;
+            // Pastikan pilihan tersimpan masih valid
+            if (activeSource.startsWith('cctv:')) {
+                const camId = Number(activeSource.split(':')[1]);
+                if (!cameras.some(c => c.id === camId)) {
+                    activeSource = defaultSource;
+                }
+            }
+            sourceSelect.value = activeSource;
 
             function escapeHtml(value) {
                 return String(value ?? '')
@@ -950,6 +925,31 @@
                     drawOverlayFaces(currentFaces, currentFrame);
                 }
             });
+
+            function applyFitMode(mode) {
+                currentFitMode = (mode === 'contain') ? 'contain' : 'cover';
+                localStorage.setItem(STORAGE_FIT_KEY, currentFitMode);
+                if (videoStageEl) {
+                    if (currentFitMode === 'contain') {
+                        videoStageEl.classList.add('is-contain');
+                    } else {
+                        videoStageEl.classList.remove('is-contain');
+                    }
+                }
+                if (fitBtnLabel) {
+                    fitBtnLabel.textContent = (currentFitMode === 'cover') ? 'Isi Penuh' : 'Proporsional';
+                }
+                if (currentFaces.length > 0 && currentFrame) {
+                    drawOverlayFaces(currentFaces, currentFrame);
+                }
+            }
+
+            if (fitBtn) {
+                fitBtn.addEventListener('click', function () {
+                    applyFitMode(currentFitMode === 'cover' ? 'contain' : 'cover');
+                });
+            }
+            applyFitMode(currentFitMode);
 
             // ================= 4. MANAJEMEN SUMBER KAMERA (WEBCAM PC ATAU CCTV) =================
             function stopAllStreams() {
