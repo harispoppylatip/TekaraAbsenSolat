@@ -149,6 +149,25 @@ class SolatAttendanceService
                 'left' => (int) $face['left'],
             ];
 
+            $antispoof = $face['antispoof'] ?? null;
+            $isSpoof = (($face['error'] ?? '') === 'spoof_detected')
+                || ($antispoof !== null && empty($antispoof['is_live']));
+
+            if ($isSpoof) {
+                $spoofLabel = (string) ($antispoof['label'] ?? 'Layar HP/Foto Kertas');
+                $evaluated[$idx] = [
+                    'type' => 'spoof',
+                    'box' => $box,
+                    'label' => '[FOTO PALSU]',
+                    'status' => 'spoof_detected',
+                    'display' => 'Foto Palsu Terdeteksi',
+                    'detail' => $spoofLabel,
+                    'distance' => null,
+                    'antispoof' => $antispoof,
+                ];
+                continue;
+            }
+
             if (($face['encoding'] ?? null) === null) {
                 $evaluated[$idx] = [
                     'type' => 'no_face',
@@ -296,6 +315,7 @@ class SolatAttendanceService
                     display: $item['display'],
                     detail: $item['detail'],
                     distance: $item['distance'],
+                    antispoof: $item['antispoof'] ?? null,
                 );
                 continue;
             }
@@ -480,6 +500,7 @@ class SolatAttendanceService
         bool $recorded = false,
         ?int $logId = null,
         string $message = '',
+        ?array $antispoof = null,
     ): array {
         return [
             'box' => $box,
@@ -487,6 +508,7 @@ class SolatAttendanceService
             'status' => $status,
             'display_message' => $display,
             'display_detail' => $detail,
+            'antispoof' => $antispoof,
             'member' => $user === null ? null : [
                 'id' => $user->getKey(),
                 'name' => $user->name,

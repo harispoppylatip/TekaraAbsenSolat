@@ -52,6 +52,9 @@ class FaceEncodingService
     /** Wajah menghadap terlalu jauh dari kamera. */
     public const StatusBadPose = 'bad_pose';
 
+    /** Pemalsuan foto terdeteksi (layar HP/monitor atau foto kertas). */
+    public const StatusSpoofDetected = 'spoof_detected';
+
     /**
      * Seluruh keadaan mutu foto yang dikenali.
      *
@@ -181,6 +184,17 @@ class FaceEncodingService
                 self::StatusMultipleFaces,
                 'Ada lebih dari satu wajah di depan kamera. Absen satu orang saja supaya tidak salah catat.',
                 $faceCount,
+            );
+        }
+
+        if ($status === self::StatusSpoofDetected || $status === 'spoof_detected') {
+            return $this->failure(
+                self::StatusSpoofDetected,
+                is_string($data['message'] ?? null) && $data['message'] !== ''
+                    ? $data['message']
+                    : 'Pemalsuan foto terdeteksi: Wajib menggunakan wajah asli secara langsung.',
+                $faceCount,
+                (int) ($data['face_size'] ?? 0),
             );
         }
 
@@ -348,6 +362,7 @@ class FaceEncodingService
                 'face_size' => (int) ($face['face_size'] ?? 0),
                 'encoding' => $valid ? FaceEmbedding::normalizeEmbedding($encoding) : null,
                 'error' => $valid ? null : (is_string($face['error'] ?? null) ? $face['error'] : 'encoding_failed'),
+                'antispoof' => is_array($face['antispoof'] ?? null) ? $face['antispoof'] : null,
             ];
         }
 

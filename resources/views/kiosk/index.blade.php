@@ -1038,6 +1038,7 @@
 
                 const colorSaved = '#16a34a';
                 const colorUnknown = '#d97706';
+                const colorSpoof = '#dc2626';
 
                 const isMirrored = Boolean(videoStageEl && videoStageEl.classList.contains('is-mirrored'));
 
@@ -1052,15 +1053,23 @@
                         : (map.offsetX + Number(face.box.left || 0) * map.scaleX);
 
                     const status = String((face.attendance && face.attendance.status) || face.status || '');
-                    const isRecognized = Boolean(
-                        (face.attendance && face.attendance.recorded) ||
-                        status === 'recorded' ||
-                        status === 'late' ||
-                        status === 'duplicate' ||
-                        status === 'cooldown' ||
-                        face.member
+                    const isSpoof = Boolean(
+                        status === 'spoof_detected' ||
+                        face.error === 'spoof_detected' ||
+                        (face.antispoof && !face.antispoof.is_live) ||
+                        face.label === '[FOTO PALSU]'
                     );
-                    const color = isRecognized ? colorSaved : colorUnknown;
+                    const isRecognized = Boolean(
+                        !isSpoof && (
+                            (face.attendance && face.attendance.recorded) ||
+                            status === 'recorded' ||
+                            status === 'late' ||
+                            status === 'duplicate' ||
+                            status === 'cooldown' ||
+                            face.member
+                        )
+                    );
+                    const color = isSpoof ? colorSpoof : (isRecognized ? colorSaved : colorUnknown);
 
                     // Gambar border wajah
                     ctx.lineWidth = 3;
@@ -1068,12 +1077,19 @@
                     ctx.strokeRect(bx, by, bw, bh);
 
                     // Nama orang & status di atas border
-                    const nama = (typeof face.label === 'string' && face.label !== '')
+                    let nama = (typeof face.label === 'string' && face.label !== '')
                         ? face.label
                         : ((face.member && face.member.name) ? face.member.name : 'Tidak dikenal');
-                    const keadaan = (face.attendance && typeof face.attendance.display_message === 'string' && face.attendance.display_message !== '')
+                    let keadaan = (face.attendance && typeof face.attendance.display_message === 'string' && face.attendance.display_message !== '')
                         ? face.attendance.display_message
                         : (typeof face.display_message === 'string' && face.display_message !== '' ? face.display_message : 'Belum terdaftar');
+
+                    if (isSpoof) {
+                        nama = '[FOTO PALSU]';
+                        keadaan = (face.antispoof && face.antispoof.label)
+                            ? face.antispoof.label
+                            : (face.display_detail || 'Layar HP / Foto Cetak');
+                    }
 
                     ctx.font = '700 14px Inter, system-ui, sans-serif';
                     const nameW = ctx.measureText(nama).width;

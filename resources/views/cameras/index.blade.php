@@ -859,6 +859,7 @@
 
                 const colorSaved = pickCssColor('--success', '#1b6b3a');
                 const colorUnknown = pickCssColor('--warning', '#8a5300');
+                const colorSpoof = '#dc2626';
 
                 faces.forEach(function (face) {
                     if (!face.box) return;
@@ -869,27 +870,42 @@
                     const bh = Math.max(2, (Number(face.box.bottom || 0) - Number(face.box.top || 0)) * map.scaleY);
 
                     const status = String((face.attendance && face.attendance.status) || face.status || '');
-                    const isSaved = Boolean(
-                        (face.attendance && face.attendance.recorded) ||
-                        status === 'recorded' ||
-                        status === 'late' ||
-                        status === 'duplicate' ||
-                        status === 'cooldown' ||
-                        face.member
+                    const isSpoof = Boolean(
+                        status === 'spoof_detected' ||
+                        face.error === 'spoof_detected' ||
+                        (face.antispoof && !face.antispoof.is_live) ||
+                        face.label === '[FOTO PALSU]'
                     );
-                    const color = isSaved ? colorSaved : colorUnknown;
+                    const isSaved = Boolean(
+                        !isSpoof && (
+                            (face.attendance && face.attendance.recorded) ||
+                            status === 'recorded' ||
+                            status === 'late' ||
+                            status === 'duplicate' ||
+                            status === 'cooldown' ||
+                            face.member
+                        )
+                    );
+                    const color = isSpoof ? colorSpoof : (isSaved ? colorSaved : colorUnknown);
 
                     ctx.lineWidth = 2.5;
                     ctx.strokeStyle = color;
                     ctx.strokeRect(bx, by, bw, bh);
 
                     // Label 2 baris persis seperti halaman Absen Wajah
-                    const nama = (typeof face.label === 'string' && face.label !== '')
+                    let nama = (typeof face.label === 'string' && face.label !== '')
                         ? face.label
                         : ((face.member && face.member.name) ? face.member.name : 'Tidak dikenal');
-                    const keadaan = (face.attendance && typeof face.attendance.display_message === 'string' && face.attendance.display_message !== '')
+                    let keadaan = (face.attendance && typeof face.attendance.display_message === 'string' && face.attendance.display_message !== '')
                         ? face.attendance.display_message
                         : (typeof face.display_message === 'string' && face.display_message !== '' ? face.display_message : 'Belum terdaftar');
+
+                    if (isSpoof) {
+                        nama = '[FOTO PALSU]';
+                        keadaan = (face.antispoof && face.antispoof.label)
+                            ? face.antispoof.label
+                            : (face.display_detail || 'Layar HP / Foto Cetak');
+                    }
 
                     ctx.font = '600 14px Inter, system-ui, sans-serif';
                     const nameW = ctx.measureText(nama).width;

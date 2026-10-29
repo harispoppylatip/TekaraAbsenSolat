@@ -42,6 +42,7 @@ class ProofOverlayService
 
             $colorGreen = imagecolorallocate($im, 27, 107, 58); // #1b6b3a
             $colorOrange = imagecolorallocate($im, 138, 83, 0);  // #8a5300
+            $colorRed = imagecolorallocate($im, 220, 38, 38);   // #dc2626
             $colorWhite = imagecolorallocate($im, 255, 255, 255);
 
             $scale = max(0.5, $imgW / 720.0);
@@ -52,13 +53,25 @@ class ProofOverlayService
             $drawnBadges = [];
 
             foreach ($faces as $face) {
-                // Hanya gambar kotak dan label untuk anggota terdaftar (abaikan yang tidak dikenal/belum terdaftar)
+                // Gambar kotak merah bila terdeteksi foto palsu (spoofing), atau hijau untuk anggota terdaftar
+                $isSpoof = (($face['status'] ?? '') === 'spoof_detected') || (($face['label'] ?? '') === '[FOTO PALSU]');
                 $hasMember = ! empty($face['member']);
                 $nama = (string) ($face['label'] ?? ($face['member']['name'] ?? ''));
                 $isUnknown = $nama === '' || in_array($nama, ['Tidak dikenal', 'Wajah tidak dikenal'], true);
 
-                if (! $hasMember && $isUnknown) {
+                if ($isSpoof) {
+                    $hasMember = true;
+                    $nama = '[FOTO PALSU]';
+                    $keadaan = (string) ($face['detail'] ?? ($face['display'] ?? 'Layar HP/Kertas'));
+                    $badgeColor = $colorRed;
+                } elseif (! $hasMember && $isUnknown) {
                     continue;
+                } else {
+                    $badgeColor = $colorGreen;
+                    $keadaan = (string) ($face['attendance']['display_message'] ?? ($face['display_message'] ?? 'Hadir'));
+                    if ($keadaan === '' || $keadaan === 'Belum terdaftar') {
+                        $keadaan = 'Hadir';
+                    }
                 }
 
                 $box = $face['box'] ?? null;
@@ -76,8 +89,6 @@ class ProofOverlayService
                 $bw = max(2, min($imgW - $bx, $right - $left));
                 $bh = max(2, min($imgH - $by, $bottom - $top));
 
-                $badgeColor = $colorGreen;
-
                 // 1. Gambar kotak wajah dengan ketebalan rapi
                 for ($t = 0; $t < $thickness; $t++) {
                     imagerectangle(
@@ -90,13 +101,7 @@ class ProofOverlayService
                     );
                 }
 
-                // 2. Siapkan label nama dan status
-                $keadaan = (string) ($face['attendance']['display_message'] ?? ($face['display_message'] ?? 'Hadir'));
-                if ($keadaan === '' || $keadaan === 'Belum terdaftar') {
-                    $keadaan = 'Hadir';
-                }
-
-                // 3. Gambar badge dan teks dengan pencegahan tumpang-tindih (collision avoidance)
+                // 2. Gambar badge dan teks dengan pencegahan tumpang-tindih (collision avoidance)
                 if ($ttfFont !== null) {
                     $drawn = $this->drawTtfBadge($im, $ttfFont, $bx, $by, $bw, $bh, $imgW, $imgH, $scale, $nama, $keadaan, $badgeColor, $colorWhite, $drawnBadges);
                 } else {

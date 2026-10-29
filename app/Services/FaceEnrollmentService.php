@@ -50,6 +50,9 @@ class FaceEnrollmentService
     /** Wajah menghadap terlalu jauh dari kamera. */
     public const StatusBadPose = 'bad_pose';
 
+    /** Pemalsuan foto terdeteksi (layar HP/monitor atau foto cetak). */
+    public const StatusSpoofDetected = 'spoof_detected';
+
     /** Foto hampir sama dengan foto yang sudah diterima di kelompok yang sama. */
     public const StatusDuplicate = 'duplicate';
 
@@ -287,6 +290,7 @@ class FaceEnrollmentService
             FaceEncodingService::StatusTooBright => self::StatusTooBright,
             FaceEncodingService::StatusBlurry => self::StatusBlurry,
             FaceEncodingService::StatusBadPose => self::StatusBadPose,
+            FaceEncodingService::StatusSpoofDetected => self::StatusSpoofDetected,
             default => self::StatusInvalid,
         };
     }
