@@ -156,7 +156,7 @@ class KioskController extends Controller
     /**
      * Susun daftar 15 log kehadiran terbaru (hanya nama, waktu sholat, jam, dan status).
      *
-     * @return array<int, array{id: int, name: string, prayer: string, time: string, status: string}>
+     * @return array<int, array{id: int, name: string, prayer: string, time: string, status: string, is_fingerprint: bool}>
      */
     private function recentLogsPayload(): array
     {
@@ -171,6 +171,7 @@ class KioskController extends Controller
                 'prayer' => (string) ($log->session?->prayerLabel() ?? 'Sholat'),
                 'time' => (string) ($log->scanned_at?->format('H:i:s') ?? '--:--:--'),
                 'status' => (string) $log->statusLabel(),
+                'is_fingerprint' => (bool) $log->isFingerprint(),
             ])
             ->values()
             ->all();
@@ -244,3 +245,4 @@ class KioskController extends Controller
         return $result;
     }
 }
+

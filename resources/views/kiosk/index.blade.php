@@ -505,6 +505,23 @@
             color: var(--primary);
         }
 
+        .kiosk-method-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 1px 7px;
+            border-radius: 6px;
+            line-height: 1.4;
+        }
+
+        .kiosk-method-badge.fingerprint {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+        }
+
         .kiosk-log-right {
             display: flex;
             flex-direction: column;
@@ -912,12 +929,28 @@
                     const safeTime = escapeHtml(log.time || '--:--:--');
                     const safeStatus = escapeHtml(log.status || 'Hadir');
                     const statusClass = (log.status === 'Terlambat') ? 'terlambat' : 'hadir';
+                    const isFingerprint = Boolean(log.is_fingerprint);
+                    const methodBadge = isFingerprint
+                        ? '<span class="kiosk-method-badge fingerprint" title="Absen melalui mesin sidik jari">' +
+                            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                                '<path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 3"></path>' +
+                                '<path d="M14 13.12c0 2.38 0 6.38-1 8.88"></path>' +
+                                '<path d="M2 16h.01"></path>' +
+                                '<path d="M21.8 16c.2-2 .131-5.354 0-6"></path>' +
+                                '<path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"></path>' +
+                                '<path d="M8.65 22c.21-.66.45-1.32.57-2"></path>' +
+                                '<path d="M9 6.8a6 6 0 0 1 9 5.2v2"></path>' +
+                            '</svg>' +
+                            '<span>Sidik Jari</span>' +
+                          '</span>'
+                        : '';
 
                     return '<div class="kiosk-log-item' + (isNew ? ' is-new' : '') + '">' +
                         '<div class="kiosk-log-left">' +
                             '<div class="kiosk-log-name">' + safeName + '</div>' +
                             '<div class="kiosk-log-meta">' +
                                 '<span class="kiosk-log-prayer">Sholat ' + safePrayer + '</span>' +
+                                methodBadge +
                             '</div>' +
                         '</div>' +
                         '<div class="kiosk-log-right">' +
@@ -930,14 +963,15 @@
                 logListEl.innerHTML = html;
 
                 if (newestLog) {
-                    showWelcomeBanner(newestLog.name, newestLog.prayer, newestLog.time, newestLog.status);
+                    showWelcomeBanner(newestLog.name, newestLog.prayer, newestLog.time, newestLog.status, Boolean(newestLog.is_fingerprint));
                 }
             }
 
-            function showWelcomeBanner(name, prayer, time, status) {
+            function showWelcomeBanner(name, prayer, time, status, isFingerprint = false) {
                 if (!welcomeBanner || !welcomeText || !welcomeTime) return;
+                const methodText = isFingerprint ? ' · via Sidik Jari' : '';
                 welcomeText.textContent = 'Berhasil Absen: ' + (name || 'Jamaah') + ' — Sholat ' + (prayer || '');
-                welcomeTime.textContent = (time || '') + ' · ' + (status || 'Hadir');
+                welcomeTime.textContent = (time || '') + ' · ' + (status || 'Hadir') + methodText;
                 welcomeBanner.hidden = false;
 
                 if (welcomeTimeout) clearTimeout(welcomeTimeout);
