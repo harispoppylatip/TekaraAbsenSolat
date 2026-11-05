@@ -69,14 +69,35 @@
                     <div class="field">
                         <label class="field-label" for="class_name">Kelas</label>
                         <input class="input-field" type="text" id="class_name" name="class_name"
-                            value="{{ old('class_name', $member->class_name) }}" list="kelas-tersedia">
+                            value="{{ old('class_name', $member->class_name) }}" list="kelas-tersedia" placeholder="Contoh: X, XI, XII, atau X .21">
                         <datalist id="kelas-tersedia">
+                            <option value="X"></option>
+                            <option value="XI"></option>
+                            <option value="XII"></option>
+                            <option value="10"></option>
+                            <option value="11"></option>
+                            <option value="12"></option>
                             @foreach ($classes as $class)
                                 <option value="{{ $class }}"></option>
                             @endforeach
                         </datalist>
                         <p class="field-hint">Wajib untuk murid, boleh dikosongkan untuk guru dan petugas.</p>
                         @error('class_name')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="field">
+                        <label class="field-label" for="major">Jurusan</label>
+                        <input class="input-field" type="text" id="major" name="major"
+                            value="{{ old('major', $member->major) }}" list="jurusan-tersedia" placeholder="Contoh: TKJ, TKRO, AKL, MPLB">
+                        <datalist id="jurusan-tersedia">
+                            @foreach ($majors ?? [] as $majorOption)
+                                <option value="{{ $majorOption }}"></option>
+                            @endforeach
+                        </datalist>
+                        <p class="field-hint">Jurusan atau kompetensi keahlian siswa (opsional untuk guru/petugas).</p>
+                        @error('major')
                             <p class="field-error">{{ $message }}</p>
                         @enderror
                     </div>
@@ -144,8 +165,8 @@
                     <table class="data-table">
                         <tbody>
                             <tr>
-                                <td>Foto wajah tersimpan</td>
-                                <td class="cell-strong">{{ $member->face_embeddings_count }} foto</td>
+                                <td>Status wajah</td>
+                                <td class="cell-strong">{{ $member->face_embeddings_count > 0 ? 'Sudah Terdaftar' : 'Belum Terdaftar' }}</td>
                             </tr>
                             <tr>
                                 <td>Sandi terakhir diubah</td>

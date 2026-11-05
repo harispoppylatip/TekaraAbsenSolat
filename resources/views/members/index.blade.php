@@ -8,6 +8,7 @@
         $secondaryCount = 0;
         if (filled($filters['role'])) $secondaryCount++;
         if (filled($filters['class_name'])) $secondaryCount++;
+        if (filled($filters['major'] ?? '')) $secondaryCount++;
         if (filled($filters['face'])) $secondaryCount++;
         if ($filters['sort'] !== 'name') $secondaryCount++;
         $hasActiveSecondary = $secondaryCount > 0;
@@ -162,14 +163,20 @@
 
         .members-filter-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 14px;
             margin-top: 12px;
             padding-top: 12px;
             border-top: 1px solid #e2e8f0;
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1100px) {
+            .members-filter-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
             .members-filter-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -198,6 +205,11 @@
             color: #1e293b;
             background: #ffffff;
             outline: none;
+        }
+
+        .members-filter-col select:focus {
+            border-color: #0284c7;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
         }
 
         /* 2. Top Metric Stats */
@@ -462,7 +474,7 @@
     <div class="members-container">
         {{-- 1. SEARCH & FILTER TOOLBAR --}}
         <section class="members-toolbar-card">
-            <form method="GET" action="{{ route('members.index') }}">
+            <form id="members-filter-form" method="GET" action="{{ route('members.index') }}">
                 <div class="members-toolbar-top">
                     <div class="members-toolbar-title">
                         <h2>Kelola Data Anggota</h2>
@@ -495,33 +507,29 @@
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
-                        <input class="search-field-input" type="search" id="q" name="q" value="{{ $filters['q'] }}" placeholder="Cari nama, nomor induk, atau email...">
+                        <input class="search-field-input" type="search" id="q" name="q" value="{{ $filters['q'] }}" placeholder="Cari nama, nomor induk, kelas, jurusan, atau email..." autocomplete="off">
                     </div>
 
                     <button class="btn-member-action btn-member-primary" type="submit">
                         Cari
                     </button>
 
-                    @if ($isFiltered)
-                        <a class="btn-member-action btn-member-ghost" href="{{ route('members.index') }}">
-                            Bersihkan
-                        </a>
-                    @endif
+                    <a id="members-clear-btn" class="btn-member-action btn-member-ghost" href="{{ route('members.index') }}" @if (! $isFiltered) style="display: none;" @endif>
+                        Bersihkan
+                    </a>
                 </div>
 
                 {{-- Saringan Lanjutan --}}
-                <details class="members-filter-box" @if($hasActiveSecondary) open @endif>
+                <details class="members-filter-box" open>
                     <summary>
                         <span>Opsi Saringan & Pengurutan</span>
-                        @if($hasActiveSecondary)
-                            <span class="filter-badge" style="background: #e0f2fe; color: #0369a1; font-size: 11px; padding: 2px 7px; border-radius: 6px;">{{ $secondaryCount }} Aktif</span>
-                        @endif
+                        <span id="members-filter-badge" class="filter-badge" style="background: #e0f2fe; color: #0369a1; font-size: 11px; padding: 2px 7px; border-radius: 6px; @if(! $hasActiveSecondary) display: none; @endif">{{ $secondaryCount }} Aktif</span>
                     </summary>
 
                     <div class="members-filter-grid">
                         <div class="members-filter-col">
                             <label for="role">Peran</label>
-                            <select id="role" name="role">
+                            <select id="role" name="role" data-auto-submit>
                                 <option value="">Semua Peran</option>
                                 @foreach (\App\Models\User::roles() as $value => $label)
                                     <option value="{{ $value }}" @selected($filters['role'] === $value)>{{ $label }}</option>
@@ -531,17 +539,36 @@
 
                         <div class="members-filter-col">
                             <label for="class_name">Kelas</label>
-                            <select id="class_name" name="class_name">
+                            <select id="class_name" name="class_name" data-auto-submit>
                                 <option value="">Semua Kelas</option>
-                                @foreach ($classes as $class)
-                                    <option value="{{ $class }}" @selected($filters['class_name'] === $class)>{{ $class }}</option>
+                                <optgroup label="Tingkat Kelas">
+                                    <option value="10" @selected($filters['class_name'] === '10')>Kelas 10 (X)</option>
+                                    <option value="11" @selected($filters['class_name'] === '11')>Kelas 11 (XI)</option>
+                                    <option value="12" @selected($filters['class_name'] === '12')>Kelas 12 (XII)</option>
+                                </optgroup>
+                                @if ($classes->isNotEmpty())
+                                    <optgroup label="Kelas Spesifik">
+                                        @foreach ($classes as $class)
+                                            <option value="{{ $class }}" @selected($filters['class_name'] === $class)>{{ $class }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                            </select>
+                        </div>
+
+                        <div class="members-filter-col">
+                            <label for="major">Jurusan</label>
+                            <select id="major" name="major" data-auto-submit>
+                                <option value="">Semua Jurusan</option>
+                                @foreach ($majors as $major)
+                                    <option value="{{ $major }}" @selected(($filters['major'] ?? '') === $major)>{{ $major }}</option>
                                 @endforeach
                             </select>
                         </div>
 
                         <div class="members-filter-col">
                             <label for="face">Data Wajah</label>
-                            <select id="face" name="face">
+                            <select id="face" name="face" data-auto-submit>
                                 <option value="">Semua Status Wajah</option>
                                 <option value="ada" @selected($filters['face'] === 'ada')>Sudah Terdaftar</option>
                                 <option value="kosong" @selected($filters['face'] === 'kosong')>Belum Terdaftar</option>
@@ -550,7 +577,7 @@
 
                         <div class="members-filter-col">
                             <label for="sort">Urutkan</label>
-                            <select id="sort" name="sort">
+                            <select id="sort" name="sort" data-auto-submit>
                                 <option value="name" @selected($filters['sort'] === 'name')>Nama (A-Z)</option>
                                 <option value="identifier" @selected($filters['sort'] === 'identifier')>Nomor Induk</option>
                                 <option value="role" @selected($filters['sort'] === 'role')>Peran</option>
@@ -563,7 +590,7 @@
         </section>
 
         {{-- 2. DYNAMIC CONTENT (Live Polling Target) --}}
-        <div data-live="anggota" style="display: flex; flex-direction: column; gap: 20px;">
+        <div id="members-live-region" data-live="anggota" style="display: flex; flex-direction: column; gap: 20px;">
             {{-- Metric Stats --}}
             <section class="members-stats-grid">
                 {{-- Stat 1: Total Anggota --}}
@@ -648,6 +675,7 @@
                                     <th>Nomor Induk</th>
                                     <th>Peran</th>
                                     <th>Kelas</th>
+                                    <th>Jurusan</th>
                                     <th>Status Wajah</th>
                                     <th>Total Hadir</th>
                                     <th>Aksi</th>
@@ -675,14 +703,15 @@
                                             <span class="member-badge status-closed">{{ $member->roleLabel() }}</span>
                                         </td>
                                         <td>{{ $member->class_name ?: '-' }}</td>
+                                        <td>{{ $member->major ?: '-' }}</td>
                                         <td>
                                             @if ($member->face_embeddings_count > 0)
                                                 <span class="member-badge status-open">
-                                                    {{ $member->face_embeddings_count }} Foto
+                                                    Sudah Terdaftar
                                                 </span>
                                             @else
                                                 <span class="member-badge status-wait">
-                                                    Belum Ada
+                                                    Belum Terdaftar
                                                 </span>
                                             @endif
                                         </td>
@@ -728,4 +757,112 @@
             </section>
         </div>
     </div>
+
+    <script>
+        (function () {
+            const form = document.getElementById('members-filter-form');
+            const liveRegion = document.getElementById('members-live-region');
+            const searchInput = document.getElementById('q');
+            const clearBtn = document.getElementById('members-clear-btn');
+            const filterBadge = document.getElementById('members-filter-badge');
+
+            if (!form || !liveRegion) return;
+
+            let debounceTimer = null;
+            let activeController = null;
+
+            function updateFilterIndicators() {
+                const role = (form.querySelector('#role')?.value || '').trim();
+                const className = (form.querySelector('#class_name')?.value || '').trim();
+                const major = (form.querySelector('#major')?.value || '').trim();
+                const face = (form.querySelector('#face')?.value || '').trim();
+                const sort = (form.querySelector('#sort')?.value || 'name').trim();
+                const q = (searchInput?.value || '').trim();
+
+                let count = 0;
+                if (role !== '') count++;
+                if (className !== '') count++;
+                if (major !== '') count++;
+                if (face !== '') count++;
+                if (sort !== 'name') count++;
+
+                if (filterBadge) {
+                    if (count > 0) {
+                        filterBadge.textContent = count + ' Aktif';
+                        filterBadge.style.display = 'inline-block';
+                    } else {
+                        filterBadge.style.display = 'none';
+                    }
+                }
+
+                if (clearBtn) {
+                    clearBtn.style.display = (count > 0 || q !== '') ? 'inline-flex' : 'none';
+                }
+            }
+
+            async function applyFiltersAjax() {
+                updateFilterIndicators();
+
+                const params = new URLSearchParams(new FormData(form));
+                const targetUrl = form.action + '?' + params.toString();
+
+                window.history.replaceState({}, '', targetUrl);
+
+                if (activeController) {
+                    activeController.abort();
+                }
+                activeController = new AbortController();
+
+                liveRegion.style.opacity = '0.6';
+                liveRegion.style.transition = 'opacity 0.15s ease';
+
+                try {
+                    const response = await fetch(targetUrl, {
+                        headers: {
+                            'X-Live-Refresh': '1',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin',
+                        signal: activeController.signal
+                    });
+
+                    if (!response.ok) {
+                        form.submit();
+                        return;
+                    }
+
+                    const html = await response.text();
+                    const parsed = new DOMParser().parseFromString(html, 'text/html');
+                    const incoming = parsed.querySelector('[data-live="anggota"]');
+
+                    if (incoming) {
+                        liveRegion.innerHTML = incoming.innerHTML;
+                    }
+                } catch (err) {
+                    if (err && err.name === 'AbortError') {
+                        return;
+                    }
+                    form.submit();
+                } finally {
+                    liveRegion.style.opacity = '1';
+                }
+            }
+
+            // Tangani perubahan dropdown filter secara instan tanpa reload halaman penuh
+            form.querySelectorAll('select[data-auto-submit]').forEach(function (select) {
+                select.addEventListener('change', function (e) {
+                    e.stopImmediatePropagation();
+                    applyFiltersAjax();
+                }, true);
+            });
+
+            // Tangani ketikan di kotak pencarian secara otomatis (debounce 350ms)
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(applyFiltersAjax, 350);
+                });
+            }
+        })();
+    </script>
 @endsection

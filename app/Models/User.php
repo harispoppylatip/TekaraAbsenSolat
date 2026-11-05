@@ -18,6 +18,7 @@ use Illuminate\Notifications\Notifiable;
     'identifier_number',
     'role',
     'class_name',
+    'major',
     'phone_number',
     'can_scan_face',
     'last_login_at',
@@ -271,7 +272,8 @@ class User extends Authenticatable
             $inner->where('name', 'like', $like)
                 ->orWhere('identifier_number', 'like', $like)
                 ->orWhere('email', 'like', $like)
-                ->orWhere('class_name', 'like', $like);
+                ->orWhere('class_name', 'like', $like)
+                ->orWhere('major', 'like', $like);
         });
     }
 }

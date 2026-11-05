@@ -22,6 +22,18 @@ class MemberController extends Controller
     /** Pilihan pengurutan yang dikenal. */
     public const Sorts = ['name', 'identifier', 'role', 'recent'];
 
+    /** Daftar kode jurusan umum SMK sebagai saran dan pencocokan otomatis. */
+    public const DefaultMajors = [
+        'TKJ',
+        'TKRO',
+        'TBSM',
+        'AKL',
+        'MPLB',
+        'DKV',
+        'RPL',
+        'TITL',
+    ];
+
     public function index(Request $request): View
     {
         $filters = $this->filters($request);
@@ -29,7 +41,8 @@ class MemberController extends Controller
         $query = User::query()
             ->search($filters['q'] ?: null)
             ->when($filters['role'] !== '', fn (Builder $inner) => $inner->where('role', $filters['role']))
-            ->when($filters['class_name'] !== '', fn (Builder $inner) => $inner->where('class_name', $filters['class_name']))
+            ->when($filters['class_name'] !== '', fn (Builder $inner) => $this->applyClassFilter($inner, $filters['class_name']))
+            ->when($filters['major'] !== '', fn (Builder $inner) => $this->applyMajorFilter($inner, $filters['major']))
             ->when($filters['face'] === 'ada', fn (Builder $inner) => $inner->has('faceEmbeddings'))
             ->when($filters['face'] === 'kosong', fn (Builder $inner) => $inner->doesntHave('faceEmbeddings'))
             ->withCount([
@@ -47,12 +60,8 @@ class MemberController extends Controller
         return view('members.index', [
             'members' => $query->paginate(self::PerPage)->withQueryString(),
             'filters' => $filters,
-            'classes' => User::query()
-                ->whereNotNull('class_name')
-                ->where('class_name', '!=', '')
-                ->distinct()
-                ->orderBy('class_name')
-                ->pluck('class_name'),
+            'classes' => $this->classOptions($filters['class_name']),
+            'majors' => $this->majorOptions($filters['major']),
             'stats' => [
                 'total' => User::query()->count(),
                 'murid' => User::query()->where('role', User::RoleMurid)->count(),
@@ -81,11 +90,11 @@ class MemberController extends Controller
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF");
 
-            fputcsv($handle, ['nama', 'nisn', 'email', 'peran', 'kelas'], $delimiter);
-            fputcsv($handle, ['Ahmad Fauzi', '25001', '', 'murid', 'X TKJ 1'], $delimiter);
-            fputcsv($handle, ['Siti Nurhaliza', '25002', 'siti@contoh.sch.id', 'murid', 'X TKJ 1'], $delimiter);
-            fputcsv($handle, ['Bambang Irawan', 'GUR-001', 'bambang@contoh.sch.id', 'guru', ''], $delimiter);
-            fputcsv($handle, ['Ratna Sari', 'ADM-002', 'ratna@contoh.sch.id', 'admin', ''], $delimiter);
+            fputcsv($handle, ['nama', 'nisn', 'email', 'peran', 'kelas', 'jurusan'], $delimiter);
+            fputcsv($handle, ['Ahmad Fauzi', '25001', '', 'murid', 'XII', 'TKJ'], $delimiter);
+            fputcsv($handle, ['Siti Nurhaliza', '25002', 'siti@contoh.sch.id', 'murid', 'X .21', 'TKJ'], $delimiter);
+            fputcsv($handle, ['Bambang Irawan', 'GUR-001', 'bambang@contoh.sch.id', 'guru', '', ''], $delimiter);
+            fputcsv($handle, ['Ratna Sari', 'ADM-002', 'ratna@contoh.sch.id', 'admin', '', ''], $delimiter);
 
             fclose($handle);
         }, 200, $headers);
@@ -155,8 +164,10 @@ class MemberController extends Controller
                 $headerMap['email'] = $idx;
             } elseif (in_array($normalized, ['peran', 'role'], true)) {
                 $headerMap['role'] = $idx;
-            } elseif (in_array($normalized, ['kelas', 'class', 'class_name'], true)) {
+            } elseif (in_array($normalized, ['kelas', 'class', 'class_name', 'tingkat'], true)) {
                 $headerMap['class_name'] = $idx;
+            } elseif (in_array($normalized, ['jurusan', 'major', 'kompetensi', 'kompetensi keahlian', 'kompetensi_keahlian', 'program keahlian', 'program_keahlian', 'prodi'], true)) {
+                $headerMap['major'] = $idx;
             }
         }
 
@@ -184,6 +195,7 @@ class MemberController extends Controller
             $rawEmail = isset($headerMap['email']) ? trim((string) ($row[$headerMap['email']] ?? '')) : '';
             $rawRole = isset($headerMap['role']) ? mb_strtolower(trim((string) ($row[$headerMap['role']] ?? ''))) : '';
             $rawClass = isset($headerMap['class_name']) ? trim((string) ($row[$headerMap['class_name']] ?? '')) : '';
+            $rawMajor = isset($headerMap['major']) ? trim((string) ($row[$headerMap['major']] ?? '')) : '';
 
             if ($name === '') {
                 $errors[] = "Baris {$rowNumber}: Kolom nama kosong.";
@@ -217,6 +229,9 @@ class MemberController extends Controller
             }
 
             $className = $role === User::RoleMurid ? ($rawClass !== '' ? $rawClass : null) : null;
+            $major = $role === User::RoleMurid
+                ? ($rawMajor !== '' ? $rawMajor : $this->extractMajorFromClassName($className))
+                : null;
 
             $existing = User::where('identifier_number', $identifier)->first();
 
@@ -239,8 +254,16 @@ class MemberController extends Controller
                         $existing->email = $email;
                     }
                     $existing->role = $role;
-                    if ($role === User::RoleMurid && $className !== null) {
-                        $existing->class_name = $className;
+                    if ($role === User::RoleMurid) {
+                        if ($className !== null) {
+                            $existing->class_name = $className;
+                        }
+                        if ($major !== null) {
+                            $existing->major = $major;
+                        }
+                    } else {
+                        $existing->class_name = null;
+                        $existing->major = null;
                     }
                     $existing->save();
                     $updated++;
@@ -252,6 +275,7 @@ class MemberController extends Controller
                     'email' => $email,
                     'role' => $role,
                     'class_name' => $className,
+                    'major' => $major,
                     'can_scan_face' => false,
                     'password' => User::defaultPasswordFor($role, $identifier),
                 ]);
@@ -291,6 +315,7 @@ class MemberController extends Controller
         return view('members.form', [
             'member' => new User(['role' => User::RoleMurid, 'can_scan_face' => false]),
             'classes' => $this->classOptions(),
+            'majors' => $this->majorOptions(),
             'mode' => 'create',
         ]);
     }
@@ -299,12 +324,16 @@ class MemberController extends Controller
     {
         $data = $request->validated();
 
+        $className = $data['class_name'] ?? null;
+        $major = $data['major'] ?? ($data['role'] === User::RoleMurid ? $this->extractMajorFromClassName($className) : null);
+
         $member = User::create([
             'name' => $data['name'],
             'identifier_number' => $data['identifier_number'],
             'email' => $data['email'],
             'role' => $data['role'],
-            'class_name' => $data['class_name'] ?? null,
+            'class_name' => $className,
+            'major' => $major,
             'phone_number' => $data['phone_number'] ?? null,
             'can_scan_face' => $request->boolean('can_scan_face'),
             'enrollment_status' => $data['role'] === User::RoleKiosk ? User::EnrollmentExempted : User::EnrollmentNotStarted,
@@ -339,6 +368,7 @@ class MemberController extends Controller
         return view('members.form', [
             'member' => $member->loadCount('faceEmbeddings'),
             'classes' => $this->classOptions($member->class_name),
+            'majors' => $this->majorOptions($member->major),
             'mode' => 'edit',
         ]);
     }
@@ -347,12 +377,16 @@ class MemberController extends Controller
     {
         $data = $request->validated();
 
+        $className = $data['class_name'] ?? null;
+        $major = $data['major'] ?? ($data['role'] === User::RoleMurid ? $this->extractMajorFromClassName($className) : null);
+
         $member->fill([
             'name' => $data['name'],
             'identifier_number' => $data['identifier_number'],
             'email' => $data['email'],
             'role' => $data['role'],
-            'class_name' => $data['class_name'] ?? null,
+            'class_name' => $className,
+            'major' => $major,
             'phone_number' => $data['phone_number'] ?? null,
             'can_scan_face' => $request->boolean('can_scan_face'),
         ]);
@@ -418,7 +452,7 @@ class MemberController extends Controller
      * Saringan dari alamat halaman, disaring memakai daftar putih supaya
      * kolom sembarang tidak bisa dipakai menyaring.
      *
-     * @return array{q: string, role: string, class_name: string, face: string, sort: string}
+     * @return array{q: string, role: string, class_name: string, major: string, face: string, sort: string}
      */
     private function filters(Request $request): array
     {
@@ -430,9 +464,97 @@ class MemberController extends Controller
             'q' => trim((string) $request->query('q', '')),
             'role' => in_array($role, array_keys(User::roles()), true) ? $role : '',
             'class_name' => trim((string) $request->query('class_name', '')),
+            'major' => trim((string) $request->query('major', '')),
             'face' => in_array($face, ['ada', 'kosong'], true) ? $face : '',
             'sort' => in_array($sort, self::Sorts, true) ? $sort : 'name',
         ];
+    }
+
+    /**
+     * Terapkan saringan kelas, baik berdasarkan tingkat (10/X, 11/XI, 12/XII)
+     * maupun nama kelas spesifik.
+     *
+     * @param  Builder<User>  $query
+     */
+    private function applyClassFilter(Builder $query, string $classFilter): void
+    {
+        $upper = strtoupper(trim($classFilter));
+
+        if (in_array($upper, ['10', 'X'], true)) {
+            $query->where(function (Builder $q) {
+                $q->whereIn('class_name', ['10', 'X', 'x'])
+                    ->orWhere('class_name', 'like', '10 %')
+                    ->orWhere('class_name', 'like', '10.%')
+                    ->orWhere('class_name', 'like', '10-%')
+                    ->orWhere(function (Builder $sub) {
+                        $sub->where(function (Builder $x) {
+                            $x->where('class_name', 'like', 'X %')
+                                ->orWhere('class_name', 'like', 'X.%')
+                                ->orWhere('class_name', 'like', 'X-%');
+                        })
+                            ->where('class_name', 'not like', 'XI%')
+                            ->where('class_name', 'not like', 'xi%');
+                    });
+            });
+
+            return;
+        }
+
+        if (in_array($upper, ['11', 'XI'], true)) {
+            $query->where(function (Builder $q) {
+                $q->whereIn('class_name', ['11', 'XI', 'xi'])
+                    ->orWhere('class_name', 'like', '11 %')
+                    ->orWhere('class_name', 'like', '11.%')
+                    ->orWhere('class_name', 'like', '11-%')
+                    ->orWhere(function (Builder $sub) {
+                        $sub->where(function (Builder $x) {
+                            $x->where('class_name', 'like', 'XI %')
+                                ->orWhere('class_name', 'like', 'XI.%')
+                                ->orWhere('class_name', 'like', 'XI-%');
+                        })
+                            ->where('class_name', 'not like', 'XII%')
+                            ->where('class_name', 'not like', 'xii%');
+                    });
+            });
+
+            return;
+        }
+
+        if (in_array($upper, ['12', 'XII'], true)) {
+            $query->where(function (Builder $q) {
+                $q->whereIn('class_name', ['12', 'XII', 'xii'])
+                    ->orWhere('class_name', 'like', '12 %')
+                    ->orWhere('class_name', 'like', '12.%')
+                    ->orWhere('class_name', 'like', '12-%')
+                    ->orWhere('class_name', 'like', 'XII %')
+                    ->orWhere('class_name', 'like', 'XII.%')
+                    ->orWhere('class_name', 'like', 'XII-%');
+            });
+
+            return;
+        }
+
+        $query->where('class_name', $classFilter);
+    }
+
+    /**
+     * Terapkan saringan jurusan, mencocokkan kolom `major` atau fallback pada `class_name`.
+     *
+     * @param  Builder<User>  $query
+     */
+    private function applyMajorFilter(Builder $query, string $majorFilter): void
+    {
+        $clean = trim($majorFilter);
+
+        $query->where(function (Builder $q) use ($clean) {
+            $q->where('major', $clean)
+                ->orWhere('major', 'like', '%'.$clean.'%')
+                ->orWhere(function (Builder $fallback) use ($clean) {
+                    $fallback->where(function (Builder $nullCheck) {
+                        $nullCheck->whereNull('major')->orWhere('major', '');
+                    })->where('class_name', 'like', '%'.$clean.'%');
+                });
+        });
     }
 
     /**
@@ -441,7 +563,7 @@ class MemberController extends Controller
      *
      * @return Collection<int, string>
      */
-    private function classOptions(?string $current = null)
+    private function classOptions(?string $current = null): Collection
     {
         $options = User::query()
             ->whereNotNull('class_name')
@@ -450,11 +572,60 @@ class MemberController extends Controller
             ->orderBy('class_name')
             ->pluck('class_name');
 
-        if (filled($current) && ! $options->contains($current)) {
+        if (filled($current) && ! in_array(strtoupper((string) $current), ['10', '11', '12', 'X', 'XI', 'XII'], true) && ! $options->contains($current)) {
             $options->push($current);
             $options = $options->sort()->values();
         }
 
         return $options;
+    }
+
+    /**
+     * Pilihan jurusan diambil dari data yang sudah ada digabung dengan daftar jurusan standar.
+     *
+     * @return Collection<int, string>
+     */
+    private function majorOptions(?string $current = null): Collection
+    {
+        $fromDb = User::query()
+            ->whereNotNull('major')
+            ->where('major', '!=', '')
+            ->distinct()
+            ->orderBy('major')
+            ->pluck('major');
+
+        $options = collect(self::DefaultMajors)
+            ->merge($fromDb)
+            ->map(fn ($item) => trim((string) $item))
+            ->filter(fn ($item) => $item !== '')
+            ->unique(fn ($item) => mb_strtolower($item))
+            ->sort()
+            ->values();
+
+        if (filled($current) && ! $options->contains(fn ($item) => mb_strtolower($item) === mb_strtolower((string) $current))) {
+            $options->push(trim((string) $current));
+            $options = $options->sort()->values();
+        }
+
+        return $options;
+    }
+
+    /**
+     * Ekstrak kode jurusan dari nama kelas bila kolom jurusan tidak diisi terpisah.
+     */
+    private function extractMajorFromClassName(?string $className): ?string
+    {
+        if (blank($className)) {
+            return null;
+        }
+
+        $upper = strtoupper(trim($className));
+        foreach (self::DefaultMajors as $code) {
+            if (preg_match('/\b'.preg_quote($code, '/').'\b/', $upper)) {
+                return $code;
+            }
+        }
+
+        return null;
     }
 }

@@ -29,7 +29,7 @@
 
                 <div class="check-row" style="margin-top: 16px;">
                     <input type="checkbox" id="update_existing" name="update_existing" value="1" @checked(old('update_existing', true))>
-                    <label for="update_existing">Perbarui data anggota jika nomor induk / NISN sudah terdaftar di sistem</label>
+                    <label for="update_existing">Perbarui data anggota (nama, email, peran, kelas, dan jurusan) jika nomor induk / NISN sudah terdaftar di sistem</label>
                 </div>
 
                 <div class="form-actions" style="margin-top: 24px;">
@@ -51,7 +51,7 @@
 
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
                 <a class="btn btn-secondary btn-small" href="{{ route('members.import.template', ['delimiter' => 'semicolon']) }}">
-                    Unduh Template Excel (Kolom A-E)
+                    Unduh Template Excel (Kolom A-F)
                 </a>
                 <a class="btn btn-outline btn-small" href="{{ route('members.import.template', ['delimiter' => 'comma']) }}">
                     Unduh Template CSV (Koma)
@@ -91,7 +91,12 @@
                         <tr>
                             <td><span class="cell-strong">kelas</span> (Kolom E)</td>
                             <td><span class="status status-wait">Opsional</span></td>
-                            <td>Kelas siswa, contoh: <code>X TKJ 1</code> (khusus murid)</td>
+                            <td>Kelas siswa, contoh: <code>X</code>, <code>XI</code>, <code>XII</code>, atau <code>X .21</code> (khusus murid)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="cell-strong">jurusan</span> (Kolom F)</td>
+                            <td><span class="status status-wait">Opsional</span></td>
+                            <td>Jurusan siswa, contoh: <code>TKJ</code>, <code>TKRO</code>, <code>AKL</code>, <code>MPLB</code> (khusus murid)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -100,11 +105,10 @@
             <div style="margin-top: 18px; padding: 14px; background: var(--surface-variant); border-radius: var(--radius-sm); font-size: 13px; line-height: 1.6;">
                 <strong>Membuat berkas langsung dari Microsoft Excel:</strong>
                 <p style="margin: 6px 0 0; color: var(--on-surface-variant);">
-                    Anda dapat langsung menyusun tabel di Excel dengan baris 1 sebagai judul (nama, nisn, email, peran, kelas), lalu baris berikutnya data siswa.
+                    Anda dapat langsung menyusun tabel di Excel dengan baris 1 sebagai judul (<code>nama</code>, <code>nisn</code>, <code>email</code>, <code>peran</code>, <code>kelas</code>, <code>jurusan</code>), lalu baris berikutnya data siswa.
                     Setelah selesai, simpan melalui <strong>File &gt; Save As &gt; CSV (Comma delimited) (*.csv)</strong> atau <strong>CSV UTF-8 (*.csv)</strong> dan unggah ke formulir di sebelah kiri.
                 </p>
             </div>
         </section>
     </div>
 @endsection
-

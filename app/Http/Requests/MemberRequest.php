@@ -27,6 +27,7 @@ class MemberRequest extends FormRequest
             'email' => ['nullable', 'string', 'email', 'max:150', Rule::unique('users', 'email')->ignore($id)],
             'role' => ['required', 'string', Rule::in(array_keys(User::roles()))],
             'class_name' => ['nullable', 'string', 'max:60', 'required_if:role,'.User::RoleMurid],
+            'major' => ['nullable', 'string', 'max:80'],
             'phone_number' => ['nullable', 'string', 'max:30'],
             'can_scan_face' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:6'],
@@ -58,6 +59,8 @@ class MemberRequest extends FormRequest
     {
         $this->merge([
             'email' => filled($this->input('email')) ? trim((string) $this->input('email')) : null,
+            'class_name' => filled($this->input('class_name')) ? trim((string) $this->input('class_name')) : null,
+            'major' => filled($this->input('major')) ? trim((string) $this->input('major')) : null,
             'can_scan_face' => $this->boolean('can_scan_face'),
         ]);
     }
