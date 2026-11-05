@@ -170,12 +170,12 @@
                             </tr>
                             <tr>
                                 <td>Sandi terakhir diubah</td>
-                                <td>{{ $member->password_changed_at?->translatedFormat('d F Y H:i') ?? 'Belum pernah' }}
+                                <td>{{ $member->password_changed_at ? \Illuminate\Support\Carbon::parse($member->password_changed_at)->translatedFormat('d F Y H:i') : 'Belum pernah' }}
                                 </td>
                             </tr>
                             <tr>
                                 <td>Masuk terakhir</td>
-                                <td>{{ $member->last_login_at?->translatedFormat('d F Y H:i') ?? 'Belum pernah' }}</td>
+                                <td>{{ $member->last_login_at ? \Illuminate\Support\Carbon::parse($member->last_login_at)->translatedFormat('d F Y H:i') : 'Belum pernah' }}</td>
                             </tr>
                         </tbody>
                     </table>

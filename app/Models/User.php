@@ -92,6 +92,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'can_scan_face' => 'boolean',
             'last_login_at' => 'datetime',
+            'password_changed_at' => 'datetime',
             'enrollment_started_at' => 'datetime',
             'enrolled_at' => 'datetime',
         ];
