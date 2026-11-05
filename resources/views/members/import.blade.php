@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Impor Anggota')
-@section('note', 'Tambah data murid, guru, atau petugas massal melalui berkas CSV')
+@section('title', 'Impor & Ekspor Anggota')
+@section('note', 'Tambah data anggota massal melalui berkas CSV atau pulihkan paket lengkap (.zip)')
 
 @section('content')
     <div class="grid-2">
         <section class="card">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">Unggah berkas CSV</h2>
+                    <h2 class="section-title">Unggah berkas CSV atau Paket ZIP</h2>
                     <p class="section-note">
-                        Pilih berkas CSV dari komputer Anda. Akun baru yang didaftarkan akan memiliki nomor induk sebagai sandi awal untuk murid.
+                        Pilih berkas CSV atau paket ekspor anggota (.zip) dari komputer Anda. Paket ZIP akan memulihkan data anggota beserta foto wajah AI dan sidik jarinya.
                     </p>
                 </div>
             </div>
@@ -19,9 +19,9 @@
                 @csrf
 
                 <div class="field">
-                    <label class="field-label" for="file">Berkas CSV</label>
-                    <input class="input-field" type="file" id="file" name="file" accept=".csv,text/csv,text/plain" required>
-                    <p class="field-hint">Berkas berekstensi .csv dengan pembatas koma (,) atau titik koma (;). Ukuran maksimal 10 MB.</p>
+                    <label class="field-label" for="file">Berkas CSV / Paket Ekspor (.zip)</label>
+                    <input class="input-field" type="file" id="file" name="file" accept=".csv,.zip,text/csv,text/plain,application/zip" required>
+                    <p class="field-hint">Mendukung tabel .csv (pembatas koma atau titik koma) maupun paket lengkap .zip hasil ekspor data anggota. Ukuran maksimal 100 MB.</p>
                     @error('file')
                         <p class="field-error">{{ $message }}</p>
                     @enderror
@@ -50,6 +50,9 @@
             </div>
 
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                <a class="btn btn-primary btn-small" href="{{ route('members.export') }}">
+                    Ekspor Data Anggota & Foto (.zip)
+                </a>
                 <a class="btn btn-secondary btn-small" href="{{ route('members.import.template', ['delimiter' => 'semicolon']) }}">
                     Unduh Template Excel (Kolom A-F)
                 </a>

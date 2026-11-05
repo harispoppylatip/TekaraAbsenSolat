@@ -482,13 +482,21 @@
                     </div>
 
                     <div class="members-top-actions">
+                        <a id="members-export-btn" class="btn-member-action btn-member-ghost" href="{{ route('members.export', request()->query()) }}" title="Ekspor seluruh data anggota, foto wajah, embedding AI, dan sidik jari (.zip)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Ekspor Data
+                        </a>
                         <a class="btn-member-action btn-member-ghost" href="{{ route('members.import') }}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="17 8 12 3 7 8"></polyline>
                                 <line x1="12" y1="3" x2="12" y2="15"></line>
                             </svg>
-                            Impor CSV
+                            Impor Data
                         </a>
                         <a class="btn-member-action btn-member-primary" href="{{ route('members.create') }}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -572,6 +580,7 @@
                                 <option value="">Semua Status Wajah</option>
                                 <option value="ada" @selected($filters['face'] === 'ada')>Sudah Terdaftar</option>
                                 <option value="kosong" @selected($filters['face'] === 'kosong')>Belum Terdaftar</option>
+                                <option value="bebas" @selected($filters['face'] === 'bebas')>Tidak Wajib Daftar</option>
                             </select>
                         </div>
 
@@ -709,6 +718,10 @@
                                                 <span class="member-badge status-open">
                                                     Sudah Terdaftar
                                                 </span>
+                                            @elseif ($member->isExemptFromEnrollment())
+                                                <span class="member-badge status-closed">
+                                                    Tidak Wajib Daftar
+                                                </span>
                                             @else
                                                 <span class="member-badge status-wait">
                                                     Belum Terdaftar
@@ -765,6 +778,8 @@
             const searchInput = document.getElementById('q');
             const clearBtn = document.getElementById('members-clear-btn');
             const filterBadge = document.getElementById('members-filter-badge');
+            const exportBtn = document.getElementById('members-export-btn');
+            const exportBaseUrl = @json(route('members.export'));
 
             if (!form || !liveRegion) return;
 
@@ -797,6 +812,12 @@
 
                 if (clearBtn) {
                     clearBtn.style.display = (count > 0 || q !== '') ? 'inline-flex' : 'none';
+                }
+
+                if (exportBtn) {
+                    const params = new URLSearchParams(new FormData(form));
+                    const qs = params.toString();
+                    exportBtn.href = qs ? (exportBaseUrl + '?' + qs) : exportBaseUrl;
                 }
             }
 

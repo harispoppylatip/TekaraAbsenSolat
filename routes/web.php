@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/anggota', [MemberController::class, 'index'])->name('members.index');
+        Route::get('/anggota/ekspor', [MemberController::class, 'export'])->name('members.export');
         Route::get('/anggota/impor', [MemberController::class, 'importForm'])->name('members.import');
         Route::post('/anggota/impor', [MemberController::class, 'import'])->name('members.import.store');
         Route::get('/anggota/impor/template', [MemberController::class, 'downloadTemplate'])->name('members.import.template');

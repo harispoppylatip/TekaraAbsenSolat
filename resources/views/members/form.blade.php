@@ -166,7 +166,15 @@
                         <tbody>
                             <tr>
                                 <td>Status wajah</td>
-                                <td class="cell-strong">{{ $member->face_embeddings_count > 0 ? 'Sudah Terdaftar' : 'Belum Terdaftar' }}</td>
+                                <td class="cell-strong">
+                                    @if ($member->face_embeddings_count > 0)
+                                        Sudah Terdaftar
+                                    @elseif ($member->isExemptFromEnrollment())
+                                        Tidak Wajib Daftar
+                                    @else
+                                        Belum Terdaftar
+                                    @endif
+                                </td>
                             </tr>
                             <tr>
                                 <td>Sandi terakhir diubah</td>

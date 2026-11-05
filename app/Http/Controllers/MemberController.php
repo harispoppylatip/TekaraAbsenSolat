@@ -3,16 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\MemberRequest;
+use App\Models\FaceEmbedding;
+use App\Models\Fingerprint;
 use App\Models\User;
 use App\Services\FaceEnrollmentService;
 use App\Services\SolatProofService;
+use App\Services\SystemBackupService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class MemberController extends Controller
 {
@@ -37,25 +45,11 @@ class MemberController extends Controller
     public function index(Request $request): View
     {
         $filters = $this->filters($request);
-
-        $query = User::query()
-            ->search($filters['q'] ?: null)
-            ->when($filters['role'] !== '', fn (Builder $inner) => $inner->where('role', $filters['role']))
-            ->when($filters['class_name'] !== '', fn (Builder $inner) => $this->applyClassFilter($inner, $filters['class_name']))
-            ->when($filters['major'] !== '', fn (Builder $inner) => $this->applyMajorFilter($inner, $filters['major']))
-            ->when($filters['face'] === 'ada', fn (Builder $inner) => $inner->has('faceEmbeddings'))
-            ->when($filters['face'] === 'kosong', fn (Builder $inner) => $inner->doesntHave('faceEmbeddings'))
+        $query = $this->buildFilteredQuery($filters)
             ->withCount([
                 'faceEmbeddings',
                 'attendanceLogs' => fn (Builder $inner) => $inner->whereHas('session', fn (Builder $session) => $session->real()),
             ]);
-
-        match ($filters['sort']) {
-            'identifier' => $query->orderBy('identifier_number'),
-            'role' => $query->orderBy('role')->orderBy('name'),
-            'recent' => $query->orderByDesc('last_login_at')->orderBy('name'),
-            default => $query->orderBy('name'),
-        };
 
         return view('members.index', [
             'members' => $query->paginate(self::PerPage)->withQueryString(),
@@ -68,6 +62,162 @@ class MemberController extends Controller
                 'petugas' => User::query()->whereIn('role', [User::RolePetugas, User::RoleAdmin])->count(),
                 'berwajah' => User::query()->has('faceEmbeddings')->count(),
             ],
+        ]);
+    }
+
+    /**
+     * Ekspor seluruh data anggota (sesuai saringan aktif bila ada) ke dalam satu paket .zip
+     * yang berisi tabel CSV/Excel, data lengkap JSON (termasuk embedding AI & sidik jari),
+     * serta seluruh berkas foto wajah anggota.
+     */
+    public function export(Request $request, SystemBackupService $backup): Response
+    {
+        $filters = $this->filters($request);
+        $members = $this->buildFilteredQuery($filters)
+            ->with(['faceEmbeddings', 'fingerprints'])
+            ->withCount([
+                'faceEmbeddings',
+                'fingerprints',
+                'attendanceLogs' => fn (Builder $inner) => $inner->whereHas('session', fn (Builder $session) => $session->real()),
+            ])
+            ->get();
+
+        $entries = [];
+        $disk = Storage::disk('local');
+
+        $csvExcelLines = fopen('php://temp', 'r+');
+        $csvCommaLines = fopen('php://temp', 'r+');
+        fwrite($csvExcelLines, "\xEF\xBB\xBF");
+        fwrite($csvCommaLines, "\xEF\xBB\xBF");
+
+        $headers = [
+            'nama',
+            'nisn',
+            'email',
+            'peran',
+            'kelas',
+            'jurusan',
+            'telepon',
+            'status_wajah',
+            'jumlah_foto_wajah',
+            'jumlah_sidik_jari',
+            'total_hadir',
+        ];
+        fputcsv($csvExcelLines, $headers, ';');
+        fputcsv($csvCommaLines, $headers, ',');
+
+        $membersPayload = [];
+        $totalPhotosExported = 0;
+
+        foreach ($members as $member) {
+            if ($member->isExemptFromEnrollment()) {
+                $faceStatusLabel = $member->face_embeddings_count > 0
+                    ? 'Tidak Wajib Wajah (Terdaftar)'
+                    : 'Tidak Wajib Wajah';
+            } elseif ($member->face_embeddings_count > 0) {
+                $faceStatusLabel = 'Sudah Terdaftar';
+            } else {
+                $faceStatusLabel = 'Belum Terdaftar';
+            }
+
+            $row = [
+                $member->name,
+                $member->identifier_number,
+                $member->email ?? '',
+                $member->role,
+                $member->class_name ?? '',
+                $member->major ?? '',
+                $member->phone_number ?? '',
+                $faceStatusLabel,
+                (string) $member->face_embeddings_count,
+                (string) $member->fingerprints_count,
+                (string) $member->attendance_logs_count,
+            ];
+
+            fputcsv($csvExcelLines, $row, ';');
+            fputcsv($csvCommaLines, $row, ',');
+
+            $safeIdentifier = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) $member->identifier_number) ?: ('id_'.$member->id);
+            $safeName = Str::slug($member->name ?: 'anggota', '_');
+            $memberFolder = 'foto-anggota/'.$safeIdentifier.'_'.$safeName;
+
+            $embeddingsPayload = [];
+            foreach ($member->faceEmbeddings as $index => $faceEmbedding) {
+                $photoRelPath = $faceEmbedding->photo_path ? str_replace('\\', '/', $faceEmbedding->photo_path) : null;
+                $hasPhoto = $photoRelPath && $disk->exists($photoRelPath);
+
+                if ($hasPhoto) {
+                    $photoBytes = $disk->get($photoRelPath);
+                    $entries['storage/'.ltrim($photoRelPath, '/')] = $photoBytes;
+
+                    $ext = pathinfo($photoRelPath, PATHINFO_EXTENSION) ?: 'jpg';
+                    $poseSlug = Str::slug($faceEmbedding->label ?: ('foto_'.($index + 1)), '_');
+                    $humanFilename = sprintf('%02d_%s.%s', $index + 1, $poseSlug, $ext);
+                    $entries[$memberFolder.'/'.$humanFilename] = $photoBytes;
+                    $totalPhotosExported++;
+                }
+
+                $embeddingsPayload[] = [
+                    'label' => $faceEmbedding->label,
+                    'photo_path' => $photoRelPath,
+                    'model' => $faceEmbedding->model,
+                    'embedding' => $faceEmbedding->embedding,
+                ];
+            }
+
+            $fingerprintsPayload = [];
+            foreach ($member->fingerprints as $fingerprint) {
+                $fingerprintsPayload[] = [
+                    'template' => $fingerprint->template,
+                    'finger_position' => $fingerprint->finger_position,
+                ];
+            }
+
+            $membersPayload[] = [
+                'name' => $member->name,
+                'identifier_number' => $member->identifier_number,
+                'email' => $member->email,
+                'role' => $member->role,
+                'class_name' => $member->class_name,
+                'major' => $member->major,
+                'phone_number' => $member->phone_number,
+                'can_scan_face' => (bool) $member->can_scan_face,
+                'enrollment_status' => $member->enrollment_status,
+                'enrollment_started_at' => $member->enrollment_started_at?->toIso8601String(),
+                'enrolled_at' => $member->enrolled_at?->toIso8601String(),
+                'password' => $member->getAuthPassword(),
+                'password_changed_at' => $member->password_changed_at
+                    ? \Illuminate\Support\Carbon::parse($member->password_changed_at)->toIso8601String()
+                    : null,
+                'face_embeddings' => $embeddingsPayload,
+                'fingerprints' => $fingerprintsPayload,
+            ];
+        }
+
+        rewind($csvExcelLines);
+        $entries['data-anggota-excel.csv'] = (string) stream_get_contents($csvExcelLines);
+        fclose($csvExcelLines);
+
+        rewind($csvCommaLines);
+        $entries['data-anggota.csv'] = (string) stream_get_contents($csvCommaLines);
+        fclose($csvCommaLines);
+
+        $entries['members-data.json'] = json_encode([
+            'format' => 'tekara-absen-solat-members-export-v1',
+            'exported_at' => now()->toIso8601String(),
+            'members_count' => count($membersPayload),
+            'photos_count' => $totalPhotosExported,
+            'members' => $membersPayload,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $zipBytes = $backup->buildZip($entries);
+        $filename = 'data-anggota-lengkap-'.now()->format('Y-m-d-His').'.zip';
+
+        return response($zipBytes, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($zipBytes),
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
         ]);
     }
 
@@ -100,19 +250,24 @@ class MemberController extends Controller
         }, 200, $headers);
     }
 
-    public function import(Request $request): RedirectResponse
+    public function import(Request $request, SystemBackupService $backup): RedirectResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:csv,txt,zip', 'max:102400'],
             'update_existing' => ['nullable', 'boolean'],
         ], [
-            'file.required' => 'Pilih berkas CSV terlebih dahulu.',
-            'file.mimes' => 'Berkas harus berformat CSV atau teks (ekstensi .csv).',
-            'file.max' => 'Ukuran berkas CSV maksimal 10 MB.',
+            'file.required' => 'Pilih berkas CSV atau paket ZIP terlebih dahulu.',
+            'file.mimes' => 'Berkas harus berformat CSV (.csv) atau paket ekspor anggota (.zip).',
+            'file.max' => 'Ukuran berkas maksimal 100 MB.',
         ]);
 
         $uploadedFile = $request->file('file');
         $path = $uploadedFile->getRealPath();
+        $extension = strtolower((string) $uploadedFile->getClientOriginalExtension());
+
+        if ($extension === 'zip' || $uploadedFile->getMimeType() === 'application/zip') {
+            return $this->importFromZip((string) file_get_contents($path), $request->boolean('update_existing', true), $backup);
+        }
 
         $handle = fopen($path, 'r');
         if (! $handle) {
@@ -449,6 +604,205 @@ class MemberController extends Controller
     }
 
     /**
+     * Impor paket .zip hasil ekspor data anggota lengkap (profil, foto wajah, embedding AI, dan sidik jari).
+     */
+    private function importFromZip(string $zipBytes, bool $updateExisting, SystemBackupService $backup): RedirectResponse
+    {
+        try {
+            $entries = $backup->extractZip($zipBytes);
+        } catch (Throwable $e) {
+            return back()->with('error', 'Gagal mengekstrak paket ZIP: '.$e->getMessage());
+        }
+
+        if (! isset($entries['members-data.json'])) {
+            return back()->with('error', 'Paket ZIP bukan hasil ekspor data anggota yang sah (members-data.json tidak ditemukan).');
+        }
+
+        $decoded = json_decode((string) $entries['members-data.json'], true);
+        if (! is_array($decoded) || ! isset($decoded['members']) || ! is_array($decoded['members'])) {
+            return back()->with('error', 'Format members-data.json di dalam paket ZIP tidak dapat dibaca.');
+        }
+
+        $disk = Storage::disk('local');
+        $created = 0;
+        $updated = 0;
+        $restoredPhotos = 0;
+        $restoredFingerprints = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($decoded['members'] as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $identifier = trim((string) ($row['identifier_number'] ?? ''));
+                $name = trim((string) ($row['name'] ?? ''));
+                if ($identifier === '' || $name === '') {
+                    continue;
+                }
+
+                $role = in_array(($row['role'] ?? ''), array_keys(User::roles()), true)
+                    ? (string) $row['role']
+                    : User::RoleMurid;
+
+                $email = filled($row['email'] ?? null) ? trim((string) $row['email']) : null;
+                $existing = User::where('identifier_number', $identifier)->first();
+
+                if ($email !== null) {
+                    $conflict = User::where('email', $email)
+                        ->when($existing, fn ($q) => $q->where('id', '!=', $existing->id))
+                        ->first();
+                    if ($conflict) {
+                        $email = null;
+                    }
+                }
+
+                if ($existing && ! $updateExisting) {
+                    continue;
+                }
+
+                $member = $existing ?? new User();
+                $member->fill([
+                    'name' => $name,
+                    'identifier_number' => $identifier,
+                    'email' => $email ?? $member->email,
+                    'role' => $role,
+                    'class_name' => $role === User::RoleMurid ? ($row['class_name'] ?? null) : null,
+                    'major' => $role === User::RoleMurid ? ($row['major'] ?? null) : null,
+                    'phone_number' => $row['phone_number'] ?? $member->phone_number,
+                    'can_scan_face' => (bool) ($row['can_scan_face'] ?? false),
+                    'enrollment_status' => $row['enrollment_status'] ?? ($role === User::RoleKiosk ? User::EnrollmentExempted : User::EnrollmentNotStarted),
+                ]);
+
+                if (! $existing) {
+                    $rawPassword = (string) ($row['password'] ?? '');
+                    if ($rawPassword !== '' && str_starts_with($rawPassword, '$2y$')) {
+                        $member->setRawAttributes(array_merge($member->getAttributes(), [
+                            'password' => $rawPassword,
+                        ]));
+                    } else {
+                        $member->password = User::defaultPasswordFor($role, $identifier);
+                    }
+                }
+
+                if (! empty($row['enrollment_started_at'])) {
+                    $member->enrollment_started_at = \Illuminate\Support\Carbon::parse($row['enrollment_started_at']);
+                }
+                if (! empty($row['enrolled_at'])) {
+                    $member->enrolled_at = \Illuminate\Support\Carbon::parse($row['enrolled_at']);
+                }
+                if (! empty($row['password_changed_at'])) {
+                    $member->password_changed_at = \Illuminate\Support\Carbon::parse($row['password_changed_at']);
+                }
+
+                $member->save();
+
+                if ($existing) {
+                    $updated++;
+                } else {
+                    $created++;
+                }
+
+                if (! empty($row['face_embeddings']) && is_array($row['face_embeddings'])) {
+                    $member->faceEmbeddings()->delete();
+
+                    foreach ($row['face_embeddings'] as $embData) {
+                        if (! is_array($embData) || empty($embData['embedding'])) {
+                            continue;
+                        }
+
+                        $photoPath = ! empty($embData['photo_path'])
+                            ? ltrim(str_replace('\\', '/', (string) $embData['photo_path']), '/')
+                            : null;
+
+                        if ($photoPath && isset($entries['storage/'.$photoPath])) {
+                            $disk->put($photoPath, $entries['storage/'.$photoPath]);
+                        }
+
+                        FaceEmbedding::create([
+                            'user_id' => $member->id,
+                            'label' => $embData['label'] ?? 'Foto wajah',
+                            'photo_path' => $photoPath,
+                            'model' => $embData['model'] ?? 'insightface-buffalo_l',
+                            'embedding' => $embData['embedding'],
+                        ]);
+                        $restoredPhotos++;
+                    }
+                }
+
+                if (! empty($row['fingerprints']) && is_array($row['fingerprints'])) {
+                    $member->fingerprints()->delete();
+
+                    foreach ($row['fingerprints'] as $fpData) {
+                        if (! is_array($fpData) || empty($fpData['template'])) {
+                            continue;
+                        }
+
+                        Fingerprint::create([
+                            'user_id' => $member->id,
+                            'template' => (string) $fpData['template'],
+                            'finger_position' => $fpData['finger_position'] ?? null,
+                        ]);
+                        $restoredFingerprints++;
+                    }
+                }
+            }
+
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Gagal memulihkan paket data anggota: '.$e->getMessage());
+        }
+
+        $total = $created + $updated;
+
+        return redirect()
+            ->route('members.index')
+            ->with('status', "Impor paket ZIP selesai: {$total} anggota diproses ({$created} baru, {$updated} diperbarui), {$restoredPhotos} foto wajah AI, dan {$restoredFingerprints} sidik jari berhasil dipulihkan.");
+    }
+
+    /**
+     * Bangun kueri anggota berdasarkan saringan dan urutan aktif.
+     *
+     * @param  array{q: string, role: string, class_name: string, major: string, face: string, sort: string}  $filters
+     * @return Builder<User>
+     */
+    private function buildFilteredQuery(array $filters): Builder
+    {
+        $query = User::query()
+            ->search($filters['q'] ?: null)
+            ->when($filters['role'] !== '', fn (Builder $inner) => $inner->where('role', $filters['role']))
+            ->when($filters['class_name'] !== '', fn (Builder $inner) => $this->applyClassFilter($inner, $filters['class_name']))
+            ->when($filters['major'] !== '', fn (Builder $inner) => $this->applyMajorFilter($inner, $filters['major']))
+            ->when($filters['face'] === 'ada', fn (Builder $inner) => $inner->has('faceEmbeddings'))
+            ->when($filters['face'] === 'kosong', function (Builder $inner) {
+                $inner->doesntHave('faceEmbeddings')
+                    ->where('role', '!=', User::RoleKiosk)
+                    ->where(function (Builder $sub) {
+                        $sub->whereNull('enrollment_status')
+                            ->orWhere('enrollment_status', '!=', User::EnrollmentExempted);
+                    });
+            })
+            ->when($filters['face'] === 'bebas', function (Builder $inner) {
+                $inner->where(function (Builder $sub) {
+                    $sub->where('role', User::RoleKiosk)
+                        ->orWhere('enrollment_status', User::EnrollmentExempted);
+                });
+            });
+
+        match ($filters['sort']) {
+            'identifier' => $query->orderBy('identifier_number'),
+            'role' => $query->orderBy('role')->orderBy('name'),
+            'recent' => $query->orderByDesc('last_login_at')->orderBy('name'),
+            default => $query->orderBy('name'),
+        };
+
+        return $query;
+    }
+
+    /**
      * Saringan dari alamat halaman, disaring memakai daftar putih supaya
      * kolom sembarang tidak bisa dipakai menyaring.
      *
@@ -465,7 +819,7 @@ class MemberController extends Controller
             'role' => in_array($role, array_keys(User::roles()), true) ? $role : '',
             'class_name' => trim((string) $request->query('class_name', '')),
             'major' => trim((string) $request->query('major', '')),
-            'face' => in_array($face, ['ada', 'kosong'], true) ? $face : '',
+            'face' => in_array($face, ['ada', 'kosong', 'bebas'], true) ? $face : '',
             'sort' => in_array($sort, self::Sorts, true) ? $sort : 'name',
         ];
     }
