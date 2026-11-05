@@ -17,7 +17,7 @@ class AttendanceHistoryController extends Controller
     {
         $filters = $this->filters($request);
 
-        $logScope = function (Builder $logQuery) use ($filters): void {
+        $logScope = function ($logQuery) use ($filters): void {
             $logQuery->whereHas('session', fn (Builder $s) => $s->real());
 
             if ($filters['date_from'] !== '') {
@@ -331,3 +331,4 @@ class AttendanceHistoryController extends Controller
         return $options;
     }
 }
+
