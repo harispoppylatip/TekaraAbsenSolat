@@ -13,21 +13,37 @@ class DeviceController extends Controller
 {
     public function index(): View
     {
+        // Bersihkan baris kamera bawaan lama bila masih tersimpan di tabel perangkat
+        Device::query()
+            ->where(function ($q) {
+                $q->whereIn('device_id', Device::builtInIds())
+                    ->orWhere('device_id', 'like', 'kamera-%')
+                    ->orWhere('device_id', 'like', 'cctv-%');
+            })
+            ->delete();
+
         return view('devices.index', [
             'pending' => Device::query()
+                ->hardware()
                 ->where('status', Device::StatusBelumDidaftarkan)
                 ->orderByDesc('last_seen_at')
                 ->get(),
             'registered' => Device::query()
+                ->hardware()
                 ->whereIn('status', [Device::StatusAktif, Device::StatusNonaktif])
                 ->orderBy('name')
                 ->get(),
             'types' => Device::types(),
             'stats' => [
-                'total' => Device::query()->count(),
-                'aktif' => Device::query()->where('status', Device::StatusAktif)->count(),
-                'menunggu' => Device::query()->where('status', Device::StatusBelumDidaftarkan)->count(),
-                'absen' => SolatAttendanceLog::query()->whereNotNull('device_id')->count(),
+                'total' => Device::query()->hardware()->count(),
+                'aktif' => Device::query()->hardware()->where('status', Device::StatusAktif)->count(),
+                'menunggu' => Device::query()->hardware()->where('status', Device::StatusBelumDidaftarkan)->count(),
+                'absen' => SolatAttendanceLog::query()
+                    ->whereNotNull('device_id')
+                    ->whereNotIn('device_id', Device::builtInIds())
+                    ->where('device_id', 'not like', 'kamera-%')
+                    ->where('device_id', 'not like', 'cctv-%')
+                    ->count(),
             ],
         ]);
     }

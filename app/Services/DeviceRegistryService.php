@@ -31,6 +31,17 @@ class DeviceRegistryService
             return null;
         }
 
+        // Perangkat kamera bawaan masjid bersifat permanen/tertanam, sehingga
+        // selalu aktif dan tidak dimasukkan ke tabel perangkat eksternal.
+        if (Device::isBuiltIn($id)) {
+            return new Device([
+                'device_id' => $id,
+                'name' => $fallbackName ?: 'Kamera Absen Masjid',
+                'type' => Device::TypeGerbang,
+                'status' => Device::StatusAktif,
+            ]);
+        }
+
         $existing = Device::query()->where('device_id', $id)->first();
         if ($existing !== null) {
             return $existing;

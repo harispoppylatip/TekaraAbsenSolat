@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable(['device_id', 'name', 'type', 'status', 'location', 'last_seen_at'])]
@@ -19,6 +20,49 @@ class Device extends Model
     public const TypeGerbang = 'gerbang';
 
     public const TypeKelas = 'kelas';
+
+    /**
+     * Daftar ID perangkat kamera bawaan yang tertanam permanen di sistem
+     * sehingga tidak perlu ditampilkan di menu Perangkat.
+     *
+     * @return list<string>
+     */
+    public static function builtInIds(): array
+    {
+        return array_values(array_unique(array_filter([
+            'kamera-wajah',
+            'layar-monitor',
+            (string) config('solat.device_id', 'kamera-wajah'),
+            (string) config('face.device_id', 'kamera-wajah'),
+        ])));
+    }
+
+    /**
+     * Apakah ID perangkat termasuk kamera bawaan permanen.
+     */
+    public static function isBuiltIn(?string $deviceId): bool
+    {
+        $id = trim((string) $deviceId);
+        if ($id === '') {
+            return false;
+        }
+
+        return in_array($id, self::builtInIds(), true)
+            || str_starts_with($id, 'kamera-')
+            || str_starts_with($id, 'cctv-');
+    }
+
+    /**
+     * Saring hanya perangkat keras eksternal (bukan kamera bawaan yang tertanam).
+     *
+     * @param  Builder<Device>  $query
+     */
+    public function scopeHardware(Builder $query): void
+    {
+        $query->whereNotIn('device_id', self::builtInIds())
+            ->where('device_id', 'not like', 'kamera-%')
+            ->where('device_id', 'not like', 'cctv-%');
+    }
 
     /**
      * @return array<string, string>

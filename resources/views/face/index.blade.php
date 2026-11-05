@@ -70,7 +70,7 @@
         /* ---------- 2. Top Metric Banner Cards ---------- */
         .face-metric-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 16px;
         }
 
@@ -630,7 +630,7 @@
                     </span>
                     <div>
                         <div class="service-status-text">Layanan AI InsightFace Aktif & Terhubung</div>
-                        <div class="service-status-sub">Model: <strong>{{ $serviceModel ?? 'InsightFace' }}</strong> · Endpoint: <code>{{ $serviceUrl }}</code></div>
+                        <div class="service-status-sub">Model: <strong>{{ $serviceModel ?? 'InsightFace' }}</strong></div>
                     </div>
                 </div>
                 <span class="status-pill success">Siap Pindai</span>
@@ -647,14 +647,14 @@
                     </span>
                     <div>
                         <div class="service-status-text">Layanan AI Wajah Tidak Terhubung</div>
-                        <div class="service-status-sub">Layanan wajah di <code>{{ $serviceUrl }}</code> tidak dapat dihubungi. Foto baru akan ditampung di antrean sampai layanan kembali aktif.</div>
+                        <div class="service-status-sub">Layanan pengenal wajah sedang tidak dapat dihubungi. Foto baru akan ditampung di antrean sampai layanan kembali aktif.</div>
                     </div>
                 </div>
                 <span class="status-pill warning">Perlu Diperiksa</span>
             </div>
         @endif
 
-        {{-- 2. Top Metric Banner Cards (4 Kartu Utama) --}}
+        {{-- 2. Top Metric Banner Cards (3 Kartu Utama) --}}
         <section class="face-metric-grid" aria-label="Statistik Data Wajah">
             {{-- Kartu 1: Kesiapan Absen --}}
             <div class="face-metric-card">
@@ -677,31 +677,6 @@
                         <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
                         <line x1="9" y1="9" x2="9.01" y2="9"></line>
                         <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                    </svg>
-                </div>
-            </div>
-
-            {{-- Kartu 2: Foto Tersimpan --}}
-            <div class="face-metric-card">
-                <div class="face-metric-left">
-                    <div class="face-metric-icon blue">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21 15 16 10 5 21"></polyline>
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="face-metric-label">Foto Wajah AI</div>
-                        <div class="face-metric-value">{{ $stats['foto'] }}</div>
-                        <div class="face-metric-note">Maks. {{ $stats['batas'] }} foto/anggota</div>
-                    </div>
-                </div>
-                <div class="face-metric-watermark" style="color: #0284c7;">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
                     </svg>
                 </div>
             </div>
