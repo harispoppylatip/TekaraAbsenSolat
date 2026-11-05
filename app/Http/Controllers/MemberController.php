@@ -935,21 +935,19 @@ class MemberController extends Controller
     }
 
     /**
-     * Pilihan jurusan diambil dari data yang sudah ada digabung dengan daftar jurusan standar.
+     * Pilihan jurusan diambil murni dari data anggota yang sudah terdaftar di database
+     * (otomatis menyesuaikan jurusan yang benar-benar ada, sama seperti kelas spesifik).
      *
      * @return Collection<int, string>
      */
     private function majorOptions(?string $current = null): Collection
     {
-        $fromDb = User::query()
+        $options = User::query()
             ->whereNotNull('major')
             ->where('major', '!=', '')
             ->distinct()
             ->orderBy('major')
-            ->pluck('major');
-
-        $options = collect(self::DefaultMajors)
-            ->merge($fromDb)
+            ->pluck('major')
             ->map(fn ($item) => trim((string) $item))
             ->filter(fn ($item) => $item !== '')
             ->unique(fn ($item) => mb_strtolower($item))
@@ -974,6 +972,11 @@ class MemberController extends Controller
         }
 
         $upper = strtoupper(trim($className));
+
+        if (preg_match('/^(?:10|11|12|XII|XI|X)\s*[-.]?\s*([A-Z]{2,12})\b/', $upper, $matches)) {
+            return $matches[1];
+        }
+
         foreach (self::DefaultMajors as $code) {
             if (preg_match('/\b'.preg_quote($code, '/').'\b/', $upper)) {
                 return $code;
