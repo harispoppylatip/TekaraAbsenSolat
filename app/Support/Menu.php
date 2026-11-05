@@ -62,6 +62,7 @@ class Menu
             [
                 'label' => 'Laporan',
                 'items' => [
+                    ['label' => 'History', 'route' => 'history.index', 'active' => 'history.*', 'roles' => [User::RoleAdmin, User::RolePetugas]],
                     ['label' => 'Rekap Kehadiran', 'route' => 'reports.index', 'active' => 'reports.*', 'roles' => [User::RoleAdmin, User::RolePetugas]],
                 ],
             ],

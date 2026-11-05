@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\FaceApiController;
 use App\Http\Controllers\Api\FingerprintApiController;
 use App\Http\Controllers\Api\SolatScanController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceHistoryController;
 use App\Http\Controllers\AttendanceProofController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -175,6 +176,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/rekap', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/rekap/unduh', [ReportController::class, 'export'])->name('reports.export');
+
+        Route::get('/history', [AttendanceHistoryController::class, 'index'])->name('history.index');
+        Route::get('/history/{member}', [AttendanceHistoryController::class, 'show'])->name('history.show');
     });
 
     /*
