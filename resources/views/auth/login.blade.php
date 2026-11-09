@@ -920,7 +920,7 @@
                     </strong>
                     <span class="info-countdown-window" id="login-countdown-window">
                         @if ($activeSession)
-                            Jendela {{ $activeSession->shortTime($activeSession->start_time) }} – {{ $activeSession->shortTime($activeSession->end_time) }} WITA
+                            Jadwal pukul {{ $activeSession->shortTime($activeSession->start_time) }} – {{ $activeSession->shortTime($activeSession->end_time) }} WITA
                         @else
                             Menghitung waktu menuju jadwal berikutnya
                         @endif
@@ -928,7 +928,6 @@
                 </div>
                 <div class="info-countdown-timer-wrap">
                     <div class="info-countdown-timer" id="login-countdown-timer">--:--:--</div>
-                    <div class="info-countdown-unit" id="login-countdown-unit">Jam : Menit : Detik</div>
                 </div>
             </div>
 
@@ -1172,7 +1171,6 @@
                     if (prayerEl) prayerEl.textContent = 'Sholat ' + label;
                     if (windowEl) windowEl.textContent = 'Jadwal pukul ' + start + ' – ' + end + ' WITA';
                     if (timerEl) timerEl.textContent = formatted;
-                    if (unitEl) unitEl.textContent = 'Sisa Waktu Jendela';
 
                     if (mobileStrip) mobileStrip.classList.add('is-open');
                     if (mobileCaption) mobileCaption.textContent = 'Sedang Berlangsung';
@@ -1195,7 +1193,6 @@
                     if (prayerEl) prayerEl.textContent = 'Sholat ' + label;
                     if (windowEl) windowEl.textContent = 'Jadwal pukul ' + start + ' – ' + end + ' WITA';
                     if (timerEl) timerEl.textContent = formatted;
-                    if (unitEl) unitEl.textContent = 'Hitung Mundur (Jam:Menit:Detik)';
 
                     if (mobileStrip) mobileStrip.classList.remove('is-open');
                     if (mobileCaption) mobileCaption.textContent = isTomorrowSubuh ? 'Jadwal Besok Pagi' : 'Sholat Berikutnya';

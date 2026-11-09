@@ -44,9 +44,9 @@ class PrayerTimeController extends Controller
             'latitude.numeric' => 'Garis lintang (Latitude) harus berupa angka koordinat.',
             'longitude.required' => 'Garis bujur (Longitude) wajib diisi.',
             'longitude.numeric' => 'Garis bujur (Longitude) harus berupa angka koordinat.',
-            'window_minutes.required' => 'Durasi jendela absen wajib diisi.',
-            'window_minutes.integer' => 'Durasi jendela absen harus berupa angka menit.',
-            'window_minutes.between' => 'Durasi jendela absen harus antara 10 sampai 180 menit.',
+            'window_minutes.required' => 'Lama waktu absen dibuka wajib diisi.',
+            'window_minutes.integer' => 'Lama waktu absen dibuka harus berupa angka menit.',
+            'window_minutes.between' => 'Lama waktu absen dibuka harus antara 10 sampai 180 menit.',
         ]);
 
         $result = $khgt->sync(

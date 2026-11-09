@@ -415,9 +415,10 @@
                     </div>
 
                     <div class="prayer-input-group">
-                        <label for="khgt_window">Durasi Jendela Absen (menit)</label>
+                        <label for="khgt_window">Lama Waktu Absen Dibuka (menit)</label>
                         <input class="prayer-input-mini" type="number" id="khgt_window" name="window_minutes"
                             value="{{ old('window_minutes', $khgt['window_minutes']) }}" min="10" max="180" required>
+                        <span style="display:block;font-size:11px;color:#64748b;margin-top:3px;">Rentang dari jam mulai sampai jam selesai absen (contoh: 60 menit)</span>
                         @error('window_minutes')<p class="field-error">{{ $message }}</p>@enderror
                     </div>
                 </div>
