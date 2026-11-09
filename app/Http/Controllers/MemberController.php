@@ -419,6 +419,9 @@ class MemberController extends Controller
                     } else {
                         $existing->class_name = null;
                         $existing->major = null;
+                        if (in_array($role, [User::RolePetugas, User::RoleAdmin], true)) {
+                            $existing->can_scan_face = true;
+                        }
                     }
                     $existing->save();
                     $updated++;
@@ -431,7 +434,7 @@ class MemberController extends Controller
                     'role' => $role,
                     'class_name' => $className,
                     'major' => $major,
-                    'can_scan_face' => false,
+                    'can_scan_face' => in_array($role, [User::RolePetugas, User::RoleAdmin], true),
                     'password' => User::defaultPasswordFor($role, $identifier),
                 ]);
                 $created++;
@@ -482,6 +485,10 @@ class MemberController extends Controller
         $className = $data['class_name'] ?? null;
         $major = $data['major'] ?? ($data['role'] === User::RoleMurid ? $this->extractMajorFromClassName($className) : null);
 
+        $canScanFace = in_array($data['role'], [User::RolePetugas, User::RoleAdmin], true)
+            ? true
+            : $request->boolean('can_scan_face');
+
         $member = User::create([
             'name' => $data['name'],
             'identifier_number' => $data['identifier_number'],
@@ -490,7 +497,7 @@ class MemberController extends Controller
             'class_name' => $className,
             'major' => $major,
             'phone_number' => $data['phone_number'] ?? null,
-            'can_scan_face' => $request->boolean('can_scan_face'),
+            'can_scan_face' => $canScanFace,
             'enrollment_status' => $data['role'] === User::RoleKiosk ? User::EnrollmentExempted : User::EnrollmentNotStarted,
             'password' => $data['password'] ?? User::defaultPasswordFor($data['role'], $data['identifier_number']),
         ]);
@@ -535,6 +542,10 @@ class MemberController extends Controller
         $className = $data['class_name'] ?? null;
         $major = $data['major'] ?? ($data['role'] === User::RoleMurid ? $this->extractMajorFromClassName($className) : null);
 
+        $canScanFace = in_array($data['role'], [User::RolePetugas, User::RoleAdmin], true)
+            ? true
+            : $request->boolean('can_scan_face');
+
         $member->fill([
             'name' => $data['name'],
             'identifier_number' => $data['identifier_number'],
@@ -543,7 +554,7 @@ class MemberController extends Controller
             'class_name' => $className,
             'major' => $major,
             'phone_number' => $data['phone_number'] ?? null,
-            'can_scan_face' => $request->boolean('can_scan_face'),
+            'can_scan_face' => $canScanFace,
         ]);
 
         if (filled($data['password'] ?? null)) {

@@ -138,9 +138,22 @@
 
                 <div class="check-row">
                     <input type="checkbox" id="can_scan_face" name="can_scan_face" value="1"
-                        @checked(old('can_scan_face', $member->can_scan_face))>
-                    <label for="can_scan_face">Boleh menjadi petugas pemindai wajah di halaman absen wajah</label>
+                        @checked(old('can_scan_face', $member->can_scan_face || in_array($member->role, [\App\Models\User::RolePetugas, \App\Models\User::RoleAdmin], true)))>
+                    <label for="can_scan_face">Boleh menjadi petugas pemindai wajah di halaman absen wajah (otomatis aktif untuk peran Petugas & Administrator)</label>
                 </div>
+
+                <script>
+                    (function () {
+                        const roleSelect = document.getElementById('role');
+                        const scanCheck = document.getElementById('can_scan_face');
+                        if (!roleSelect || !scanCheck) return;
+                        roleSelect.addEventListener('change', function () {
+                            if (roleSelect.value === 'petugas' || roleSelect.value === 'admin') {
+                                scanCheck.checked = true;
+                            }
+                        });
+                    })();
+                </script>
 
                 <div class="form-actions">
                     <button class="btn btn-primary"

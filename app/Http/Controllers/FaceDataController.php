@@ -80,7 +80,10 @@ class FaceDataController extends Controller
                 ->where('can_scan_face', true)
                 ->orderBy('name')
                 ->get(),
-            'candidates' => User::query()->orderBy('name')->get(['id', 'name', 'identifier_number', 'role']),
+            'candidates' => User::query()
+                ->where('role', '!=', User::RoleKiosk)
+                ->orderBy('name')
+                ->get(['id', 'name', 'identifier_number', 'role']),
             // Daftar yang boleh ditugaskan memegang kamera, beserta kolom
             // penanda tugasnya. Kolom `can_scan_face` WAJIB ikut dipilih: keadaan
             // tugas di halaman ini dibaca dari kolom yang sama dengan yang
@@ -93,6 +96,7 @@ class FaceDataController extends Controller
             // tetapi tidak muncul di sini, sehingga tugasnya tidak bisa dicabut
             // dan keadaannya tidak pernah terbaca admin.
             'assignable' => User::query()
+                ->where('role', '!=', User::RoleKiosk)
                 ->where(fn ($query) => $query
                     ->where('role', '!=', User::RoleMurid)
                     ->orWhere('can_scan_face', true))
