@@ -46,6 +46,7 @@
             <main class="guest-card">
                 @yield('content')
             </main>
+            @yield('aside')
         </div>
     </div>
 </body>

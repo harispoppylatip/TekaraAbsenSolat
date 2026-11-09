@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
+use App\Models\PrayerTime;
+use App\Models\SolatSession;
 use App\Models\User;
+use App\Services\SolatSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,9 +16,24 @@ use Illuminate\View\View;
 
 class LoginController extends Controller
 {
-    public function create(): View
+    public function create(SolatSessionService $sessions): View
     {
-        return view('auth.login');
+        $today = now();
+        $prayerTimes = PrayerTime::query()->active()->ordered()->get();
+        $todaySessions = SolatSession::query()
+            ->real()
+            ->forDate($today)
+            ->get()
+            ->keyBy('prayer_name');
+
+        return view('auth.login', [
+            'prayerTimes' => $prayerTimes,
+            'todaySessions' => $todaySessions,
+            'activeSession' => $sessions->activeSession(),
+            'daysSummary' => $sessions->activeDaysSummary(),
+            'serverNowIso' => $today->toIso8601String(),
+            'todayLabel' => $today->translatedFormat('l, d F Y'),
+        ]);
     }
 
     public function store(LoginRequest $request): RedirectResponse
