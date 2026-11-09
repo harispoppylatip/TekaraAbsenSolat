@@ -19,30 +19,7 @@
         ];
     })->values();
 
-    $recentItems = ($recentLogs ?? collect())->map(function (\App\Models\SolatAttendanceLog $log) {
-        $name = (string) ($log->user?->name ?? 'Jamaah');
-        $words = preg_split('/\s+/', trim($name)) ?: [];
-        $initials = mb_strtoupper(mb_substr($words[0] ?? 'J', 0, 1) . (isset($words[1]) ? mb_substr($words[1], 0, 1) : ''));
-        $group = $log->user?->class_name ?: ($log->user ? $log->user->roleLabel() : 'Jamaah');
-        $prayerLabel = $log->session?->prayerLabel() ?? 'Sholat';
-        $scannedAt = $log->scanned_at;
-        $dateLabel = $scannedAt
-            ? ($scannedAt->isToday() ? 'Hari ini' : $scannedAt->translatedFormat('d M'))
-            : '-';
-
-        return [
-            'id' => $log->id,
-            'name' => $name,
-            'initials' => $initials,
-            'group' => $group,
-            'prayer' => $prayerLabel,
-            'time' => $scannedAt ? $scannedAt->format('H:i') : '--:--',
-            'date_label' => $dateLabel,
-            'status' => $log->statusLabel(),
-            'is_late' => $log->status === \App\Models\SolatAttendanceLog::StatusTerlambat,
-            'method' => $log->isFingerprint() ? 'Sidik Jari' : 'Kamera Wajah',
-        ];
-    })->values();
+    $recentItems = collect($recentItems ?? []);
 @endphp
 
 @section('mobile_top')
@@ -72,7 +49,7 @@
             </button>
             <button type="button" class="mobile-app-tab" role="tab" aria-selected="false" data-mobile-view="recent">
                 <span>15 Absen</span>
-                <span class="mobile-tab-count">{{ $recentItems->count() }}</span>
+                <span class="mobile-tab-count" id="mobile-tab-count">{{ $recentItems->count() }}</span>
             </button>
         </div>
     </div>
@@ -962,7 +939,7 @@
                 </button>
                 <button type="button" class="info-subtab" role="tab" aria-selected="false" data-subtab="recent">
                     <span>15 Absen Terakhir</span>
-                    <span class="info-subtab-badge">{{ $recentItems->count() }}</span>
+                    <span class="info-subtab-badge" id="desktop-subtab-count">{{ $recentItems->count() }}</span>
                 </button>
             </div>
 
@@ -996,7 +973,7 @@
                 @else
                     <div class="info-recent-scroll">
                         @foreach ($recentItems as $log)
-                            <div class="info-recent-item">
+                            <div class="info-recent-item" data-log-id="{{ $log['id'] }}">
                                 <div class="info-recent-person">
                                     <span class="info-recent-avatar" aria-hidden="true">{{ $log['initials'] }}</span>
                                     <div class="info-recent-text">
@@ -1017,7 +994,7 @@
 
         <div class="info-schedule-foot">
             <span>{{ $daysSummary['summary'] ?? 'Aktif: Senin – Jumat' }}</span>
-            <span>Zona Waktu WITA (UTC+8)</span>
+            <span>Real-time Otomatis · WITA</span>
         </div>
     </aside>
 
@@ -1025,10 +1002,14 @@
         (function () {
             document.body.setAttribute('data-mobile-tab', 'login');
 
+            const liveDataUrl = @json(route('login.data'));
             const subtabButtons = Array.from(document.querySelectorAll('[data-subtab]'));
             const mobileButtons = Array.from(document.querySelectorAll('[data-mobile-view]'));
             const paneSchedule = document.getElementById('pane-schedule');
             const paneRecent = document.getElementById('pane-recent');
+            const desktopCountEl = document.getElementById('desktop-subtab-count');
+            const mobileCountEl = document.getElementById('mobile-tab-count');
+            const dateLabelEl = document.getElementById('login-date-label');
 
             function activateSubtab(tabName) {
                 subtabButtons.forEach(function (btn) {
@@ -1071,7 +1052,7 @@
             const serverIso = @json($serverNowIso ?? now()->toIso8601String());
             const serverStartMs = Date.parse(serverIso);
             const clientStartMs = Date.now();
-            const offsetMs = Number.isFinite(serverStartMs) ? (serverStartMs - clientStartMs) : 0;
+            let offsetMs = Number.isFinite(serverStartMs) ? (serverStartMs - clientStartMs) : 0;
 
             const clockEl = document.getElementById('login-live-clock');
             const cardEl = document.getElementById('login-countdown-card');
@@ -1223,8 +1204,114 @@
                 }
             }
 
+            function escapeHtml(str) {
+                return String(str ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            let lastSignature = Array.from(document.querySelectorAll('#pane-recent [data-log-id]'))
+                .map(function (el) { return el.getAttribute('data-log-id'); })
+                .join(',');
+
+            function renderRecentLogs(logs) {
+                if (!paneRecent || !Array.isArray(logs)) return;
+
+                const count = logs.length;
+                if (desktopCountEl) desktopCountEl.textContent = String(count);
+                if (mobileCountEl) mobileCountEl.textContent = String(count);
+
+                const newSignature = logs.map(function (item) { return item.id + ':' + item.status; }).join(',');
+                if (newSignature === lastSignature) {
+                    return;
+                }
+                lastSignature = newSignature;
+
+                if (count === 0) {
+                    paneRecent.innerHTML = '<div class="info-recent-empty">Belum ada catatan presensi sholat yang terekam.</div>';
+                    return;
+                }
+
+                const existingScroll = paneRecent.querySelector('.info-recent-scroll');
+                const prevScrollTop = existingScroll ? existingScroll.scrollTop : 0;
+
+                const htmlItems = logs.map(function (log) {
+                    const lateClass = log.is_late ? ' is-late' : '';
+                    return '<div class="info-recent-item" data-log-id="' + escapeHtml(log.id) + '">' +
+                        '<div class="info-recent-person">' +
+                            '<span class="info-recent-avatar" aria-hidden="true">' + escapeHtml(log.initials) + '</span>' +
+                            '<div class="info-recent-text">' +
+                                '<span class="info-recent-name">' + escapeHtml(log.name) + '</span>' +
+                                '<span class="info-recent-sub">Sholat ' + escapeHtml(log.prayer) + ' · ' + escapeHtml(log.group) + ' · ' + escapeHtml(log.method) + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="info-recent-meta">' +
+                            '<span class="info-recent-time">' + escapeHtml(log.time) + ' <small style="font-weight:500;color:#64748b;">' + escapeHtml(log.date_label) + '</small></span>' +
+                            '<span class="info-recent-status' + lateClass + '">' + escapeHtml(log.status) + '</span>' +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+
+                paneRecent.innerHTML = '<div class="info-recent-scroll">' + htmlItems + '</div>';
+                const updatedScroll = paneRecent.querySelector('.info-recent-scroll');
+                if (updatedScroll && prevScrollTop > 0) {
+                    updatedScroll.scrollTop = prevScrollTop;
+                }
+            }
+
+            let isFetching = false;
+            async function pollLiveData() {
+                if (document.hidden || isFetching || !liveDataUrl) return;
+                isFetching = true;
+                try {
+                    const response = await fetch(liveDataUrl, {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        cache: 'no-store'
+                    });
+                    if (!response.ok) return;
+                    const data = await response.json();
+
+                    if (data.server_now_iso) {
+                        const parsed = Date.parse(data.server_now_iso);
+                        if (Number.isFinite(parsed)) {
+                            offsetMs = parsed - Date.now();
+                        }
+                    }
+
+                    if (data.today_label && dateLabelEl) {
+                        dateLabelEl.textContent = data.today_label;
+                    }
+
+                    const activePrayer = data.active_prayer || null;
+                    const closedList = Array.isArray(data.closed_prayers) ? data.closed_prayers : [];
+
+                    rows.forEach(function (row) {
+                        const pName = row.getAttribute('data-prayer-name');
+                        row.dataset.sessionOpen = (activePrayer && pName === activePrayer) ? '1' : '0';
+                        row.dataset.sessionClosed = closedList.indexOf(pName) !== -1 ? '1' : '0';
+                    });
+
+                    renderRecentLogs(data.recent_logs);
+                    tick();
+                } catch (e) {
+                    // Abaikan gangguan jaringan sementara
+                } finally {
+                    isFetching = false;
+                }
+            }
+
             tick();
             setInterval(tick, 1000);
+            setInterval(pollLiveData, 4000);
+
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) {
+                    pollLiveData();
+                }
+            });
         })();
     </script>
 @endsection

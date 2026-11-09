@@ -9,6 +9,7 @@ use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Models\User;
 use App\Services\SolatSessionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,22 +28,85 @@ class LoginController extends Controller
             ->get()
             ->keyBy('prayer_name');
 
-        $recentLogs = SolatAttendanceLog::query()
-            ->with(['user:id,name,role,class_name', 'session:id,prayer_name,date,is_test'])
-            ->whereHas('session', fn ($q) => $q->where('is_test', false))
-            ->latest('scanned_at')
-            ->limit(15)
-            ->get();
-
         return view('auth.login', [
             'prayerTimes' => $prayerTimes,
             'todaySessions' => $todaySessions,
             'activeSession' => $sessions->activeSession(),
             'daysSummary' => $sessions->activeDaysSummary(),
-            'recentLogs' => $recentLogs,
+            'recentItems' => collect($this->recentLogsPayload()),
             'serverNowIso' => $today->toIso8601String(),
             'todayLabel' => $today->translatedFormat('l, d F Y'),
         ]);
+    }
+
+    /**
+     * Data real-time untuk halaman masuk (15 absen terakhir & status sesi aktif).
+     */
+    public function liveData(SolatSessionService $sessions): JsonResponse
+    {
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
+        $today = now();
+        $activeSession = $sessions->activeSession();
+        $closedPrayers = SolatSession::query()
+            ->real()
+            ->forDate($today)
+            ->where('status', SolatSession::StatusSudahDitutup)
+            ->pluck('prayer_name')
+            ->values()
+            ->all();
+
+        return response()->json([
+            'server_now_iso' => $today->toIso8601String(),
+            'today_label' => $today->translatedFormat('l, d F Y'),
+            'active_prayer' => $activeSession?->prayer_name,
+            'closed_prayers' => $closedPrayers,
+            'recent_logs' => $this->recentLogsPayload(),
+        ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentLogsPayload(): array
+    {
+        return SolatAttendanceLog::query()
+            ->with(['user:id,name,role,class_name', 'session:id,prayer_name,date,is_test'])
+            ->whereHas('session', fn ($q) => $q->where('is_test', false))
+            ->latest('scanned_at')
+            ->limit(15)
+            ->get()
+            ->map(function (SolatAttendanceLog $log): array {
+                $name = (string) ($log->user?->name ?? 'Jamaah');
+                $words = preg_split('/\s+/', trim($name)) ?: [];
+                $initials = mb_strtoupper(
+                    mb_substr($words[0] ?? 'J', 0, 1)
+                    .(isset($words[1]) ? mb_substr($words[1], 0, 1) : '')
+                );
+                $group = $log->user?->class_name ?: ($log->user ? $log->user->roleLabel() : 'Jamaah');
+                $prayerLabel = $log->session?->prayerLabel() ?? 'Sholat';
+                $scannedAt = $log->scanned_at;
+                $dateLabel = $scannedAt
+                    ? ($scannedAt->isToday() ? 'Hari ini' : $scannedAt->translatedFormat('d M'))
+                    : '-';
+
+                return [
+                    'id' => (int) $log->id,
+                    'name' => $name,
+                    'initials' => $initials,
+                    'group' => (string) $group,
+                    'prayer' => (string) $prayerLabel,
+                    'time' => $scannedAt ? $scannedAt->format('H:i') : '--:--',
+                    'date_label' => (string) $dateLabel,
+                    'status' => (string) $log->statusLabel(),
+                    'is_late' => $log->status === SolatAttendanceLog::StatusTerlambat,
+                    'method' => $log->isFingerprint() ? 'Sidik Jari' : 'Kamera Wajah',
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function store(LoginRequest $request): RedirectResponse

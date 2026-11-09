@@ -33,6 +33,7 @@ Route::get('/', function () {
 
 Route::middleware('guest')->group(function () {
     Route::get('/masuk', [LoginController::class, 'create'])->name('login');
+    Route::get('/masuk/data', [LoginController::class, 'liveData'])->name('login.data');
     Route::post('/masuk', [LoginController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('login.store');
