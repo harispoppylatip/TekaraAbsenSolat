@@ -99,11 +99,11 @@ class PrayerTimeController extends Controller
 
     public function destroy(PrayerTime $prayerTime): RedirectResponse
     {
-        $used = SolatSession::query()->where('prayer_name', $prayerTime->prayer_name)->exists();
-
-        if ($used) {
-            return back()->with('error', 'Waktu solat '.$prayerTime->label.' tidak bisa dihapus karena sudah dipakai sesi absen. Nonaktifkan saja supaya tidak ikut dibuat lagi.');
-        }
+        // Bersihkan sesi kosong yang belum memiliki catatan presensi untuk waktu sholat ini
+        SolatSession::query()
+            ->where('prayer_name', $prayerTime->prayer_name)
+            ->whereDoesntHave('logs')
+            ->delete();
 
         $label = $prayerTime->label;
         $prayerTime->delete();

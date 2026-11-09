@@ -33,16 +33,26 @@ class KhgtPrayerSyncService
     public const KeyLastTimes = 'khgt_last_times';
 
     /**
-     * Daftar 5 waktu sholat yang disinkronkan dari API KHGT Muhammadiyah.
+     * Pemetaan nama kode waktu sholat (beserta variasinya) ke kunci API KHGT.
      *
-     * @var array<string, array{label: string, sort: int}>
+     * @var array<string, string>
      */
-    private const PrayerMap = [
-        'subuh' => ['label' => 'Subuh', 'sort' => 1],
-        'zuhur' => ['label' => 'Zuhur', 'sort' => 2],
-        'ashar' => ['label' => 'Ashar', 'sort' => 3],
-        'maghrib' => ['label' => 'Maghrib', 'sort' => 4],
-        'isya' => ['label' => 'Isya', 'sort' => 5],
+    private const KeyAliases = [
+        'subuh' => 'subuh',
+        'shubuh' => 'subuh',
+        'fajr' => 'subuh',
+        'terbit' => 'terbit',
+        'syuruq' => 'terbit',
+        'zuhur' => 'zuhur',
+        'dzuhur' => 'zuhur',
+        'dhuhur' => 'zuhur',
+        'zhuhur' => 'zuhur',
+        'ashar' => 'ashar',
+        'asar' => 'ashar',
+        'maghrib' => 'maghrib',
+        'magrib' => 'maghrib',
+        'isya' => 'isya',
+        'isha' => 'isya',
     ];
 
     /**
@@ -150,12 +160,17 @@ class KhgtPrayerSyncService
             ];
         }
 
-        $activeDays = app(SolatSessionService::class)->activeDays();
-        $defaultLate = (int) config('solat.late_minutes', 10);
-        $updatedCount = 0;
+        $existingPrayers = PrayerTime::query()->ordered()->get();
+        $updatedLabels = [];
 
-        foreach (self::PrayerMap as $prayerName => $meta) {
-            $rawStart = isset($times[$prayerName]) ? trim((string) $times[$prayerName]) : '';
+        // Hanya perbarui waktu sholat yang memang ada di daftar Waktu Solat.
+        // Waktu sholat yang sudah dihapus (misal Subuh dihapus) tidak akan dibuat ulang,
+        // dan waktu sholat khusus (misal Duha) tidak akan ditimpa.
+        foreach ($existingPrayers as $prayer) {
+            $normalizedCode = mb_strtolower(trim((string) $prayer->prayer_name));
+            $khgtKey = self::KeyAliases[$normalizedCode] ?? $normalizedCode;
+
+            $rawStart = isset($times[$khgtKey]) ? trim((string) $times[$khgtKey]) : '';
             if (! preg_match('/^\d{2}:\d{2}$/', $rawStart)) {
                 continue;
             }
@@ -164,31 +179,16 @@ class KhgtPrayerSyncService
                 ->addMinutes($window)
                 ->format('H:i');
 
-            $existing = PrayerTime::query()->where('prayer_name', $prayerName)->first();
-
-            if ($existing !== null) {
-                $existing->update([
-                    'start_time' => $rawStart,
-                    'end_time' => $endTime,
-                ]);
-            } else {
-                PrayerTime::create([
-                    'prayer_name' => $prayerName,
-                    'label' => $meta['label'],
-                    'start_time' => $rawStart,
-                    'end_time' => $endTime,
-                    'late_minutes' => $defaultLate,
-                    'sort_order' => $meta['sort'],
-                    'is_active' => true,
-                    'active_days' => $activeDays,
-                ]);
-            }
+            $prayer->update([
+                'start_time' => $rawStart,
+                'end_time' => $endTime,
+            ]);
 
             // Perbarui sesi hari ini yang belum disentuh manusia supaya langsung mengikuti jam KHGT terbaru
             SolatSession::query()
                 ->real()
                 ->forDate(today())
-                ->where('prayer_name', $prayerName)
+                ->where('prayer_name', $prayer->prayer_name)
                 ->where('status', SolatSession::StatusBelumDibuka)
                 ->whereNull('opened_by')
                 ->whereNull('closed_by')
@@ -197,7 +197,7 @@ class KhgtPrayerSyncService
                     'end_time' => $endTime,
                 ]);
 
-            $updatedCount++;
+            $updatedLabels[] = $prayer->label;
         }
 
         $locationParts = array_filter([
@@ -223,9 +223,12 @@ class KhgtPrayerSyncService
         Setting::set(self::KeyLastLocation, $locationLabel);
         Setting::set(self::KeyLastTimes, json_encode($cleanTimes));
 
+        $updatedCount = count($updatedLabels);
+        $namesText = $updatedCount > 0 ? ' ('.implode(', ', $updatedLabels).')' : '';
+
         return [
             'ok' => true,
-            'message' => $updatedCount.' waktu sholat berhasil disinkronkan dari KHGT Muhammadiyah ('.$locationLabel.').',
+            'message' => $updatedCount.' waktu sholat yang terdaftar'.$namesText.' berhasil disinkronkan dari KHGT Muhammadiyah.',
             'times' => $cleanTimes,
             'location' => $locationLabel,
         ];
@@ -250,3 +253,4 @@ class KhgtPrayerSyncService
         $this->sync();
     }
 }
+
