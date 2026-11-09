@@ -42,8 +42,10 @@
             <p class="guest-school-city">SMKIM4 SAMARINDA</p>
         </header>
 
+        @yield('mobile_top')
+
         <div class="guest-stage">
-            <main class="guest-card">
+            <main class="guest-card" id="guest-login-card">
                 @yield('content')
             </main>
             @yield('aside')

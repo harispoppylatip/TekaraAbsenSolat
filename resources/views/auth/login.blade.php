@@ -18,7 +18,65 @@
             'session_closed' => (bool) $isSessionClosed,
         ];
     })->values();
+
+    $recentItems = ($recentLogs ?? collect())->map(function (\App\Models\SolatAttendanceLog $log) {
+        $name = (string) ($log->user?->name ?? 'Jamaah');
+        $words = preg_split('/\s+/', trim($name)) ?: [];
+        $initials = mb_strtoupper(mb_substr($words[0] ?? 'J', 0, 1) . (isset($words[1]) ? mb_substr($words[1], 0, 1) : ''));
+        $group = $log->user?->class_name ?: ($log->user ? $log->user->roleLabel() : 'Jamaah');
+        $prayerLabel = $log->session?->prayerLabel() ?? 'Sholat';
+        $scannedAt = $log->scanned_at;
+        $dateLabel = $scannedAt
+            ? ($scannedAt->isToday() ? 'Hari ini' : $scannedAt->translatedFormat('d M'))
+            : '-';
+
+        return [
+            'id' => $log->id,
+            'name' => $name,
+            'initials' => $initials,
+            'group' => $group,
+            'prayer' => $prayerLabel,
+            'time' => $scannedAt ? $scannedAt->format('H:i') : '--:--',
+            'date_label' => $dateLabel,
+            'status' => $log->statusLabel(),
+            'is_late' => $log->status === \App\Models\SolatAttendanceLog::StatusTerlambat,
+            'method' => $log->isFingerprint() ? 'Sidik Jari' : 'Kamera Wajah',
+        ];
+    })->values();
 @endphp
+
+@section('mobile_top')
+    {{-- Bilah Status & Navigasi Aplikasi Khusus Layar Mobile --}}
+    <div class="mobile-app-chrome">
+        <div class="mobile-live-strip" id="mobile-live-strip">
+            <div class="mobile-live-left">
+                <span class="mobile-live-caption" id="mobile-strip-caption">
+                    {{ $activeSession ? 'Sesi Sedang Dibuka' : 'Sholat Berikutnya' }}
+                </span>
+                <strong class="mobile-live-title" id="mobile-strip-prayer">
+                    {{ $activeSession ? 'Sholat '.$activeSession->prayerLabel() : 'Memuat...' }}
+                </strong>
+            </div>
+            <div class="mobile-live-right">
+                <span class="mobile-live-countdown" id="mobile-strip-timer">--:--:--</span>
+                <span class="mobile-live-clock" id="mobile-strip-clock">{{ now()->format('H:i') }} WITA</span>
+            </div>
+        </div>
+
+        <div class="mobile-app-tabs" role="tablist" aria-label="Menu Halaman Masuk">
+            <button type="button" class="mobile-app-tab is-active" role="tab" aria-selected="true" data-mobile-view="login">
+                Masuk Akun
+            </button>
+            <button type="button" class="mobile-app-tab" role="tab" aria-selected="false" data-mobile-view="schedule">
+                Jadwal Sholat
+            </button>
+            <button type="button" class="mobile-app-tab" role="tab" aria-selected="false" data-mobile-view="recent">
+                <span>15 Absen</span>
+                <span class="mobile-tab-count">{{ $recentItems->count() }}</span>
+            </button>
+        </div>
+    </div>
+@endsection
 
 @section('content')
     <style>
@@ -28,7 +86,7 @@
             align-items: stretch;
             justify-content: center;
             gap: 22px;
-            max-width: 880px;
+            max-width: 900px;
             width: 100%;
             margin: auto;
         }
@@ -48,29 +106,157 @@
         }
 
         .guest-info-panel {
-            background: rgba(255, 255, 255, 0.97);
+            background: rgba(255, 255, 255, 0.98);
             border-radius: 22px;
             border: 1px solid rgba(255, 255, 255, 0.92);
             box-shadow: 0 20px 50px rgba(2, 22, 48, 0.42), 0 4px 12px rgba(0, 0, 0, 0.08);
-            padding: 24px 26px;
-            flex: 1 1 430px;
-            max-width: 458px;
+            padding: 22px 24px;
+            flex: 1 1 460px;
+            max-width: 478px;
             width: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            gap: 16px;
+            gap: 14px;
             color: #0f172a;
+        }
+
+        /* Navigasi Aplikasi Mobile (Sembunyi di Desktop) */
+        .mobile-app-chrome {
+            display: none;
+            width: 100%;
+            max-width: 420px;
+            margin: 0 auto 12px auto;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 5;
+        }
+
+        .mobile-live-strip {
+            background: rgba(15, 39, 68, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 14px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            color: #ffffff;
+            box-shadow: 0 8px 20px rgba(2, 22, 48, 0.28);
+        }
+
+        .mobile-live-strip.is-open {
+            background: rgba(20, 83, 45, 0.94);
+        }
+
+        .mobile-live-left {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 0;
+        }
+
+        .mobile-live-caption {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.75);
+            text-transform: uppercase;
+        }
+
+        .mobile-live-title {
+            font-family: var(--font-heading);
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mobile-live-right {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 1px;
+            flex-shrink: 0;
+        }
+
+        .mobile-live-countdown {
+            font-family: var(--font-heading);
+            font-size: 15px;
+            font-weight: 800;
+            color: #fcd34d;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.15;
+        }
+
+        .mobile-live-clock {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .mobile-app-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            background: rgba(15, 39, 68, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 4px;
+            border-radius: 13px;
+        }
+
+        .mobile-app-tab {
+            appearance: none;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.82);
+            font-family: var(--font-body);
+            font-size: 12.5px;
+            font-weight: 600;
+            padding: 8px 6px;
+            border-radius: 9px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .mobile-app-tab.is-active {
+            background: #ffffff;
+            color: #0f2744;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+        }
+
+        .mobile-tab-count {
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.16);
+            color: inherit;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .mobile-app-tab.is-active .mobile-tab-count {
+            background: #dbeafe;
+            color: #1d4ed8;
         }
 
         .guest-card-dome {
             display: flex;
             justify-content: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .guest-dome-img {
-            width: 84px;
+            width: 82px;
             height: auto;
             filter: drop-shadow(0 4px 10px rgba(37, 99, 235, 0.2));
         }
@@ -81,9 +267,9 @@
             font-size: 30px;
             font-weight: 700;
             color: #0f2744;
-            letter-spacing: 0.3px;
             margin: 0;
             line-height: 1.2;
+            text-wrap: balance;
         }
 
         .guest-title-divider {
@@ -101,6 +287,7 @@
             line-height: 1.5;
             margin: 0 auto 14px auto;
             max-width: 320px;
+            text-wrap: pretty;
         }
 
         .guest-input-wrap {
@@ -117,7 +304,7 @@
             font-size: 14px;
             color: #0f172a;
             background: #f8fafc;
-            transition: all 0.2s ease;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
             outline: none;
         }
 
@@ -158,7 +345,7 @@
             font-weight: 700 !important;
             color: #ffffff !important;
             box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
-            transition: all 0.2s ease !important;
+            transition: transform 0.15s ease, opacity 0.15s ease !important;
             cursor: pointer;
             margin-top: 6px;
             width: 100%;
@@ -171,7 +358,6 @@
         .guest-submit-btn:hover {
             background: #1d4ed8 !important;
             transform: translateY(-1px);
-            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4) !important;
         }
 
         .guest-submit-btn:active {
@@ -193,13 +379,13 @@
             cursor: pointer;
         }
 
-        /* Panel Informasi Jadwal Sholat & Jam Digital */
+        /* Panel Informasi Jadwal Sholat & 15 Absen Terakhir */
         .info-clock-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding-bottom: 14px;
+            padding-bottom: 12px;
             border-bottom: 1px solid #e2e8f0;
         }
 
@@ -211,14 +397,14 @@
 
         .info-panel-heading {
             font-family: var(--font-heading);
-            font-size: 16px;
+            font-size: 15.5px;
             font-weight: 700;
             color: #0f172a;
             margin: 0;
         }
 
         .info-date-text {
-            font-size: 12.5px;
+            font-size: 12px;
             color: #64748b;
             font-weight: 500;
         }
@@ -227,71 +413,69 @@
             text-align: right;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 7px 12px;
+            border-radius: 11px;
+            padding: 6px 11px;
         }
 
         .info-live-clock {
             font-family: var(--font-heading);
-            font-size: 19px;
+            font-size: 18px;
             font-weight: 800;
             color: #0f2744;
             font-variant-numeric: tabular-nums;
             line-height: 1.15;
-            letter-spacing: 0.4px;
         }
 
         .info-live-tz {
-            font-size: 10.5px;
+            font-size: 10px;
             font-weight: 700;
             color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         /* Kotak Countdown Waktu Sholat Berikutnya */
         .info-countdown-card {
             background: #0f2744;
             color: #ffffff;
-            border-radius: 16px;
-            padding: 16px 18px;
+            border-radius: 15px;
+            padding: 14px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 14px;
-            box-shadow: 0 8px 20px rgba(15, 39, 68, 0.18);
+            gap: 12px;
+            box-shadow: 0 6px 16px rgba(15, 39, 68, 0.15);
+            margin-top: 12px;
         }
 
         .info-countdown-card.is-open {
             background: #14532d;
-            box-shadow: 0 8px 20px rgba(20, 83, 45, 0.2);
+            box-shadow: 0 6px 16px rgba(20, 83, 45, 0.18);
         }
 
         .info-countdown-meta {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
             min-width: 0;
         }
 
         .info-countdown-caption {
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 600;
             color: rgba(255, 255, 255, 0.76);
             text-transform: uppercase;
-            letter-spacing: 0.4px;
         }
 
         .info-countdown-prayer {
             font-family: var(--font-heading);
-            font-size: 20px;
+            font-size: 18.5px;
             font-weight: 800;
             color: #ffffff;
             line-height: 1.2;
         }
 
         .info-countdown-window {
-            font-size: 12px;
+            font-size: 11.5px;
             color: rgba(255, 255, 255, 0.82);
             font-variant-numeric: tabular-nums;
         }
@@ -301,32 +485,92 @@
             flex-shrink: 0;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 12px;
-            padding: 8px 13px;
+            border-radius: 11px;
+            padding: 7px 12px;
         }
 
         .info-countdown-timer {
             font-family: var(--font-heading);
-            font-size: 21px;
+            font-size: 19px;
             font-weight: 800;
             color: #ffffff;
             font-variant-numeric: tabular-nums;
-            letter-spacing: 0.6px;
             line-height: 1.15;
         }
 
         .info-countdown-unit {
-            font-size: 10.5px;
+            font-size: 10px;
             color: rgba(255, 255, 255, 0.72);
             font-weight: 600;
             margin-top: 2px;
+        }
+
+        /* Sub-Tab Switcher di dalam Panel Info */
+        .info-subtabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            padding: 4px;
+            margin-top: 12px;
+        }
+
+        .info-subtab {
+            appearance: none;
+            border: none;
+            background: transparent;
+            color: #475569;
+            font-family: var(--font-body);
+            font-size: 12.5px;
+            font-weight: 600;
+            padding: 7px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .info-subtab.is-active {
+            background: #ffffff;
+            color: #0f172a;
+            font-weight: 700;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        }
+
+        .info-subtab-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 6px;
+            background: #e2e8f0;
+            color: #334155;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .info-subtab.is-active .info-subtab-badge {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .info-tab-pane {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .info-tab-pane.is-active {
+            display: block;
         }
 
         /* Daftar 5 Waktu Sholat */
         .info-schedule-list {
             display: flex;
             flex-direction: column;
-            gap: 7px;
+            gap: 6px;
         }
 
         .info-schedule-row {
@@ -334,11 +578,10 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            padding: 9px 13px;
-            border-radius: 11px;
+            padding: 8.5px 12px;
+            border-radius: 10px;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            transition: background 0.15s ease, border-color 0.15s ease;
         }
 
         .info-schedule-row.is-next {
@@ -364,13 +607,13 @@
 
         .info-schedule-name {
             font-weight: 700;
-            font-size: 14px;
+            font-size: 13.5px;
             color: #0f172a;
-            min-width: 68px;
+            min-width: 66px;
         }
 
         .info-schedule-time {
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 600;
             color: #475569;
             font-variant-numeric: tabular-nums;
@@ -379,7 +622,7 @@
         .info-schedule-badge {
             font-size: 11px;
             font-weight: 700;
-            padding: 3px 9px;
+            padding: 3px 8px;
             border-radius: 6px;
             white-space: nowrap;
             background: #e2e8f0;
@@ -396,6 +639,129 @@
             color: #15803d;
         }
 
+        /* Daftar 15 Absen Terakhir (Scroll Rapi & Tidak Memenuhi Layar) */
+        .info-recent-scroll {
+            max-height: 242px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 2px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .info-recent-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .info-recent-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 999px;
+        }
+
+        .info-recent-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        .info-recent-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 11px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .info-recent-person {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .info-recent-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: #e0e7ff;
+            color: #1e40af;
+            font-size: 11.5px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .info-recent-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .info-recent-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.25;
+        }
+
+        .info-recent-sub {
+            font-size: 11.5px;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.25;
+        }
+
+        .info-recent-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .info-recent-time {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0f172a;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+
+        .info-recent-status {
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 1.5px 6px;
+            border-radius: 5px;
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .info-recent-status.is-late {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .info-recent-empty {
+            padding: 28px 16px;
+            text-align: center;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            color: #64748b;
+            font-size: 12.5px;
+        }
+
         .info-schedule-foot {
             padding-top: 10px;
             border-top: 1px solid #e2e8f0;
@@ -404,16 +770,44 @@
             justify-content: space-between;
             gap: 8px;
             flex-wrap: wrap;
-            font-size: 12px;
+            font-size: 11.5px;
             color: #64748b;
         }
 
+        /* Tampilan Aplikasi Mobile (Layar <= 860px) */
         @media (max-width: 860px) {
+            .guest-shell {
+                padding: 14px 14px 24px !important;
+            }
+
+            .guest-school-header {
+                margin-bottom: 10px !important;
+            }
+
+            .guest-school-emblem {
+                width: 52px !important;
+                height: 52px !important;
+                margin-bottom: 4px !important;
+            }
+
+            .guest-school-name {
+                font-size: 16.5px !important;
+            }
+
+            .guest-school-city {
+                font-size: 13px !important;
+            }
+
+            .mobile-app-chrome {
+                display: flex;
+            }
+
             .guest-stage {
                 flex-direction: column;
                 align-items: center;
                 max-width: 420px;
-                gap: 16px;
+                gap: 0;
+                margin: 0 auto;
             }
 
             .guest-card,
@@ -421,10 +815,25 @@
                 flex: none;
                 max-width: 420px !important;
                 width: 100%;
+                padding: 22px 20px 24px !important;
+            }
+
+            /* Pada mobile, hanya kartu yang sedang dipilih di tab aplikasi yang tampil */
+            body[data-mobile-tab="login"] .guest-info-panel {
+                display: none;
+            }
+
+            body[data-mobile-tab="schedule"] .guest-card,
+            body[data-mobile-tab="recent"] .guest-card {
+                display: none;
+            }
+
+            .info-recent-scroll {
+                max-height: 320px;
             }
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 420px) {
             .info-countdown-card {
                 flex-direction: column;
                 align-items: flex-start;
@@ -511,11 +920,11 @@
 @endsection
 
 @section('aside')
-    <aside class="guest-info-panel" aria-label="Jadwal Sholat Hari Ini">
+    <aside class="guest-info-panel" id="guest-info-panel" aria-label="Informasi Jadwal Sholat dan Presensi Terbaru">
         <div>
             <div class="info-clock-bar">
                 <div class="info-date-group">
-                    <h2 class="info-panel-heading">Jadwal Sholat Hari Ini</h2>
+                    <h2 class="info-panel-heading">Informasi Ibadah Sekolah</h2>
                     <span class="info-date-text" id="login-date-label">{{ $todayLabel ?? now()->translatedFormat('l, d F Y') }}</span>
                 </div>
                 <div class="info-live-clock-box">
@@ -524,7 +933,7 @@
                 </div>
             </div>
 
-            <div class="info-countdown-card {{ $activeSession ? 'is-open' : '' }}" id="login-countdown-card" style="margin-top: 14px;">
+            <div class="info-countdown-card {{ $activeSession ? 'is-open' : '' }}" id="login-countdown-card">
                 <div class="info-countdown-meta">
                     <span class="info-countdown-caption" id="login-countdown-caption">
                         {{ $activeSession ? 'Sesi Absen Sedang Dibuka' : 'Waktu Sholat Berikutnya' }}
@@ -546,22 +955,63 @@
                 </div>
             </div>
 
-            <div class="info-schedule-list" id="login-schedule-list" style="margin-top: 14px;">
-                @foreach ($prayerItems as $item)
-                    <div class="info-schedule-row"
-                        data-prayer-name="{{ $item['name'] }}"
-                        data-prayer-label="{{ $item['label'] }}"
-                        data-start="{{ $item['start'] }}"
-                        data-end="{{ $item['end'] }}"
-                        data-session-open="{{ $item['session_open'] ? '1' : '0' }}"
-                        data-session-closed="{{ $item['session_closed'] ? '1' : '0' }}">
-                        <div class="info-schedule-left">
-                            <span class="info-schedule-name">{{ $item['label'] }}</span>
-                            <span class="info-schedule-time">{{ $item['start'] }} – {{ $item['end'] }}</span>
+            {{-- Pemilih Sub-Tab: Jadwal 5 Waktu vs 15 Absen Terakhir --}}
+            <div class="info-subtabs" role="tablist" aria-label="Pilih tampilan informasi">
+                <button type="button" class="info-subtab is-active" role="tab" aria-selected="true" data-subtab="schedule">
+                    <span>Jadwal 5 Waktu</span>
+                </button>
+                <button type="button" class="info-subtab" role="tab" aria-selected="false" data-subtab="recent">
+                    <span>15 Absen Terakhir</span>
+                    <span class="info-subtab-badge">{{ $recentItems->count() }}</span>
+                </button>
+            </div>
+
+            {{-- Tab 1: Jadwal 5 Waktu Sholat --}}
+            <div class="info-tab-pane is-active" id="pane-schedule" role="tabpanel">
+                <div class="info-schedule-list" id="login-schedule-list">
+                    @foreach ($prayerItems as $item)
+                        <div class="info-schedule-row"
+                            data-prayer-name="{{ $item['name'] }}"
+                            data-prayer-label="{{ $item['label'] }}"
+                            data-start="{{ $item['start'] }}"
+                            data-end="{{ $item['end'] }}"
+                            data-session-open="{{ $item['session_open'] ? '1' : '0' }}"
+                            data-session-closed="{{ $item['session_closed'] ? '1' : '0' }}">
+                            <div class="info-schedule-left">
+                                <span class="info-schedule-name">{{ $item['label'] }}</span>
+                                <span class="info-schedule-time">{{ $item['start'] }} – {{ $item['end'] }}</span>
+                            </div>
+                            <span class="info-schedule-badge" data-role="badge">Terjadwal</span>
                         </div>
-                        <span class="info-schedule-badge" data-role="badge">Terjadwal</span>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Tab 2: 15 Absen Terakhir --}}
+            <div class="info-tab-pane" id="pane-recent" role="tabpanel">
+                @if ($recentItems->isEmpty())
+                    <div class="info-recent-empty">
+                        Belum ada catatan presensi sholat yang terekam.
                     </div>
-                @endforeach
+                @else
+                    <div class="info-recent-scroll">
+                        @foreach ($recentItems as $log)
+                            <div class="info-recent-item">
+                                <div class="info-recent-person">
+                                    <span class="info-recent-avatar" aria-hidden="true">{{ $log['initials'] }}</span>
+                                    <div class="info-recent-text">
+                                        <span class="info-recent-name">{{ $log['name'] }}</span>
+                                        <span class="info-recent-sub">Sholat {{ $log['prayer'] }} · {{ $log['group'] }} · {{ $log['method'] }}</span>
+                                    </div>
+                                </div>
+                                <div class="info-recent-meta">
+                                    <span class="info-recent-time">{{ $log['time'] }} <small style="font-weight:500;color:#64748b;">{{ $log['date_label'] }}</small></span>
+                                    <span class="info-recent-status {{ $log['is_late'] ? 'is-late' : '' }}">{{ $log['status'] }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -573,6 +1023,51 @@
 
     <script>
         (function () {
+            document.body.setAttribute('data-mobile-tab', 'login');
+
+            const subtabButtons = Array.from(document.querySelectorAll('[data-subtab]'));
+            const mobileButtons = Array.from(document.querySelectorAll('[data-mobile-view]'));
+            const paneSchedule = document.getElementById('pane-schedule');
+            const paneRecent = document.getElementById('pane-recent');
+
+            function activateSubtab(tabName) {
+                subtabButtons.forEach(function (btn) {
+                    const active = btn.getAttribute('data-subtab') === tabName;
+                    btn.classList.toggle('is-active', active);
+                    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                if (paneSchedule) paneSchedule.classList.toggle('is-active', tabName === 'schedule');
+                if (paneRecent) paneRecent.classList.toggle('is-active', tabName === 'recent');
+            }
+
+            subtabButtons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const target = btn.getAttribute('data-subtab');
+                    activateSubtab(target);
+                    if (window.innerWidth <= 860) {
+                        setMobileTab(target, false);
+                    }
+                });
+            });
+
+            function setMobileTab(viewName, syncSubtab) {
+                document.body.setAttribute('data-mobile-tab', viewName);
+                mobileButtons.forEach(function (btn) {
+                    const active = btn.getAttribute('data-mobile-view') === viewName;
+                    btn.classList.toggle('is-active', active);
+                    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                if (syncSubtab !== false && (viewName === 'schedule' || viewName === 'recent')) {
+                    activateSubtab(viewName);
+                }
+            }
+
+            mobileButtons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setMobileTab(btn.getAttribute('data-mobile-view'), true);
+                });
+            });
+
             const serverIso = @json($serverNowIso ?? now()->toIso8601String());
             const serverStartMs = Date.parse(serverIso);
             const clientStartMs = Date.now();
@@ -585,6 +1080,13 @@
             const windowEl = document.getElementById('login-countdown-window');
             const timerEl = document.getElementById('login-countdown-timer');
             const unitEl = document.getElementById('login-countdown-unit');
+
+            const mobileStrip = document.getElementById('mobile-live-strip');
+            const mobileCaption = document.getElementById('mobile-strip-caption');
+            const mobilePrayer = document.getElementById('mobile-strip-prayer');
+            const mobileTimer = document.getElementById('mobile-strip-timer');
+            const mobileClock = document.getElementById('mobile-strip-clock');
+
             const rows = Array.from(document.querySelectorAll('#login-schedule-list .info-schedule-row'));
 
             function pad(num) {
@@ -618,9 +1120,13 @@
 
             function tick() {
                 const wita = getWitaComponents();
+                const fullClock = pad(wita.hours) + ':' + pad(wita.minutes) + ':' + pad(wita.seconds);
 
                 if (clockEl) {
-                    clockEl.textContent = pad(wita.hours) + ':' + pad(wita.minutes) + ':' + pad(wita.seconds);
+                    clockEl.textContent = fullClock;
+                }
+                if (mobileClock) {
+                    mobileClock.textContent = pad(wita.hours) + ':' + pad(wita.minutes) + ' WITA';
                 }
 
                 if (rows.length === 0) {
@@ -676,6 +1182,7 @@
                     const end = activeRow.dataset.end;
                     const endSec = parseMinutes(end) * 60;
                     const remainSec = Math.max(0, endSec - wita.totalSeconds);
+                    const formatted = formatDuration(remainSec);
 
                     if (cardEl) cardEl.classList.add('is-open');
                     if (captionEl) captionEl.textContent = activeRow.dataset.sessionOpen === '1'
@@ -683,8 +1190,13 @@
                         : 'Waktu Sholat Sedang Berlangsung';
                     if (prayerEl) prayerEl.textContent = 'Sholat ' + label;
                     if (windowEl) windowEl.textContent = 'Jadwal pukul ' + start + ' – ' + end + ' WITA';
-                    if (timerEl) timerEl.textContent = formatDuration(remainSec);
+                    if (timerEl) timerEl.textContent = formatted;
                     if (unitEl) unitEl.textContent = 'Sisa Waktu Jendela';
+
+                    if (mobileStrip) mobileStrip.classList.add('is-open');
+                    if (mobileCaption) mobileCaption.textContent = 'Sedang Berlangsung';
+                    if (mobilePrayer) mobilePrayer.textContent = 'Sholat ' + label + ' (' + start + '–' + end + ')';
+                    if (mobileTimer) mobileTimer.textContent = formatted;
                 } else if (nextRow) {
                     const label = nextRow.dataset.prayerLabel;
                     const start = nextRow.dataset.start;
@@ -693,6 +1205,7 @@
                     const diffSec = isTomorrowSubuh
                         ? ((24 * 3600 - wita.totalSeconds) + startSec)
                         : Math.max(0, startSec - wita.totalSeconds);
+                    const formatted = formatDuration(diffSec);
 
                     if (cardEl) cardEl.classList.remove('is-open');
                     if (captionEl) captionEl.textContent = isTomorrowSubuh
@@ -700,8 +1213,13 @@
                         : 'Menuju Waktu Sholat Berikutnya';
                     if (prayerEl) prayerEl.textContent = 'Sholat ' + label;
                     if (windowEl) windowEl.textContent = 'Jadwal pukul ' + start + ' – ' + end + ' WITA';
-                    if (timerEl) timerEl.textContent = formatDuration(diffSec);
+                    if (timerEl) timerEl.textContent = formatted;
                     if (unitEl) unitEl.textContent = 'Hitung Mundur (Jam:Menit:Detik)';
+
+                    if (mobileStrip) mobileStrip.classList.remove('is-open');
+                    if (mobileCaption) mobileCaption.textContent = isTomorrowSubuh ? 'Jadwal Besok Pagi' : 'Sholat Berikutnya';
+                    if (mobilePrayer) mobilePrayer.textContent = 'Sholat ' + label + ' · ' + start;
+                    if (mobileTimer) mobileTimer.textContent = '-' + formatted;
                 }
             }
 

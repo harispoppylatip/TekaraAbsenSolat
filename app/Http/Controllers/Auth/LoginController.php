@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Models\PrayerTime;
+use App\Models\SolatAttendanceLog;
 use App\Models\SolatSession;
 use App\Models\User;
 use App\Services\SolatSessionService;
@@ -26,11 +27,19 @@ class LoginController extends Controller
             ->get()
             ->keyBy('prayer_name');
 
+        $recentLogs = SolatAttendanceLog::query()
+            ->with(['user:id,name,role,class_name', 'session:id,prayer_name,date,is_test'])
+            ->whereHas('session', fn ($q) => $q->where('is_test', false))
+            ->latest('scanned_at')
+            ->limit(15)
+            ->get();
+
         return view('auth.login', [
             'prayerTimes' => $prayerTimes,
             'todaySessions' => $todaySessions,
             'activeSession' => $sessions->activeSession(),
             'daysSummary' => $sessions->activeDaysSummary(),
+            'recentLogs' => $recentLogs,
             'serverNowIso' => $today->toIso8601String(),
             'todayLabel' => $today->translatedFormat('l, d F Y'),
         ]);
