@@ -284,9 +284,163 @@
             padding-top: 14px;
             border-top: 1px solid #e2e8f0;
         }
+
+        /* Kartu Sinkronisasi KHGT Muhammadiyah */
+        .khgt-meta-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 11px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 14px;
+            font-size: 12.5px;
+            color: #334155;
+        }
+
+        .khgt-times-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .khgt-time-pill {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .khgt-time-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            text-transform: capitalize;
+        }
+
+        .khgt-time-val {
+            font-family: var(--font-heading);
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #0f172a;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .khgt-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
     </style>
 
+    @php
+        $khgt = $khgtConfig ?? [
+            'auto_sync' => true,
+            'latitude' => '-0.464768',
+            'longitude' => '117.138239',
+            'window_minutes' => 45,
+            'last_synced_at' => null,
+            'last_location' => null,
+            'last_times' => [],
+            'api_url' => 'https://khgt.muhammadiyah.or.id/prayer?lat=-0.464768&long=117.138239',
+        ];
+    @endphp
+
     <div class="prayer-container">
+        {{-- 0. SINKRONISASI OTOMATIS API KHGT MUHAMMADIYAH --}}
+        <section class="prayer-card" id="sinkron-khgt">
+            <div class="prayer-card-header">
+                <div class="prayer-card-title">
+                    <h2>Sinkronisasi Jadwal Sholat KHGT Muhammadiyah</h2>
+                    <p>
+                        Ambil jam mulai waktu sholat otomatis dari API resmi Kalender Hijriah Global Tunggal (<code>khgt.muhammadiyah.or.id</code>) sesuai koordinat lokasi sekolah.
+                    </p>
+                </div>
+
+                <span class="prayer-badge {{ !empty($khgt['auto_sync']) ? 'status-open' : 'status-closed' }}">
+                    {{ !empty($khgt['auto_sync']) ? 'Sinkron Harian Otomatis Aktif' : 'Mode Sinkron Manual' }}
+                </span>
+            </div>
+
+            <div class="khgt-meta-bar">
+                <div>
+                    <strong>Lokasi API:</strong>
+                    <span>{{ $khgt['last_location'] ?? 'SMK Istiqomah Muhammadiyah 4 Samarinda (-0.464768, 117.138239)' }}</span>
+                </div>
+                <div style="color: #64748b; font-variant-numeric: tabular-nums;">
+                    @if (!empty($khgt['last_synced_at']))
+                        Terakhir disinkronkan: <strong>{{ $khgt['last_synced_at'] }}</strong>
+                    @else
+                        Belum pernah disinkronkan
+                    @endif
+                </div>
+            </div>
+
+            @if (!empty($khgt['last_times']))
+                <div class="khgt-times-strip" aria-label="Jadwal KHGT Terakhir">
+                    @foreach ($khgt['last_times'] as $kName => $kVal)
+                        <div class="khgt-time-pill">
+                            <span class="khgt-time-name">{{ $kName }}</span>
+                            <span class="khgt-time-val">{{ $kVal }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('prayer-times.sync-khgt') }}">
+                @csrf
+
+                <div class="khgt-form-grid">
+                    <div class="prayer-input-group">
+                        <label for="khgt_latitude">Latitude (Garis Lintang)</label>
+                        <input class="prayer-input-mini" type="text" id="khgt_latitude" name="latitude"
+                            value="{{ old('latitude', $khgt['latitude']) }}" placeholder="-0.464768" required>
+                        @error('latitude')<p class="field-error">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="prayer-input-group">
+                        <label for="khgt_longitude">Longitude (Garis Bujur)</label>
+                        <input class="prayer-input-mini" type="text" id="khgt_longitude" name="longitude"
+                            value="{{ old('longitude', $khgt['longitude']) }}" placeholder="117.138239" required>
+                        @error('longitude')<p class="field-error">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="prayer-input-group">
+                        <label for="khgt_window">Durasi Jendela Absen (menit)</label>
+                        <input class="prayer-input-mini" type="number" id="khgt_window" name="window_minutes"
+                            value="{{ old('window_minutes', $khgt['window_minutes']) }}" min="10" max="180" required>
+                        @error('window_minutes')<p class="field-error">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
+                    <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
+                        <input type="checkbox" name="auto_sync" value="1" @checked(old('auto_sync', $khgt['auto_sync'])) style="width: 16px; height: 16px;">
+                        <span>Perbarui jadwal waktu sholat otomatis setiap hari dari API KHGT Muhammadiyah</span>
+                    </label>
+
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <a href="{{ $khgt['api_url'] }}" target="_blank" rel="noopener"
+                            style="font-size: 12px; font-weight: 600; color: #475569; padding: 7px 12px; border-radius: 7px; border: 1px solid #cbd5e1; background: #ffffff; text-decoration: none;">
+                            Lihat JSON API
+                        </a>
+                        <button class="btn-prayer-save" style="padding: 8px 16px; font-size: 13px;" type="submit">
+                            Ambil &amp; Sinkronkan dari KHGT Sekarang
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
         {{-- 1. HARI ABSEN SEKOLAH --}}
         <section class="prayer-card" id="hari-absen">
             <div class="prayer-card-header">

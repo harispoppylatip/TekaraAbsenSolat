@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\PrayerTime;
+use App\Services\KhgtPrayerSyncService;
 use App\Services\SolatSessionService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -27,8 +28,10 @@ class PrepareSolatSessions extends Command
 
     protected $description = 'Siapkan sesi absen solat harian supaya daftar sesi sudah lengkap sebelum jendelanya dimulai';
 
-    public function handle(SolatSessionService $sessions): int
+    public function handle(SolatSessionService $sessions, KhgtPrayerSyncService $khgt): int
     {
+        $khgt->ensureSyncedToday();
+
         if (PrayerTime::query()->active()->count() === 0) {
             $this->warn('Belum ada waktu solat yang aktif. Isi dulu daftar waktu solat di halaman Waktu Solat.');
 

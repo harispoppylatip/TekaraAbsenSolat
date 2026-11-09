@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\KhgtPrayerSyncService;
 use App\Services\SolatSessionService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -20,8 +21,10 @@ class RunSolatSessionSchedule extends Command
 
     protected $description = 'Buka dan tutup sesi absen solat otomatis mengikuti jam waktu solat';
 
-    public function handle(SolatSessionService $sessions): int
+    public function handle(SolatSessionService $sessions, KhgtPrayerSyncService $khgt): int
     {
+        $khgt->ensureSyncedToday();
+
         $at = $this->option('at');
         $stamp = filled($at) ? Carbon::parse($at) : Carbon::now();
 
