@@ -1147,7 +1147,7 @@
                 <div class="dash-panel-head">
                     <div class="dash-panel-title">
                         <h3>Sesi Sholat Hari Ini</h3>
-                        <p>Status pelaksanaan 5 waktu sholat pada {{ now()->translatedFormat('d F Y') }}</p>
+                        <p>Status pelaksanaan waktu sholat pada {{ now()->translatedFormat('d F Y') }}</p>
                     </div>
                     <a class="dash-action-btn secondary" style="padding: 6px 12px; font-size: 12px;" href="{{ route('sessions.index') }}">
                         Kelola Sesi

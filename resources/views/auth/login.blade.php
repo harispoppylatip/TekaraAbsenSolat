@@ -935,10 +935,10 @@
                 </div>
             </div>
 
-            {{-- Pemilih Sub-Tab: Jadwal 5 Waktu vs 15 Absen Terakhir --}}
+            {{-- Pemilih Sub-Tab: Jadwal Sholat vs 15 Absen Terakhir --}}
             <div class="info-subtabs" role="tablist" aria-label="Pilih tampilan informasi">
                 <button type="button" class="info-subtab is-active" role="tab" aria-selected="true" data-subtab="schedule">
-                    <span>Jadwal 5 Waktu</span>
+                    <span>Jadwal Sholat</span>
                 </button>
                 <button type="button" class="info-subtab" role="tab" aria-selected="false" data-subtab="recent">
                     <span>15 Absen Terakhir</span>
