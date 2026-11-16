@@ -15,6 +15,7 @@ class PrayerTimeController extends Controller
 {
     public function index(SolatSessionService $service, KhgtPrayerSyncService $khgt): View
     {
+        PrayerTime::ensureStandardPrayers();
         $khgt->ensureSyncedToday();
 
         return view('prayer-times.index', [
@@ -73,6 +74,41 @@ class PrayerTimeController extends Controller
         return back()->with('status', 'Waktu solat '.$prayer->label.' ditambahkan.');
     }
 
+    public function updateActivePrayers(Request $request, SolatSessionService $service): RedirectResponse
+    {
+        PrayerTime::ensureStandardPrayers();
+
+        $data = $request->validate([
+            'prayers' => ['nullable', 'array'],
+            'prayers.*' => ['string', 'max:30'],
+        ]);
+
+        $selected = array_map(
+            static fn ($val): string => mb_strtolower(trim((string) $val)),
+            $data['prayers'] ?? []
+        );
+
+        $prayers = PrayerTime::query()->ordered()->get();
+        $activeLabels = [];
+
+        foreach ($prayers as $prayer) {
+            $isActive = in_array(mb_strtolower($prayer->prayer_name), $selected, true);
+            $prayer->update(['is_active' => $isActive]);
+
+            if ($isActive) {
+                $activeLabels[] = $prayer->label;
+            }
+        }
+
+        $this->syncSessionsWithActivePrayers($service);
+
+        $summaryText = $activeLabels !== []
+            ? implode(', ', $activeLabels)
+            : 'Tidak ada waktu solat yang diaktifkan';
+
+        return back()->with('status', 'Pilihan waktu solat yang dipakai berhasil diperbarui ('.$summaryText.').');
+    }
+
     public function updateDays(Request $request, SolatSessionService $service): RedirectResponse
     {
         $data = $request->validate([
@@ -90,15 +126,41 @@ class PrayerTimeController extends Controller
         return back()->with('status', 'Hari absen sekolah diperbarui ('.$summary['summary'].').');
     }
 
-    public function update(PrayerTimeRequest $request, PrayerTime $prayerTime): RedirectResponse
+    public function update(PrayerTimeRequest $request, PrayerTime $prayerTime, SolatSessionService $service): RedirectResponse
     {
-        $prayerTime->update($request->validated());
+        $validated = $request->validated();
+
+        $standardCodes = array_column(PrayerTime::StandardPrayers, 'prayer_name');
+        if (in_array($prayerTime->prayer_name, $standardCodes, true)) {
+            $validated['prayer_name'] = $prayerTime->prayer_name;
+        }
+
+        $prayerTime->update($validated);
+
+        SolatSession::query()
+            ->real()
+            ->forDate(today())
+            ->where('prayer_name', $prayerTime->prayer_name)
+            ->where('status', SolatSession::StatusBelumDibuka)
+            ->whereNull('opened_by')
+            ->whereNull('closed_by')
+            ->update([
+                'start_time' => $prayerTime->start_time,
+                'end_time' => $prayerTime->end_time,
+            ]);
+
+        $this->syncSessionsWithActivePrayers($service);
 
         return back()->with('status', 'Waktu solat '.$prayerTime->label.' diperbarui.');
     }
 
     public function destroy(PrayerTime $prayerTime): RedirectResponse
     {
+        $standardCodes = array_column(PrayerTime::StandardPrayers, 'prayer_name');
+        if (in_array($prayerTime->prayer_name, $standardCodes, true)) {
+            return back()->with('error', 'Waktu solat '.$prayerTime->label.' tidak dapat dihapus. Gunakan cekbox untuk memilih waktu solat yang ingin dipakai.');
+        }
+
         // Bersihkan sesi kosong yang belum memiliki catatan presensi untuk waktu sholat ini
         SolatSession::query()
             ->where('prayer_name', $prayerTime->prayer_name)
@@ -109,5 +171,30 @@ class PrayerTimeController extends Controller
         $prayerTime->delete();
 
         return back()->with('status', 'Waktu solat '.$label.' dihapus.');
+    }
+
+    /**
+     * Bersihkan sesi kosong milik waktu solat yang dinonaktifkan dan buat sesi hari ini
+     * untuk waktu solat yang baru diaktifkan.
+     */
+    private function syncSessionsWithActivePrayers(SolatSessionService $service): void
+    {
+        $inactiveNames = PrayerTime::query()
+            ->where('is_active', false)
+            ->pluck('prayer_name')
+            ->all();
+
+        if ($inactiveNames !== []) {
+            SolatSession::query()
+                ->real()
+                ->whereIn('prayer_name', $inactiveNames)
+                ->where('status', SolatSession::StatusBelumDibuka)
+                ->whereDoesntHave('logs')
+                ->delete();
+        }
+
+        if ($service->isActiveDay(today())) {
+            $service->generateForDate(today());
+        }
     }
 }

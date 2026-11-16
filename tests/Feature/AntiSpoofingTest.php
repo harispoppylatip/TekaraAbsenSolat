@@ -177,4 +177,42 @@ class AntiSpoofingTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk();
     }
+
+    public function test_enam_waktu_solat_standar_dengan_duha_dapat_dipilih_cekbox_dan_tidak_bisa_dihapus(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::RoleAdmin,
+            'password_changed_at' => now(),
+            'enrollment_status' => User::EnrollmentExempted,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('prayer-times.index'))
+            ->assertOk();
+
+        $this->assertSame(
+            ['subuh', 'duha', 'zuhur', 'ashar', 'maghrib', 'isya'],
+            PrayerTime::query()->ordered()->pluck('prayer_name')->all()
+        );
+
+        // Pilih hanya Duha, Zuhur, dan Ashar lewat sistem cekbox
+        $this->actingAs($admin)
+            ->put(route('prayer-times.active.update'), [
+                'prayers' => ['duha', 'zuhur', 'ashar'],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(
+            ['duha', 'zuhur', 'ashar'],
+            PrayerTime::query()->active()->ordered()->pluck('prayer_name')->all()
+        );
+
+        // Pastikan waktu solat standar tidak bisa dihapus
+        $duha = PrayerTime::query()->where('prayer_name', 'duha')->firstOrFail();
+        $this->actingAs($admin)
+            ->delete(route('prayer-times.destroy', $duha))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('prayer_times', ['prayer_name' => 'duha']);
+    }
 }

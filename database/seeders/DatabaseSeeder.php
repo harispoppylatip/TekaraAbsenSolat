@@ -114,7 +114,7 @@ class DatabaseSeeder extends Seeder
                     'end_time' => $prayer['end_time'],
                     'late_minutes' => config('solat.late_minutes'),
                     'sort_order' => $prayer['sort_order'],
-                    'is_active' => true,
+                    'is_active' => $prayer['is_active'] ?? true,
                     'active_days' => config('solat.active_days', [1, 2, 3, 4, 5]),
                 ],
             );

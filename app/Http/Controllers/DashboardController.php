@@ -93,7 +93,7 @@ class DashboardController extends Controller
         }
 
         // Statistik per waktu solat dalam 1 kueri agregasi (menggantikan 10 kueri perulangan)
-        $prayerTimes = PrayerTime::query()->orderBy('sort_order')->get();
+        $prayerTimes = PrayerTime::query()->active()->orderBy('sort_order')->get();
         $prayerRows = DB::table('solat_attendance_logs')
             ->join('solat_sessions', 'solat_sessions.id', '=', 'solat_attendance_logs.solat_session_id')
             ->where('solat_sessions.is_test', false)

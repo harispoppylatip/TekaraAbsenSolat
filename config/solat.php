@@ -99,11 +99,12 @@ return [
     */
 
     'prayer_defaults' => [
-        ['prayer_name' => 'subuh', 'label' => 'Subuh', 'start_time' => '04:45', 'end_time' => '05:30', 'sort_order' => 1],
-        ['prayer_name' => 'zuhur', 'label' => 'Zuhur', 'start_time' => '12:00', 'end_time' => '12:45', 'sort_order' => 2],
-        ['prayer_name' => 'ashar', 'label' => 'Ashar', 'start_time' => '15:15', 'end_time' => '16:00', 'sort_order' => 3],
-        ['prayer_name' => 'maghrib', 'label' => 'Maghrib', 'start_time' => '18:05', 'end_time' => '18:50', 'sort_order' => 4],
-        ['prayer_name' => 'isya', 'label' => 'Isya', 'start_time' => '19:05', 'end_time' => '19:50', 'sort_order' => 5],
+        ['prayer_name' => 'subuh', 'label' => 'Subuh', 'start_time' => '04:45', 'end_time' => '05:30', 'sort_order' => 1, 'is_active' => true],
+        ['prayer_name' => 'duha', 'label' => 'Duha', 'start_time' => '07:30', 'end_time' => '08:30', 'sort_order' => 2, 'is_active' => false],
+        ['prayer_name' => 'zuhur', 'label' => 'Zuhur', 'start_time' => '12:00', 'end_time' => '12:45', 'sort_order' => 3, 'is_active' => true],
+        ['prayer_name' => 'ashar', 'label' => 'Ashar', 'start_time' => '15:15', 'end_time' => '16:00', 'sort_order' => 4, 'is_active' => true],
+        ['prayer_name' => 'maghrib', 'label' => 'Maghrib', 'start_time' => '18:05', 'end_time' => '18:50', 'sort_order' => 5, 'is_active' => true],
+        ['prayer_name' => 'isya', 'label' => 'Isya', 'start_time' => '19:05', 'end_time' => '19:50', 'sort_order' => 6, 'is_active' => true],
     ],
 
     /*

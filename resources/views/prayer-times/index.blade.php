@@ -68,6 +68,27 @@
             }
         }
 
+        .prayer-chips-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+            padding-top: 16px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        @media (max-width: 900px) {
+            .prayer-chips-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 500px) {
+            .prayer-chips-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         .day-chip-label {
             display: flex;
             flex-direction: column;
@@ -491,81 +512,60 @@
             </form>
         </section>
 
-        {{-- 2. FORM TAMBAH WAKTU SOLAT (COLLAPSIBLE) --}}
-        <section class="prayer-card">
-            <details class="add-prayer-details" @if ($errors->any()) open @endif>
-                <summary>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Tambah Waktu Solat Baru
-                </summary>
-
-                <div class="add-prayer-body">
-                    <p style="font-size: 13px; color: #64748b; margin-bottom: 14px;">
-                        Sesi absen harian dibuat mengikuti jam di sini. Dibuka otomatis {{ $earlyOpenMinutes }} menit sebelum jam mulai.
+        {{-- 2. PILIHAN WAKTU SOLAT YANG DIPAKAI (SISTEM CEKBOX 6 WAKTU) --}}
+        @php
+            $activePrayerCount = $prayers->where('is_active', true)->count();
+        @endphp
+        <section class="prayer-card" id="pilihan-waktu-solat">
+            <div class="prayer-card-header">
+                <div class="prayer-card-title">
+                    <h2>Pilihan Waktu Solat yang Dipakai</h2>
+                    <p>
+                        Centang waktu solat mana saja yang ingin diambil atau dipakai oleh sekolah (total 6 waktu: Subuh, Duha, Zuhur, Ashar, Maghrib, dan Isya). Data di bawah dapat diedit jam serta toleransinya, namun tidak dapat dihapus.
                     </p>
-
-                    <form method="POST" action="{{ route('prayer-times.store') }}">
-                        @csrf
-
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px;">
-                            <div class="prayer-input-group">
-                                <label for="prayer_name">Kode Waktu Solat (cth: subuh)</label>
-                                <input class="prayer-input-mini" type="text" id="prayer_name" name="prayer_name" value="{{ old('prayer_name') }}" placeholder="subuh" required>
-                                @error('prayer_name')<p class="field-error">{{ $message }}</p>@enderror
-                            </div>
-
-                            <div class="prayer-input-group">
-                                <label for="label">Nama Tampilan</label>
-                                <input class="prayer-input-mini" type="text" id="label" name="label" value="{{ old('label') }}" placeholder="Solat Subuh" required>
-                                @error('label')<p class="field-error">{{ $message }}</p>@enderror
-                            </div>
-
-                            <div class="prayer-input-group">
-                                <label for="start_time">Jam Mulai</label>
-                                <input class="prayer-input-mini" type="time" id="start_time" name="start_time" value="{{ old('start_time') }}" required>
-                                @error('start_time')<p class="field-error">{{ $message }}</p>@enderror
-                            </div>
-
-                            <div class="prayer-input-group">
-                                <label for="end_time">Jam Selesai</label>
-                                <input class="prayer-input-mini" type="time" id="end_time" name="end_time" value="{{ old('end_time') }}" required>
-                                @error('end_time')<p class="field-error">{{ $message }}</p>@enderror
-                            </div>
-
-                            <div class="prayer-input-group">
-                                <label for="late_minutes">Toleransi Terlambat (menit)</label>
-                                <input class="prayer-input-mini" type="number" id="late_minutes" name="late_minutes" value="{{ old('late_minutes', config('solat.late_minutes')) }}" min="0" max="180" required>
-                                @error('late_minutes')<p class="field-error">{{ $message }}</p>@enderror
-                            </div>
-
-                            <div class="prayer-input-group">
-                                <label for="sort_order">Urutan Tampil</label>
-                                <input class="prayer-input-mini" type="number" id="sort_order" name="sort_order" value="{{ old('sort_order', $prayers->count() + 1) }}" min="0" required>
-                                @error('sort_order')<p class="field-error">{{ $message }}</p>@enderror
-                            </div>
-                        </div>
-
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
-                            <input type="checkbox" id="is_active" name="is_active" value="1" @checked(old('is_active', true))>
-                            <label for="is_active" style="font-size: 13px; color: #334155;">Aktif dan otomatis disiapkan setiap hari</label>
-                        </div>
-
-                        <button class="btn-prayer-save" style="padding: 8px 16px; font-size: 13px;" type="submit">
-                            Simpan Waktu Solat
-                        </button>
-                    </form>
                 </div>
-            </details>
+
+                <span class="prayer-badge {{ $activePrayerCount > 0 ? 'status-open' : 'status-closed' }}">
+                    {{ $activePrayerCount }} dari {{ $prayers->count() }} Waktu Dipakai
+                </span>
+            </div>
+
+            <form method="POST" action="{{ route('prayer-times.active.update') }}">
+                @csrf
+                @method('PUT')
+
+                <div class="prayer-chips-grid">
+                    @foreach ($prayers as $prayer)
+                        <label class="day-chip-label" for="check-prayer-{{ $prayer->id }}">
+                            <input type="checkbox" id="check-prayer-{{ $prayer->id }}" name="prayers[]"
+                                value="{{ $prayer->prayer_name }}" @checked($prayer->is_active)>
+                            <span class="day-chip-name">{{ $prayer->label }}</span>
+                            <span style="font-size: 11px; color: #64748b; margin-bottom: 4px; font-variant-numeric: tabular-nums;">
+                                {{ $prayer->shortTime($prayer->start_time) }} – {{ $prayer->shortTime($prayer->end_time) }}
+                            </span>
+                            <span class="day-chip-status {{ $prayer->is_active ? 'is-active' : 'is-off' }}">
+                                {{ $prayer->is_active ? 'Dipakai' : 'Nonaktif' }}
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f1f5f9;">
+                    <button class="btn-prayer-save" style="padding: 8px 16px; font-size: 13px;" type="submit">
+                        Simpan Pilihan Waktu Solat
+                    </button>
+                    <span style="font-size: 12.5px; color: #64748b;">
+                        Sesi absen otomatis dibuka {{ $earlyOpenMinutes }} menit sebelum jam mulai pada waktu solat yang dicentang.
+                    </span>
+                </div>
+            </form>
         </section>
 
-        {{-- 3. DAFTAR WAKTU SOLAT AKTIF --}}
+        {{-- 3. PENGATURAN JAM & TOLERANSI 6 WAKTU SOLAT (BISA DIEDIT, TIDAK BISA DIHAPUS) --}}
         <div data-live="waktu-solat">
             <div class="prayer-list-grid">
                 @foreach ($prayers as $prayer)
-                    <div class="prayer-item-card">
+                    <div class="prayer-item-card" style="{{ !$prayer->is_active ? 'opacity: 0.78; background: #f8fafc;' : '' }}">
                         <div class="prayer-item-top">
                             <div class="prayer-item-title-box">
                                 <h3>{{ $prayer->label }}</h3>
@@ -573,7 +573,7 @@
                             </div>
 
                             <span class="prayer-badge {{ $prayer->is_active ? 'status-open' : 'status-closed' }}">
-                                {{ $prayer->is_active ? 'Aktif' : 'Nonaktif' }}
+                                {{ $prayer->is_active ? 'Dipakai' : 'Tidak Dipakai' }}
                             </span>
                         </div>
 
@@ -588,8 +588,8 @@
                                 </div>
 
                                 <div class="prayer-input-group">
-                                    <label for="prayer-name-{{ $prayer->id }}">Kode</label>
-                                    <input class="prayer-input-mini" type="text" id="prayer-name-{{ $prayer->id }}" name="prayer_name" value="{{ $prayer->prayer_name }}" required>
+                                    <label for="prayer-name-{{ $prayer->id }}">Kode (Tetap)</label>
+                                    <input class="prayer-input-mini" type="text" id="prayer-name-{{ $prayer->id }}" name="prayer_name" value="{{ $prayer->prayer_name }}" readonly style="background: #f1f5f9; color: #64748b; cursor: not-allowed;">
                                 </div>
 
                                 <div class="prayer-input-group">
@@ -609,30 +609,24 @@
 
                                 <div class="prayer-input-group">
                                     <label for="sort-{{ $prayer->id }}">Urutan</label>
-                                    <input class="prayer-input-mini" type="number" id="sort-{{ $prayer->id }}" name="sort_order" value="{{ $prayer->sort_order }}" min="0" required>
+                                    <input class="prayer-input-mini" type="number" id="sort-{{ $prayer->id }}" name="sort_order" value="{{ $prayer->sort_order }}" min="1" max="6" required>
                                 </div>
                             </div>
 
                             <div style="display: flex; align-items: center; gap: 7px; margin-top: 4px;">
                                 <input type="checkbox" id="active-{{ $prayer->id }}" name="is_active" value="1" @checked($prayer->is_active)>
-                                <label for="active-{{ $prayer->id }}" style="font-size: 12px; color: #475569;">Aktifkan sesi ini setiap hari</label>
+                                <label for="active-{{ $prayer->id }}" style="font-size: 12px; color: #475569; cursor: pointer;">Pakai / aktifkan waktu solat ini</label>
                             </div>
 
                             <div class="prayer-bottom-actions">
                                 <button class="btn-prayer-save" type="submit">
-                                    Perbarui
+                                    Simpan Perubahan
                                 </button>
-                        </form>
-
-                                <form method="POST" action="{{ route('prayer-times.destroy', $prayer) }}"
-                                    data-confirm="Hapus waktu solat {{ $prayer->label }}?">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn-prayer-del" type="submit" title="Hapus waktu solat ini">
-                                        Hapus
-                                    </button>
-                                </form>
+                                <span style="font-size: 11.5px; color: #64748b;">
+                                    Data tetap &bull; Tidak dapat dihapus
+                                </span>
                             </div>
+                        </form>
                     </div>
                 @endforeach
             </div>

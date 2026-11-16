@@ -62,7 +62,7 @@ abstract class TestCase extends BaseTestCase
                     'end_time' => $prayer['end_time'],
                     'late_minutes' => config('solat.late_minutes'),
                     'sort_order' => $prayer['sort_order'],
-                    'is_active' => true,
+                    'is_active' => $prayer['is_active'] ?? true,
                     'active_days' => $activeDays,
                 ],
             );

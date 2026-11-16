@@ -114,6 +114,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/waktu-solat', [PrayerTimeController::class, 'index'])->name('prayer-times.index');
         Route::post('/waktu-solat/sinkron-khgt', [PrayerTimeController::class, 'syncKhgt'])->name('prayer-times.sync-khgt');
         Route::post('/waktu-solat', [PrayerTimeController::class, 'store'])->name('prayer-times.store');
+        Route::put('/waktu-solat/pilihan-aktif', [PrayerTimeController::class, 'updateActivePrayers'])->name('prayer-times.active.update');
         Route::put('/waktu-solat/hari-aktif', [PrayerTimeController::class, 'updateDays'])->name('prayer-times.days.update');
         Route::put('/waktu-solat/{prayerTime}', [PrayerTimeController::class, 'update'])->name('prayer-times.update');
         Route::delete('/waktu-solat/{prayerTime}', [PrayerTimeController::class, 'destroy'])->name('prayer-times.destroy');
