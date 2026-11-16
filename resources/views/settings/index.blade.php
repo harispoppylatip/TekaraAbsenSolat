@@ -1190,7 +1190,48 @@
             </form>
         </section>
 
-        {{-- 6. Pengaturan Foto Bukti Absensi --}}
+        {{-- 6. Pengaturan Keamanan Anti Foto Palsu --}}
+        <section class="clean-section-card">
+            <div class="clean-section-header">
+                <div class="clean-header-title-row">
+                    <div class="clean-header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <path d="m9 12 2 2 4-4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="clean-header-title">Anti Foto Palsu (Anti-Spoofing)</h2>
+                        <p class="clean-header-sub">Tolak kecurangan absensi menggunakan foto di layar HP, monitor, atau cetakan kertas menggunakan deteksi keaslian wajah MiniFASNet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('settings.anti-spoofing') }}">
+                @csrf
+                @method('PUT')
+
+                <div class="field" style="margin-bottom: 18px;">
+                    <label class="checkbox-row" for="anti_spoofing_enabled" style="cursor: pointer; align-items: flex-start; gap: 12px;">
+                        <input type="checkbox" id="anti_spoofing_enabled" name="anti_spoofing_enabled" value="1" @checked($antiSpoofingEnabled) style="margin-top: 3px; width: 18px; height: 18px; cursor: pointer;">
+                        <div>
+                            <strong style="display: block; font-size: 14px; color: #0f172a;">Aktifkan perlindungan anti foto palsu pada kamera absen &amp; pendaftaran wajah</strong>
+                            <p class="field-hint" style="margin-top: 4px; color: #64748b; font-size: 12.5px; line-height: 1.5;">
+                                Saat aktif, sistem memeriksa keaslian wajah secara langsung sebelum pencocokan identitas. Matikan opsi ini bila kamera di lokasi memiliki pencahayaan sangat redup atau sudut ekstrem yang memicu penolakan palsu. Perubahan langsung berlaku tanpa perlu restart server.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="form-actions" style="margin-top: 14px;">
+                    <button class="btn btn-primary" type="submit">
+                        Simpan Pengaturan Anti Foto Palsu
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        {{-- 7. Pengaturan Foto Bukti Absensi --}}
         <section class="clean-section-card">
             <div class="clean-section-header">
                 <div class="clean-header-title-row">

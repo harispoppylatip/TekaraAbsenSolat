@@ -48,6 +48,7 @@ class SettingController extends Controller
             'photoFileCount' => $storageSummary['file_count'],
             'photoTotalBytes' => $storageSummary['total_bytes'],
             'proofOverlayEnabled' => Setting::proofOverlayEnabled(),
+            'antiSpoofingEnabled' => Setting::antiSpoofingEnabled(),
             'faceCctvTolerance' => Setting::faceCctvTolerance(),
             'faceTolerance' => Setting::faceTolerance(),
             'faceCctvMinFaceSize' => Setting::faceCctvMinFaceSize(),
@@ -158,6 +159,21 @@ class SettingController extends Controller
         Setting::set(Setting::KeyFaceMinFaceSize, (int) $validated['face_min_face_size']);
 
         return back()->with('status', 'Pengaturan sensitivitas pengenalan wajah berhasil disimpan dan langsung aktif.');
+    }
+
+    /**
+     * Perbarui opsi pemeriksaan anti foto palsu (MiniFASNet anti-spoofing).
+     */
+    public function updateAntiSpoofing(Request $request): RedirectResponse
+    {
+        $enabled = $request->boolean('anti_spoofing_enabled', false);
+        Setting::set(Setting::KeyAntiSpoofingEnabled, $enabled);
+
+        $message = $enabled
+            ? 'Pengaturan diperbarui: Fitur anti foto palsu kini AKTIF. Pemindaian dari layar HP, monitor, atau foto cetak akan ditolak.'
+            : 'Pengaturan diperbarui: Fitur anti foto palsu kini DIMATIKAN. Semua wajah yang terdeteksi langsung diproses tanpa pemeriksaan keaslian layar/kertas.';
+
+        return back()->with('status', $message);
     }
 
     /**

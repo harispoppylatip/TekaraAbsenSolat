@@ -320,6 +320,7 @@ const FACE_TONES = {
     recorded: "saved",
     late: "saved",
     duplicate: "saved",
+    spoof_detected: "spoof",
     unknown: "unknown",
     face_too_small: "unknown",
     ambiguous: "unknown",
@@ -384,6 +385,10 @@ function toneColor(tone) {
 
     if (tone === "saved") {
         return pick("--success", "#1b6b3a");
+    }
+
+    if (tone === "spoof") {
+        return pick("--danger", "#dc2626");
     }
 
     if (tone === "unknown") {

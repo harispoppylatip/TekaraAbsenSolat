@@ -99,6 +99,11 @@ class EnrollmentController extends Controller
     public function progress(Request $request, StudentEnrollmentService $enrollment): JsonResponse
     {
         $user = $request->user();
+
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         $state = $enrollment->state($user);
 
         return response()->json([
@@ -135,6 +140,10 @@ class EnrollmentController extends Controller
             && ($user->isAdmin() || $user->isPetugas() || (int) $user->getKey() === (int) $faceEmbedding->user_id);
 
         abort_unless($allowed, 403);
+
+        if (session()->isStarted()) {
+            session()->save();
+        }
 
         $path = $faceEmbedding->photo_path;
 

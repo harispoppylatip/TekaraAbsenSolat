@@ -151,6 +151,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Bawaan pemeriksaan anti foto palsu (anti-spoofing)
+    |--------------------------------------------------------------------------
+    |
+    | Menolak foto wajah yang diambil dari layar HP, monitor, atau cetakan
+    | kertas. Nilai di sini hanya menjadi bawaan awal; admin dapat menyalakan
+    | atau mematikannya kapan saja lewat halaman Pengaturan.
+    |
+    */
+
+    'anti_spoofing' => (bool) env('FACE_ANTI_SPOOFING', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Batas waktu tunggu (detik)
     |--------------------------------------------------------------------------
     |

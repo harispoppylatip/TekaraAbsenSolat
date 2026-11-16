@@ -219,6 +219,10 @@ class FaceDataController extends Controller
      */
     public function progress(FacePhotoQueueService $queue): JsonResponse
     {
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         return response()->json([
             'batches' => $queue->batches(),
             'unfinished' => $queue->hasUnfinished(),

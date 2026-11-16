@@ -6,6 +6,7 @@ use App\Models\FaceEmbedding;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Pencocokan wajah di sisi aplikasi.
@@ -61,6 +62,30 @@ class FaceMatcherService
      * misalnya karena dimensinya salah atau modelnya berbeda.
      */
     private int $skipped = 0;
+
+    /**
+     * Cache galeri sidik wajah di memori proses agar pemindaian multi-wajah
+     * dan worker latar belakang (cctv:auto-scan) tidak mengurai ulang ribuan
+     * baris JSON 512-float dari basis data pada setiap wajah/frame.
+     */
+    private static ?string $cachedSignature = null;
+
+    /**
+     * @var list<FaceEmbedding>
+     */
+    private static array $cachedRows = [];
+
+    private static int $invalidationGeneration = 0;
+
+    /**
+     * Kosongkan cache galeri wajah di memori saat ada perubahan data wajah/anggota.
+     */
+    public static function invalidateCache(): void
+    {
+        self::$invalidationGeneration++;
+        self::$cachedSignature = null;
+        self::$cachedRows = [];
+    }
 
     /**
      * Cocokkan satu angka wajah dengan seluruh sidik wajah yang tersimpan.
@@ -189,39 +214,74 @@ class FaceMatcherService
         $enforce = (bool) config('face.enforce_model', true);
         $groups = [];
 
+        foreach ($this->referenceRows() as $row) {
+            $stored = $row->embedding;
+
+            if ($row->user === null || ! is_array($stored) || count($stored) !== count($embedding)) {
+                $this->skipped++;
+
+                continue;
+            }
+
+            if (! $row->user->hasCompletedEnrollment()) {
+                $this->skipped++;
+
+                continue;
+            }
+
+            if ($enforce && $this->otherModel($row, $model)) {
+                $this->skipped++;
+
+                continue;
+            }
+
+            $userId = (int) $row->user_id;
+
+            $groups[$userId] ??= ['user' => $row->user, 'distances' => []];
+            $groups[$userId]['distances'][] = $this->distance($embedding, $stored);
+        }
+
+        return $groups;
+    }
+
+    /**
+     * Ambil daftar baris sidik wajah aktif dengan cache berbasis tanda tangan (signature) ringan.
+     *
+     * @return list<FaceEmbedding>
+     */
+    private function referenceRows(): array
+    {
+        $sig = DB::table('face_embeddings')
+            ->join('users', 'users.id', '=', 'face_embeddings.user_id')
+            ->where('users.enrollment_status', User::EnrollmentCompleted)
+            ->selectRaw('COUNT(*) as cnt, COALESCE(MAX(face_embeddings.id), 0) as max_id, COALESCE(SUM(face_embeddings.id), 0) as sum_id, COALESCE(MAX(face_embeddings.updated_at), \'\') as max_fe_upd, COALESCE(MAX(users.updated_at), \'\') as max_u_upd')
+            ->first();
+
+        $signature = self::$invalidationGeneration . ':'
+            . ($sig->cnt ?? 0) . ':'
+            . ($sig->max_id ?? 0) . ':'
+            . ($sig->sum_id ?? 0) . ':'
+            . ($sig->max_fe_upd ?? '') . ':'
+            . ($sig->max_u_upd ?? '');
+
+        if (self::$cachedSignature === $signature) {
+            return self::$cachedRows;
+        }
+
+        $rows = [];
         FaceEmbedding::query()
             ->with('user')
             ->whereHas('user', fn ($query) => $query->where('enrollment_status', User::EnrollmentCompleted))
-            ->chunkById(500, function ($rows) use ($embedding, $model, $enforce, &$groups): void {
-                foreach ($rows as $row) {
-                    $stored = $row->embedding;
-
-                    if ($row->user === null || ! is_array($stored) || count($stored) !== count($embedding)) {
-                        $this->skipped++;
-
-                        continue;
-                    }
-
-                    if (! $row->user->hasCompletedEnrollment()) {
-                        $this->skipped++;
-
-                        continue;
-                    }
-
-                    if ($enforce && $this->otherModel($row, $model)) {
-                        $this->skipped++;
-
-                        continue;
-                    }
-
-                    $userId = (int) $row->user_id;
-
-                    $groups[$userId] ??= ['user' => $row->user, 'distances' => []];
-                    $groups[$userId]['distances'][] = $this->distance($embedding, $stored);
+            ->chunkById(500, function ($chunk) use (&$rows): void {
+                foreach ($chunk as $row) {
+                    $rows[] = $row;
                 }
             });
 
-        return $groups;
+        self::$cachedSignature = $signature;
+        self::$cachedRows = $rows;
+
+        return self::$cachedRows;
     }
 
     /**

@@ -20,6 +20,7 @@ class Setting extends Model
     ];
 
     public const KeyProofBoxOverlay = 'proof_box_overlay';
+    public const KeyAntiSpoofingEnabled = 'anti_spoofing_enabled';
     public const KeyFaceCctvTolerance = 'face_cctv_tolerance';
     public const KeyFaceTolerance = 'face_tolerance';
     public const KeyFaceCctvMinFaceSize = 'face_cctv_min_face_size';
@@ -79,6 +80,17 @@ class Setting extends Model
     public static function proofOverlayEnabled(): bool
     {
         $val = static::get(self::KeyProofBoxOverlay, '1');
+
+        return in_array($val, ['1', 'true', true, 1], true);
+    }
+
+    /**
+     * Apakah fitur anti foto palsu (MiniFASNet anti-spoofing) diaktifkan.
+     */
+    public static function antiSpoofingEnabled(): bool
+    {
+        $default = config('face.anti_spoofing', true) ? '1' : '0';
+        $val = static::get(self::KeyAntiSpoofingEnabled, $default);
 
         return in_array($val, ['1', 'true', true, 1], true);
     }

@@ -13,7 +13,13 @@ class FaceEmbedding extends Model
 {
     protected static function booted(): void
     {
+        static::saved(function (): void {
+            \App\Services\FaceMatcherService::invalidateCache();
+        });
+
         static::deleted(function (self $faceEmbedding): void {
+            \App\Services\FaceMatcherService::invalidateCache();
+
             if ($faceEmbedding->photo_path && Storage::disk('local')->exists($faceEmbedding->photo_path)) {
                 Storage::disk('local')->delete($faceEmbedding->photo_path);
             }

@@ -113,6 +113,7 @@ RUN set -eux; \
     echo 'Pemeriksaan PHP, ekstensi, dan driver basis data lulus.'
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-absen-solat.ini
+COPY docker/php/www.conf /usr/local/etc/php-fpm.d/zz-absen-solat-pool.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

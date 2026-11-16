@@ -8,6 +8,7 @@ use App\Models\SolatSession;
 use App\Models\User;
 use App\Services\SolatSessionService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -27,19 +28,17 @@ class DashboardController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        $todayHadir = SolatAttendanceLog::query()
-            ->whereHas('session', fn ($query) => $query->real()->forDate($today))
-            ->where('status', SolatAttendanceLog::StatusHadir)
-            ->count();
+        $todayHadir = (int) $todaySessions->sum('hadir_count');
+        $todayTerlambat = (int) $todaySessions->sum('terlambat_count');
 
-        $todayTerlambat = SolatAttendanceLog::query()
-            ->whereHas('session', fn ($query) => $query->real()->forDate($today))
-            ->where('status', SolatAttendanceLog::StatusTerlambat)
-            ->count();
+        $userCounts = User::query()
+            ->where('role', '!=', User::RoleKiosk)
+            ->selectRaw('COUNT(*) as total_anggota, SUM(CASE WHEN role = ? THEN 1 ELSE 0 END) as total_murid', [User::RoleMurid])
+            ->first();
 
         $stats = [
-            'anggota' => User::query()->where('role', '!=', User::RoleKiosk)->count(),
-            'murid' => User::query()->where('role', User::RoleMurid)->count(),
+            'anggota' => (int) ($userCounts->total_anggota ?? 0),
+            'murid' => (int) ($userCounts->total_murid ?? 0),
             'berwajah' => User::query()->where('role', '!=', User::RoleKiosk)->has('faceEmbeddings')->count(),
             'bersidik_jari' => User::query()->where('role', '!=', User::RoleKiosk)->has('fingerprints')->count(),
             'sesi' => $todaySessions->count(),
@@ -58,18 +57,29 @@ class DashboardController extends Controller
         $week = [];
         $sevenDaysAgo = $today->copy()->subDays(6)->startOfDay();
 
+        // Hitung rekap 7 hari terakhir dalam 1 kueri agregasi (menggantikan 14 kueri perulangan)
+        $weekRows = DB::table('solat_attendance_logs')
+            ->join('solat_sessions', 'solat_sessions.id', '=', 'solat_attendance_logs.solat_session_id')
+            ->where('solat_sessions.is_test', false)
+            ->where('solat_sessions.prayer_name', '!=', SolatSession::TestPrayerName)
+            ->whereDate('solat_sessions.date', '>=', $sevenDaysAgo->toDateString())
+            ->whereDate('solat_sessions.date', '<=', $today->toDateString())
+            ->selectRaw('DATE(solat_sessions.date) as day_date, solat_attendance_logs.status, COUNT(*) as total')
+            ->groupByRaw('DATE(solat_sessions.date), solat_attendance_logs.status')
+            ->get();
+
+        $weekMap = [];
+        foreach ($weekRows as $row) {
+            $d = substr((string) $row->day_date, 0, 10);
+            $weekMap[$d][$row->status] = (int) $row->total;
+        }
+
         for ($i = 6; $i >= 0; $i--) {
             $day = $today->copy()->subDays($i);
+            $dateKey = $day->toDateString();
 
-            $hadir = SolatAttendanceLog::query()
-                ->whereHas('session', fn ($query) => $query->real()->forDate($day))
-                ->where('status', SolatAttendanceLog::StatusHadir)
-                ->count();
-
-            $terlambat = SolatAttendanceLog::query()
-                ->whereHas('session', fn ($query) => $query->real()->forDate($day))
-                ->where('status', SolatAttendanceLog::StatusTerlambat)
-                ->count();
+            $hadir = $weekMap[$dateKey][SolatAttendanceLog::StatusHadir] ?? 0;
+            $terlambat = $weekMap[$dateKey][SolatAttendanceLog::StatusTerlambat] ?? 0;
 
             $week[] = [
                 'label' => $day->translatedFormat('d M'),
@@ -82,20 +92,27 @@ class DashboardController extends Controller
             ];
         }
 
-        // Statistik per waktu solat (30 hari terakhir / keseluruhan sesi nyata)
+        // Statistik per waktu solat dalam 1 kueri agregasi (menggantikan 10 kueri perulangan)
         $prayerTimes = PrayerTime::query()->orderBy('sort_order')->get();
+        $prayerRows = DB::table('solat_attendance_logs')
+            ->join('solat_sessions', 'solat_sessions.id', '=', 'solat_attendance_logs.solat_session_id')
+            ->where('solat_sessions.is_test', false)
+            ->where('solat_sessions.prayer_name', '!=', SolatSession::TestPrayerName)
+            ->selectRaw('solat_sessions.prayer_name, solat_attendance_logs.status, COUNT(*) as total')
+            ->groupBy('solat_sessions.prayer_name', 'solat_attendance_logs.status')
+            ->get();
+
+        $prayerMap = [];
+        $allRealLogsTotal = 0;
+        foreach ($prayerRows as $row) {
+            $prayerMap[$row->prayer_name][$row->status] = (int) $row->total;
+            $allRealLogsTotal += (int) $row->total;
+        }
+
         $prayerStats = [];
-
         foreach ($prayerTimes as $pt) {
-            $hadirCount = SolatAttendanceLog::query()
-                ->whereHas('session', fn ($q) => $q->real()->where('prayer_name', $pt->prayer_name))
-                ->where('status', SolatAttendanceLog::StatusHadir)
-                ->count();
-
-            $terlambatCount = SolatAttendanceLog::query()
-                ->whereHas('session', fn ($q) => $q->real()->where('prayer_name', $pt->prayer_name))
-                ->where('status', SolatAttendanceLog::StatusTerlambat)
-                ->count();
+            $hadirCount = $prayerMap[$pt->prayer_name][SolatAttendanceLog::StatusHadir] ?? 0;
+            $terlambatCount = $prayerMap[$pt->prayer_name][SolatAttendanceLog::StatusTerlambat] ?? 0;
 
             $prayerStats[] = [
                 'name' => $pt->prayer_name,
@@ -121,10 +138,6 @@ class DashboardController extends Controller
             ->whereNotIn('device_id', $cameraDevices)
             ->where('device_id', 'not like', 'cctv-%')
             ->where('device_id', 'not like', 'kamera-%')
-            ->count();
-
-        $allRealLogsTotal = SolatAttendanceLog::query()
-            ->whereHas('session', fn ($q) => $q->real())
             ->count();
 
         $faceTotal = max(0, $allRealLogsTotal - $fingerprintTotal);

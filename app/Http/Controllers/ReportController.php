@@ -60,6 +60,10 @@ class ReportController extends Controller
             'prayer' => $prayer,
         ];
 
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         $delimiter = $request->query('delimiter') === 'comma' ? ',' : ';';
         $rows = $reports->perMember($from, $to, $filters, 100000);
         $filename = 'rekap-solat-'.$from->toDateString().'-sampai-'.$to->toDateString().'.csv';
@@ -119,7 +123,7 @@ class ReportController extends Controller
     private function sanitizeCsvCell(mixed $value): string
     {
         $text = (string) ($value ?? '');
-        if ($text !== '' && in_array($text[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+        if ($text !== '' && $text !== '-' && in_array($text[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
             return "'".$text;
         }
 

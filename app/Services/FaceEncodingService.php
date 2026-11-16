@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\FaceEmbedding;
+use App\Models\Setting;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -150,7 +152,8 @@ class FaceEncodingService
         }
 
         try {
-            $response = Http::timeout((int) config('face.timeout', 90))
+            $response = Http::connectTimeout(3)
+                ->timeout((int) config('face.timeout', 45))
                 ->acceptJson()
                 ->attach('image', $contents, 'scan.jpg')
                 ->post($this->serviceUrl().'/encode?'.$this->query($withPhoto, $withQuality));
@@ -187,7 +190,7 @@ class FaceEncodingService
             );
         }
 
-        if ($status === self::StatusSpoofDetected || $status === 'spoof_detected') {
+        if (Setting::antiSpoofingEnabled() && ($status === self::StatusSpoofDetected || $status === 'spoof_detected')) {
             return $this->failure(
                 self::StatusSpoofDetected,
                 is_string($data['message'] ?? null) && $data['message'] !== ''
@@ -295,7 +298,8 @@ class FaceEncodingService
         }
 
         try {
-            $response = Http::timeout((int) config('face.timeout', 90))
+            $response = Http::connectTimeout(3)
+                ->timeout((int) config('face.detect_timeout', 15))
                 ->acceptJson()
                 ->attach('image', $contents, 'scan.jpg')
                 ->post($this->serviceUrl().'/detect?'.$this->query($withPhoto));
@@ -352,6 +356,7 @@ class FaceEncodingService
 
             $encoding = $face['encoding'] ?? null;
             $valid = is_array($encoding) && count($encoding) === FaceEmbedding::Dimensions;
+            $antiSpoofEnabled = Setting::antiSpoofingEnabled();
 
             $faces[] = [
                 'index' => count($faces),
@@ -362,7 +367,7 @@ class FaceEncodingService
                 'face_size' => (int) ($face['face_size'] ?? 0),
                 'encoding' => $valid ? FaceEmbedding::normalizeEmbedding($encoding) : null,
                 'error' => $valid ? null : (is_string($face['error'] ?? null) ? $face['error'] : 'encoding_failed'),
-                'antispoof' => is_array($face['antispoof'] ?? null) ? $face['antispoof'] : null,
+                'antispoof' => $antiSpoofEnabled && is_array($face['antispoof'] ?? null) ? $face['antispoof'] : null,
             ];
         }
 
@@ -406,8 +411,29 @@ class FaceEncodingService
      */
     public function health(): ?array
     {
+        if (! app()->runningUnitTests()) {
+            $cached = Cache::get('face_service_health_cache');
+            if (is_array($cached) && array_key_exists('result', $cached)) {
+                return $cached['result'];
+            }
+        }
+
+        $result = $this->fetchHealth();
+
+        if (! app()->runningUnitTests()) {
+            Cache::put('face_service_health_cache', ['result' => $result], 3);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{model: string, ready: bool, dimensions: int}|null
+     */
+    private function fetchHealth(): ?array
+    {
         try {
-            $response = Http::timeout(3)->acceptJson()->get($this->serviceUrl().'/health');
+            $response = Http::connectTimeout(2)->timeout(3)->acceptJson()->get($this->serviceUrl().'/health');
         } catch (ConnectionException) {
             return null;
         }
@@ -459,7 +485,10 @@ class FaceEncodingService
      */
     private function query(bool $withPhoto, bool $withQuality = false): string
     {
-        $query = ['require_single' => 1];
+        $query = [
+            'require_single' => 1,
+            'antispoof' => Setting::antiSpoofingEnabled() ? 1 : 0,
+        ];
 
         if ($withPhoto) {
             $query['with_photo'] = 1;

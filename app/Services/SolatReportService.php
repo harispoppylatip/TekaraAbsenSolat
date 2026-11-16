@@ -31,16 +31,32 @@ class SolatReportService
         $sessions = SolatSession::query();
         $this->scopeSessions($sessions, $from, $to, $prayer);
 
-        $logs = SolatAttendanceLog::query();
-        $this->scopeLogs($logs, $from, $to, $prayer);
+        $sessionIds = (clone $sessions)->pluck('id');
+
+        $sessionCounts = (clone $sessions)
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as open_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as closed_count', [
+                SolatSession::StatusSedangDibuka,
+                SolatSession::StatusSudahDitutup,
+            ])
+            ->first();
+
+        $logCounts = $sessionIds->isEmpty()
+            ? (object) ['total' => 0, 'present_count' => 0, 'late_count' => 0]
+            : SolatAttendanceLog::query()
+                ->whereIn('solat_session_id', $sessionIds)
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as present_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as late_count', [
+                    SolatAttendanceLog::StatusHadir,
+                    SolatAttendanceLog::StatusTerlambat,
+                ])
+                ->first();
 
         return [
-            'sessions' => (clone $sessions)->count(),
-            'open_sessions' => (clone $sessions)->where('status', SolatSession::StatusSedangDibuka)->count(),
-            'closed_sessions' => (clone $sessions)->where('status', SolatSession::StatusSudahDitutup)->count(),
-            'logs' => (clone $logs)->count(),
-            'present' => (clone $logs)->where('status', SolatAttendanceLog::StatusHadir)->count(),
-            'late' => (clone $logs)->where('status', SolatAttendanceLog::StatusTerlambat)->count(),
+            'sessions' => (int) ($sessionCounts->total ?? 0),
+            'open_sessions' => (int) ($sessionCounts->open_count ?? 0),
+            'closed_sessions' => (int) ($sessionCounts->closed_count ?? 0),
+            'logs' => (int) ($logCounts->total ?? 0),
+            'present' => (int) ($logCounts->present_count ?? 0),
+            'late' => (int) ($logCounts->late_count ?? 0),
             'members' => User::query()->where('role', '!=', User::RoleKiosk)->count(),
             'with_face' => User::query()->where('role', '!=', User::RoleKiosk)->has('faceEmbeddings')->count(),
         ];
@@ -56,17 +72,29 @@ class SolatReportService
     {
         $prayer = $filters['prayer'] ?? null;
 
+        $sessions = SolatSession::query();
+        $this->scopeSessions($sessions, $from, $to, $prayer);
+        $sessionIds = $sessions->pluck('id')->all();
+
+        $scopeByIds = static function (Builder $query) use ($sessionIds): Builder {
+            if ($sessionIds === []) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query->whereIn('solat_session_id', $sessionIds);
+        };
+
         return User::query()
             ->where('role', '!=', User::RoleKiosk)
             ->search($filters['term'] ?? null)
             ->when(filled($filters['role'] ?? null), fn (Builder $query) => $query->where('role', $filters['role']))
             ->when(filled($filters['class_name'] ?? null), fn (Builder $query) => $query->where('class_name', $filters['class_name']))
             ->withCount([
-                'attendanceLogs as present_count' => fn (Builder $query) => $this->scopeLogs($query, $from, $to, $prayer)
+                'attendanceLogs as present_count' => fn (Builder $query) => $scopeByIds($query)
                     ->where('status', SolatAttendanceLog::StatusHadir),
-                'attendanceLogs as late_count' => fn (Builder $query) => $this->scopeLogs($query, $from, $to, $prayer)
+                'attendanceLogs as late_count' => fn (Builder $query) => $scopeByIds($query)
                     ->where('status', SolatAttendanceLog::StatusTerlambat),
-                'attendanceLogs as log_count' => fn (Builder $query) => $this->scopeLogs($query, $from, $to, $prayer),
+                'attendanceLogs as log_count' => fn (Builder $query) => $scopeByIds($query),
                 'faceEmbeddings as face_count',
             ])
             ->orderBy('name')

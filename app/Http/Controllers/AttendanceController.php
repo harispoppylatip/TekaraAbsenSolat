@@ -61,6 +61,10 @@ class AttendanceController extends Controller
             'photo.max' => 'Ukuran potret paling besar 5 MB.',
         ]);
 
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         $path = $request->file('photo')->getRealPath();
         $contents = $path !== false ? file_get_contents($path) : false;
 

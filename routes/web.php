@@ -155,6 +155,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/pengaturan', [SettingController::class, 'index'])->name('settings.index');
         Route::put('/pengaturan/layar-kiosk', [SettingController::class, 'updateKioskAccount'])->name('settings.kiosk-account');
         Route::put('/pengaturan/sensitivitas-wajah', [SettingController::class, 'updateFaceSensitivity'])->name('settings.face-sensitivity');
+        Route::put('/pengaturan/anti-foto-palsu', [SettingController::class, 'updateAntiSpoofing'])->name('settings.anti-spoofing');
         Route::put('/pengaturan/foto-bukti', [SettingController::class, 'updateProofOverlay'])->name('settings.proof-overlay');
         Route::get('/pengaturan/backup', [SettingController::class, 'downloadBackup'])->name('settings.backup.download');
         Route::post('/pengaturan/backup/pulihkan', [SettingController::class, 'restoreBackup'])->name('settings.backup.restore');

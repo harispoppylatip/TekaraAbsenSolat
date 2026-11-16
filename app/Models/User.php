@@ -30,6 +30,17 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    protected static function booted(): void
+    {
+        static::saved(function (): void {
+            \App\Services\FaceMatcherService::invalidateCache();
+        });
+
+        static::deleted(function (): void {
+            \App\Services\FaceMatcherService::invalidateCache();
+        });
+    }
+
     public const RoleAdmin = 'admin';
 
     public const RolePetugas = 'petugas';

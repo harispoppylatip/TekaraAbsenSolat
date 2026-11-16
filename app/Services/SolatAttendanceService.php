@@ -141,6 +141,8 @@ class SolatAttendanceService
         $evaluated = [];
         $hasRecordCandidate = false;
 
+        $antiSpoofingEnabled = Setting::antiSpoofingEnabled();
+
         foreach ($detected['faces'] as $idx => $face) {
             $box = [
                 'top' => (int) $face['top'],
@@ -149,9 +151,11 @@ class SolatAttendanceService
                 'left' => (int) $face['left'],
             ];
 
-            $antispoof = $face['antispoof'] ?? null;
-            $isSpoof = (($face['error'] ?? '') === 'spoof_detected')
-                || ($antispoof !== null && empty($antispoof['is_live']));
+            $antispoof = $antiSpoofingEnabled ? ($face['antispoof'] ?? null) : null;
+            $isSpoof = $antiSpoofingEnabled && (
+                (($face['error'] ?? '') === 'spoof_detected')
+                || ($antispoof !== null && empty($antispoof['is_live']))
+            );
 
             if ($isSpoof) {
                 $spoofLabel = (string) ($antispoof['label'] ?? 'Layar HP/Foto Kertas');
