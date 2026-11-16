@@ -36,7 +36,7 @@
             </div>
             <div class="mobile-live-right">
                 <span class="mobile-live-countdown" id="mobile-strip-timer">--:--:--</span>
-                <span class="mobile-live-clock" id="mobile-strip-clock">{{ now()->format('H:i') }} WITA</span>
+                <span class="mobile-live-clock" id="mobile-strip-clock">{{ $activeSession ? 'sebelum sesi ditutup' : 'menuju sesi dibuka' }}</span>
             </div>
         </div>
 
@@ -458,7 +458,7 @@
         }
 
         .info-countdown-timer-wrap {
-            text-align: right;
+            text-align: center;
             flex-shrink: 0;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.16);
@@ -476,10 +476,11 @@
         }
 
         .info-countdown-unit {
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.72);
+            font-size: 10.5px;
+            color: rgba(255, 255, 255, 0.85);
             font-weight: 600;
-            margin-top: 2px;
+            margin-top: 3px;
+            line-height: 1.2;
         }
 
         /* Sub-Tab Switcher di dalam Panel Info */
@@ -928,6 +929,9 @@
                 </div>
                 <div class="info-countdown-timer-wrap">
                     <div class="info-countdown-timer" id="login-countdown-timer">--:--:--</div>
+                    <div class="info-countdown-unit" id="login-countdown-unit">
+                        {{ $activeSession ? 'sebelum sesi ditutup' : 'menuju sesi dibuka' }}
+                    </div>
                 </div>
             </div>
 
@@ -1171,11 +1175,13 @@
                     if (prayerEl) prayerEl.textContent = 'Sholat ' + label;
                     if (windowEl) windowEl.textContent = 'Jadwal pukul ' + start + ' – ' + end + ' WITA';
                     if (timerEl) timerEl.textContent = formatted;
+                    if (unitEl) unitEl.textContent = 'sebelum sesi ditutup';
 
                     if (mobileStrip) mobileStrip.classList.add('is-open');
                     if (mobileCaption) mobileCaption.textContent = 'Sedang Berlangsung';
                     if (mobilePrayer) mobilePrayer.textContent = 'Sholat ' + label + ' (' + start + '–' + end + ')';
                     if (mobileTimer) mobileTimer.textContent = formatted;
+                    if (mobileClock) mobileClock.textContent = 'sebelum sesi ditutup';
                 } else if (nextRow) {
                     const label = nextRow.dataset.prayerLabel;
                     const start = nextRow.dataset.start;
@@ -1193,11 +1199,13 @@
                     if (prayerEl) prayerEl.textContent = 'Sholat ' + label;
                     if (windowEl) windowEl.textContent = 'Jadwal pukul ' + start + ' – ' + end + ' WITA';
                     if (timerEl) timerEl.textContent = formatted;
+                    if (unitEl) unitEl.textContent = 'menuju sesi dibuka';
 
                     if (mobileStrip) mobileStrip.classList.remove('is-open');
                     if (mobileCaption) mobileCaption.textContent = isTomorrowSubuh ? 'Jadwal Besok Pagi' : 'Sholat Berikutnya';
                     if (mobilePrayer) mobilePrayer.textContent = 'Sholat ' + label + ' · ' + start;
                     if (mobileTimer) mobileTimer.textContent = '-' + formatted;
+                    if (mobileClock) mobileClock.textContent = 'menuju sesi dibuka';
                 }
             }
 
