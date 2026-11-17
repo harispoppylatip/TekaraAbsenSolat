@@ -440,6 +440,10 @@
                 padding: 16px;
             }
 
+            .camera-viewport-frame {
+                aspect-ratio: 3 / 4;
+            }
+
             .enroll-profile-header {
                 flex-direction: column;
                 align-items: flex-start;
