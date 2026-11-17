@@ -907,14 +907,19 @@
                             : (face.display_detail || 'Layar HP / Foto Cetak');
                     }
 
+                    const debugLine = (typeof face.debug_text === 'string' && face.debug_text !== '') ? face.debug_text : '';
+
                     ctx.font = '600 14px Inter, system-ui, sans-serif';
                     const nameW = ctx.measureText(nama).width;
 
                     ctx.font = '500 12px Inter, system-ui, sans-serif';
                     const statusW = ctx.measureText(keadaan).width;
 
-                    const labelW = Math.min(displayW, Math.max(nameW, statusW) + 16);
-                    const labelH = 34;
+                    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+                    const debugW = debugLine !== '' ? ctx.measureText(debugLine).width : 0;
+
+                    const labelW = Math.min(displayW, Math.max(nameW, statusW, debugW) + 16);
+                    const labelH = debugLine !== '' ? 50 : 34;
 
                     const labelX = Math.max(0, Math.min(displayW - labelW, bx));
                     const labelY = (by - labelH < 0) ? by : (by - labelH);
@@ -928,6 +933,12 @@
 
                     ctx.font = '500 12px Inter, system-ui, sans-serif';
                     ctx.fillText(keadaan, labelX + 8, labelY + 29, labelW - 16);
+
+                    if (debugLine !== '') {
+                        ctx.fillStyle = '#fef08a';
+                        ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+                        ctx.fillText(debugLine, labelX + 8, labelY + 44, labelW - 16);
+                    }
                 });
             }
 

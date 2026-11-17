@@ -510,6 +510,10 @@ function drawFaceOverlay(root, faces, frame, busy) {
 
         const nama = faceLabel(face);
         const keadaan = faceStatusLine(face, busy);
+        const debugLine =
+            typeof face.debug_text === "string" && face.debug_text !== ""
+                ? face.debug_text
+                : "";
 
         gambar.font = "600 14px Inter, system-ui, sans-serif";
 
@@ -518,11 +522,16 @@ function drawFaceOverlay(root, faces, frame, busy) {
         gambar.font = "500 12px Inter, system-ui, sans-serif";
 
         const lebarKeadaan = gambar.measureText(keadaan).width;
+
+        gambar.font = "600 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+        const lebarDebug =
+            debugLine !== "" ? gambar.measureText(debugLine).width : 0;
+
         const lebarLabel = Math.min(
             kotak.width,
-            Math.max(lebarNama, lebarKeadaan) + 16,
+            Math.max(lebarNama, lebarKeadaan, lebarDebug) + 16,
         );
-        const tinggiLabel = 34;
+        const tinggiLabel = debugLine !== "" ? 50 : 34;
 
         // Label dijepit ke dalam bingkai supaya wajah di tepi gambar tidak
         // membuat namanya terpotong.
@@ -538,6 +547,13 @@ function drawFaceOverlay(root, faces, frame, busy) {
 
         gambar.font = "500 12px Inter, system-ui, sans-serif";
         gambar.fillText(keadaan, xLabel + 8, yLabel + 29, lebarLabel - 16);
+
+        if (debugLine !== "") {
+            gambar.fillStyle = "#fef08a";
+            gambar.font =
+                "600 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+            gambar.fillText(debugLine, xLabel + 8, yLabel + 44, lebarLabel - 16);
+        }
     });
 }
 

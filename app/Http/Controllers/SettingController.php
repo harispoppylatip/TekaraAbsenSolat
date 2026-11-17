@@ -49,6 +49,7 @@ class SettingController extends Controller
             'photoTotalBytes' => $storageSummary['total_bytes'],
             'proofOverlayEnabled' => Setting::proofOverlayEnabled(),
             'antiSpoofingEnabled' => Setting::antiSpoofingEnabled(),
+            'faceDebugMode' => Setting::faceDebugMode(),
             'faceCctvTolerance' => Setting::faceCctvTolerance(),
             'faceTolerance' => Setting::faceTolerance(),
             'faceCctvMinFaceSize' => Setting::faceCctvMinFaceSize(),
@@ -142,6 +143,7 @@ class SettingController extends Controller
             Setting::set(Setting::KeyFaceTolerance, config('face.tolerance', 1.15));
             Setting::set(Setting::KeyFaceCctvMinFaceSize, config('face.cctv_min_face_size', 40));
             Setting::set(Setting::KeyFaceMinFaceSize, config('face.min_face_size', 80));
+            Setting::set(Setting::KeyFaceDebugMode, false);
 
             return back()->with('status', 'Pengaturan sensitivitas pengenalan wajah berhasil dikembalikan ke rekomendasi bawaan.');
         }
@@ -157,6 +159,7 @@ class SettingController extends Controller
         Setting::set(Setting::KeyFaceTolerance, (float) $validated['face_tolerance']);
         Setting::set(Setting::KeyFaceCctvMinFaceSize, (int) $validated['face_cctv_min_face_size']);
         Setting::set(Setting::KeyFaceMinFaceSize, (int) $validated['face_min_face_size']);
+        Setting::set(Setting::KeyFaceDebugMode, $request->boolean('face_debug_mode', false));
 
         return back()->with('status', 'Pengaturan sensitivitas pengenalan wajah berhasil disimpan dan langsung aktif.');
     }

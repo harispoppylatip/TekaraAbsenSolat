@@ -28,6 +28,12 @@ class CctvAutoScanCommand extends Command
 
     protected $description = 'Jalankan pemindaian absensi wajah otomatis dari CCTV di latar belakang tanpa peramban';
 
+    /** @var array<int, int> */
+    private array $failCounts = [];
+
+    /** @var array<int, int> */
+    private array $skipUntil = [];
+
     public function handle(
         CameraStreamService $streamService,
         SolatAttendanceService $attendanceService,
@@ -102,8 +108,13 @@ class CctvAutoScanCommand extends Command
 
             $sessionName = $activeSession ? $activeSession->prayerLabel() : 'Uji Coba';
 
-            // 3. Pindai setiap kamera CCTV aktif
+            // 3. Pindai setiap kamera CCTV aktif (dengan jeda otomatis bagi kamera offline)
             foreach ($cameras as $camera) {
+                $camId = (int) $camera->id;
+                if (isset($this->skipUntil[$camId]) && now()->timestamp < $this->skipUntil[$camId]) {
+                    continue;
+                }
+
                 $this->scanCamera($camera, $sessionName, $streamService, $attendanceService);
             }
 
@@ -127,12 +138,24 @@ class CctvAutoScanCommand extends Command
         SolatAttendanceService $attendanceService
     ): void {
         try {
+            $camId = (int) $camera->id;
             $frame = $streamService->captureSnapshot($camera);
 
             if ($frame === null) {
-                $this->warn('[' . now()->format('H:i:s') . "] [{$camera->name}] Gagal mengambil frame siaran.");
+                $fails = ($this->failCounts[$camId] ?? 0) + 1;
+                $this->failCounts[$camId] = $fails;
+                if ($fails >= 2) {
+                    $backoffSeconds = min(60, 15 * ($fails - 1));
+                    $this->skipUntil[$camId] = now()->timestamp + $backoffSeconds;
+                    $this->warn('[' . now()->format('H:i:s') . "] [{$camera->name}] Gagal mengambil frame siaran (jeda {$backoffSeconds}d agar kamera lain tidak terhambat).");
+                } else {
+                    $this->warn('[' . now()->format('H:i:s') . "] [{$camera->name}] Gagal mengambil frame siaran.");
+                }
                 return;
             }
+
+            $this->failCounts[$camId] = 0;
+            unset($this->skipUntil[$camId]);
 
             $deviceId = 'cctv-' . $camera->id;
             $result = $attendanceService->recordFacesFromImage($frame, $deviceId, now(), allowTestSession: true);

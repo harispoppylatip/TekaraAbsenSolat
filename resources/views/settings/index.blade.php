@@ -1152,6 +1152,18 @@
                     </div>
                 </div>
 
+                <div class="field" style="margin-bottom: 16px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                    <label class="checkbox-row" for="face_debug_mode" style="cursor: pointer; align-items: flex-start; gap: 10px;">
+                        <input type="checkbox" id="face_debug_mode" name="face_debug_mode" value="1" @checked(old('face_debug_mode', $faceDebugMode)) style="margin-top: 3px; width: 17px; height: 17px; cursor: pointer;">
+                        <div>
+                            <strong style="display: block; font-size: 13.5px; color: #0f172a;">Mode Debug Wajah (Tampilkan Poin Jarak &amp; Ukuran Wajah)</strong>
+                            <p class="field-hint" style="margin-top: 3px; color: #64748b; font-size: 12.5px; line-height: 1.45;">
+                                Saat aktif, kotak deteksi di kamera (<code>/absen-wajah</code>, <code>/layar</code>, dan <code>/kamera</code>) akan menampilkan poin jarak kecocokan (contoh: <code>Jarak: 0.94 / 1.15 · 112px</code>) agar Anda mudah memperkirakan angka toleransi dan ukuran wajah minimum yang paling pas.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
                 {{-- Dropdown Detail Panduan Sensitivitas --}}
                 <details style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
                     <summary style="cursor: pointer; font-size: 13.5px; font-weight: 600; color: #2563eb; user-select: none;">

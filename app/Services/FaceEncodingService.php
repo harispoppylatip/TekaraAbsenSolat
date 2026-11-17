@@ -289,7 +289,7 @@ class FaceEncodingService
      *
      * @return array{status: string, message: string, width: int, height: int, photo: string|null, faces: array<int, array{index: int, top: int, right: int, bottom: int, left: int, face_size: int, encoding: array<int, float>|null, error: string|null}>}
      */
-    public function detectContents(string $contents, bool $withPhoto = false): array
+    public function detectContents(string $contents, bool $withPhoto = false, bool $isCctv = false): array
     {
         $empty = ['status' => self::StatusInvalid, 'message' => '', 'width' => 0, 'height' => 0, 'photo' => null, 'faces' => []];
 
@@ -297,12 +297,17 @@ class FaceEncodingService
             return array_merge($empty, ['message' => 'Foto tidak terbaca. Ambil ulang fotonya.']);
         }
 
+        $query = $this->query($withPhoto);
+        if ($isCctv) {
+            $query .= '&skip_small_antispoof=1';
+        }
+
         try {
             $response = Http::connectTimeout(3)
                 ->timeout((int) config('face.detect_timeout', 15))
                 ->acceptJson()
                 ->attach('image', $contents, 'scan.jpg')
-                ->post($this->serviceUrl().'/detect?'.$this->query($withPhoto));
+                ->post($this->serviceUrl().'/detect?'.$query);
         } catch (ConnectionException) {
             return array_merge($empty, ['status' => self::StatusUnavailable, 'message' => $this->unavailableMessage()]);
         }

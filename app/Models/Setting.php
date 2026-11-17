@@ -21,6 +21,7 @@ class Setting extends Model
 
     public const KeyProofBoxOverlay = 'proof_box_overlay';
     public const KeyAntiSpoofingEnabled = 'anti_spoofing_enabled';
+    public const KeyFaceDebugMode = 'face_debug_mode';
     public const KeyFaceCctvTolerance = 'face_cctv_tolerance';
     public const KeyFaceTolerance = 'face_tolerance';
     public const KeyFaceCctvMinFaceSize = 'face_cctv_min_face_size';
@@ -91,6 +92,16 @@ class Setting extends Model
     {
         $default = config('face.anti_spoofing', true) ? '1' : '0';
         $val = static::get(self::KeyAntiSpoofingEnabled, $default);
+
+        return in_array($val, ['1', 'true', true, 1], true);
+    }
+
+    /**
+     * Apakah mode debug pengenalan wajah aktif (menampilkan poin jarak & ukuran wajah di kamera).
+     */
+    public static function faceDebugMode(): bool
+    {
+        $val = static::get(self::KeyFaceDebugMode, '0');
 
         return in_array($val, ['1', 'true', true, 1], true);
     }

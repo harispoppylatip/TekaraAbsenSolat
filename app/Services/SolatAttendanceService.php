@@ -103,7 +103,8 @@ class SolatAttendanceService
             ];
         }
 
-        $detected = $this->encoder->detectContents($contents, (bool) config('solat.keep_proof_photo', true));
+        $isCctv = $deviceId !== null && str_starts_with($deviceId, 'cctv-');
+        $detected = $this->encoder->detectContents($contents, (bool) config('solat.keep_proof_photo', true), $isCctv);
 
         if ($detected['status'] !== FaceEncodingService::StatusSuccess) {
             return [
@@ -123,13 +124,13 @@ class SolatAttendanceService
         // pun wajah yang lolos, tidak boleh ada berkas yang tertinggal tanpa
         // catatan.
         $faces = [];
-        $isCctv = $deviceId !== null && str_starts_with($deviceId, 'cctv-');
         $minFaceSize = $isCctv
             ? Setting::faceCctvMinFaceSize()
             : Setting::faceMinFaceSize();
         $customTolerance = $isCctv
             ? Setting::faceCctvTolerance()
             : Setting::faceTolerance();
+        $debugMode = Setting::faceDebugMode();
 
         $srcW = (int) ($detected['width'] ?? 0);
         $srcH = (int) ($detected['height'] ?? 0);
@@ -150,6 +151,7 @@ class SolatAttendanceService
                 'bottom' => (int) $face['bottom'],
                 'left' => (int) $face['left'],
             ];
+            $faceSize = (int) ($face['face_size'] ?? 0);
 
             $antispoof = $antiSpoofingEnabled ? ($face['antispoof'] ?? null) : null;
             $isSpoof = $antiSpoofingEnabled && (
@@ -167,6 +169,7 @@ class SolatAttendanceService
                     'display' => 'Foto Palsu Terdeteksi',
                     'detail' => $spoofLabel,
                     'distance' => null,
+                    'face_size' => $faceSize,
                     'antispoof' => $antispoof,
                 ];
                 continue;
@@ -181,11 +184,12 @@ class SolatAttendanceService
                     'display' => 'Wajah tak jelas',
                     'detail' => 'Belum terdaftar',
                     'distance' => null,
+                    'face_size' => $faceSize,
                 ];
                 continue;
             }
 
-            if ($minFaceSize > 0 && (int) ($face['face_size'] ?? 0) > 0 && (int) $face['face_size'] < $minFaceSize) {
+            if ($minFaceSize > 0 && $faceSize > 0 && $faceSize < $minFaceSize) {
                 $evaluated[$idx] = [
                     'type' => 'face_too_small',
                     'box' => $box,
@@ -194,6 +198,7 @@ class SolatAttendanceService
                     'display' => 'Dekatkan wajah',
                     'detail' => 'Dekatkan wajah',
                     'distance' => null,
+                    'face_size' => $faceSize,
                 ];
                 continue;
             }
@@ -209,6 +214,7 @@ class SolatAttendanceService
                     'display' => 'Belum pasti',
                     'detail' => 'Ulangi pindai',
                     'distance' => $match['distance'],
+                    'face_size' => $faceSize,
                 ];
                 continue;
             }
@@ -222,6 +228,7 @@ class SolatAttendanceService
                     'display' => 'Belum terdaftar',
                     'detail' => 'Belum terdaftar',
                     'distance' => $match['distance'],
+                    'face_size' => $faceSize,
                 ];
                 continue;
             }
@@ -274,6 +281,7 @@ class SolatAttendanceService
                 'display' => $displayStr,
                 'detail' => (string) $user->identifier_number,
                 'distance' => $match['distance'],
+                'face_size' => $faceSize,
                 'will_record' => $willRecord,
             ];
         }
@@ -311,6 +319,20 @@ class SolatAttendanceService
 
         // Tahap 2: Catat kehadiran ke basis data dengan foto bukti bersama yang sudah tersimpan
         foreach ($evaluated as $item) {
+            $debugText = null;
+            if ($debugMode) {
+                $parts = [];
+                if ($item['distance'] !== null) {
+                    $parts[] = 'Jarak: '.number_format((float) $item['distance'], 2).' / '.number_format($customTolerance, 2);
+                }
+                if (! empty($item['face_size'])) {
+                    $parts[] = (int) $item['face_size'].'px';
+                }
+                if ($parts !== []) {
+                    $debugText = implode(' · ', $parts);
+                }
+            }
+
             if ($item['type'] !== 'matched') {
                 $faces[] = $this->faceReport(
                     box: $item['box'],
@@ -320,6 +342,7 @@ class SolatAttendanceService
                     detail: $item['detail'],
                     distance: $item['distance'],
                     antispoof: $item['antispoof'] ?? null,
+                    debugText: $debugText,
                 );
                 continue;
             }
@@ -345,6 +368,7 @@ class SolatAttendanceService
                 recorded: (bool) $result['ok'],
                 logId: $result['log'] === null ? null : (int) $result['log']->getKey(),
                 message: (string) $result['message'],
+                debugText: $debugText,
             );
         }
 
@@ -505,6 +529,7 @@ class SolatAttendanceService
         ?int $logId = null,
         string $message = '',
         ?array $antispoof = null,
+        ?string $debugText = null,
     ): array {
         return [
             'box' => $box,
@@ -513,6 +538,7 @@ class SolatAttendanceService
             'display_message' => $display,
             'display_detail' => $detail,
             'antispoof' => $antispoof,
+            'debug_text' => $debugText,
             'member' => $user === null ? null : [
                 'id' => $user->getKey(),
                 'name' => $user->name,

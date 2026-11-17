@@ -291,4 +291,70 @@ class AntiSpoofingTest extends TestCase
         $this->assertTrue($valid['ok']);
         $this->assertSame('ok', $valid['status']);
     }
+
+    public function test_mode_debug_wajah_dan_skip_antispoof_kecil_untuk_cctv(): void
+    {
+        $murid = User::factory()->create([
+            'role' => User::RoleMurid,
+            'enrollment_status' => User::EnrollmentCompleted,
+        ]);
+        $vector = array_fill(0, FaceEmbedding::Dimensions, 0.0);
+        $vector[0] = 1.0;
+
+        FaceEmbedding::query()->create([
+            'user_id' => $murid->id,
+            'model' => FaceEmbedding::DefaultModel,
+            'embedding' => $vector,
+        ]);
+
+        $prayer = PrayerTime::query()->create([
+            'prayer_name' => 'zuhur',
+            'label' => 'Zuhur',
+            'start_time' => '12:00:00',
+            'end_time' => '13:00:00',
+            'late_minutes' => 15,
+            'is_active' => true,
+        ]);
+
+        SolatSession::query()->create([
+            'prayer_time_id' => $prayer->id,
+            'prayer_name' => 'zuhur',
+            'date' => today(),
+            'start_time' => '12:00:00',
+            'end_time' => '13:00:00',
+            'late_minutes' => 15,
+            'status' => SolatSession::StatusSedangDibuka,
+            'opened_at' => now()->subMinutes(5),
+        ]);
+
+        Http::fake([
+            '*/detect*' => Http::response([
+                'status' => 'success',
+                'face_count' => 1,
+                'width' => 1280,
+                'height' => 720,
+                'model' => FaceEmbedding::DefaultModel,
+                'faces' => [[
+                    'index' => 0,
+                    'bbox' => ['top' => 100, 'right' => 255, 'bottom' => 155, 'left' => 200],
+                    'face_size' => 55,
+                    'encoding' => $vector,
+                    'error' => null,
+                    'antispoof' => null,
+                ]],
+            ], 200),
+        ]);
+
+        Setting::set(Setting::KeyAntiSpoofingEnabled, true);
+        Setting::set(Setting::KeyFaceDebugMode, true);
+
+        $attendance = app(SolatAttendanceService::class);
+        $res = $attendance->recordFacesFromImage('dummy-jpg', 'cctv-1', today()->setTime(12, 5, 0));
+
+        $this->assertSame(SolatAttendanceService::StatusRecorded, $res['faces'][0]['status']);
+        $this->assertStringContainsString('Jarak: 0.00 / 1.15', (string) ($res['faces'][0]['debug_text'] ?? ''));
+        $this->assertStringContainsString('55px', (string) ($res['faces'][0]['debug_text'] ?? ''));
+
+        Http::assertSent(fn (Request $req) => str_contains($req->url(), 'skip_small_antispoof=1'));
+    }
 }
