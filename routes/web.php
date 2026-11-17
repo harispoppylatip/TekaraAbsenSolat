@@ -75,6 +75,7 @@ Route::middleware('auth')->group(function () {
         */
         Route::get('/pendaftaran-wajah', [EnrollmentController::class, 'show'])->name('enrollment.show');
         Route::get('/pendaftaran-wajah/proses', [EnrollmentController::class, 'progress'])->name('enrollment.progress');
+        Route::post('/pendaftaran-wajah/cek-pose', [EnrollmentController::class, 'checkPose'])->name('enrollment.check-pose');
         Route::post('/pendaftaran-wajah/foto', [EnrollmentController::class, 'store'])
             ->middleware('throttle:30,1')
             ->name('enrollment.photos.store');

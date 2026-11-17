@@ -386,6 +386,268 @@ class FaceEncodingService
     }
 
     /**
+     * Periksa secara cepat apakah bingkai pratinjau kamera pendaftaran wajah
+     * memenuhi kriteria mutu (cahaya, ketajaman/tidak buram, 1 orang, posisi di
+     * tengah oval) serta sesuai dengan arahan sudut pose (`lurus`, `kiri`,
+     * `kanan`, `atas`, `bawah`) sebelum memotret.
+     *
+     * Memakai `need_embeddings=0` sehingga mesin wajah hanya menjalankan
+     * detektor + 5 titik wajah + pengukuran Laplacian (~10-15 ms) tanpa
+     * membebani CPU dengan model ArcFace.
+     *
+     * @return array{ok: bool, status: string, message: string, yaw?: float|null, yaw_signed?: float|null, pitch?: float|null, sharpness?: float, brightness?: float}
+     */
+    public function checkEnrollmentFrame(string $contents, string $poseKey = 'lurus'): array
+    {
+        if ($contents === '') {
+            return [
+                'ok' => false,
+                'status' => self::StatusInvalid,
+                'message' => 'Bingkai kamera belum siap.',
+            ];
+        }
+
+        $antiSpoof = Setting::antiSpoofingEnabled() ? 1 : 0;
+        $queryString = http_build_query([
+            'quality' => 1,
+            'need_embeddings' => 0,
+            'antispoof' => $antiSpoof,
+        ]);
+
+        try {
+            $response = Http::connectTimeout(2)
+                ->timeout(6)
+                ->acceptJson()
+                ->attach('image', $contents, 'frame.jpg')
+                ->post($this->serviceUrl().'/detect?'.$queryString);
+        } catch (ConnectionException) {
+            return [
+                'ok' => false,
+                'status' => self::StatusUnavailable,
+                'message' => 'Layanan deteksi wajah belum terhubung.',
+            ];
+        }
+
+        if (! $response->successful()) {
+            return [
+                'ok' => false,
+                'status' => self::StatusInvalid,
+                'message' => 'Gagal memeriksa posisi wajah.',
+            ];
+        }
+
+        $data = $response->json();
+        if (! is_array($data)) {
+            return [
+                'ok' => false,
+                'status' => self::StatusInvalid,
+                'message' => 'Balasan layanan wajah tidak dikenali.',
+            ];
+        }
+
+        $status = (string) ($data['status'] ?? '');
+        $faces = (array) ($data['faces'] ?? []);
+
+        if ($status === self::StatusNoFace || $status === 'no_face' || $faces === []) {
+            return [
+                'ok' => false,
+                'status' => self::StatusNoFace,
+                'message' => 'Wajah belum terdeteksi. Posisikan wajah di dalam lingkaran oval.',
+            ];
+        }
+
+        if (count($faces) > 1) {
+            return [
+                'ok' => false,
+                'status' => self::StatusMultipleFaces,
+                'message' => 'Terdeteksi '.count($faces).' wajah. Pastikan hanya Anda sendiri di depan kamera.',
+            ];
+        }
+
+        $face = is_array($faces[0] ?? null) ? $faces[0] : [];
+        $box = is_array($face['bbox'] ?? null) ? $face['bbox'] : [];
+        $quality = is_array($face['quality'] ?? null) ? $face['quality'] : [];
+        $antispoof = is_array($face['antispoof'] ?? null) ? $face['antispoof'] : null;
+
+        if ($antiSpoof === 1 && (($face['error'] ?? '') === 'spoof_detected' || ($antispoof !== null && empty($antispoof['is_live'])))) {
+            $spoofLabel = (string) ($antispoof['label'] ?? 'Layar/Foto Palsu');
+
+            return [
+                'ok' => false,
+                'status' => self::StatusSpoofDetected,
+                'message' => 'Terdeteksi '.$spoofLabel.'. Wajib menggunakan wajah asli secara langsung.',
+            ];
+        }
+
+        $width = max(1, (int) ($data['width'] ?? 640));
+        $height = max(1, (int) ($data['height'] ?? 480));
+        $faceSize = (int) ($face['face_size'] ?? 0);
+        $minSide = min($width, $height);
+
+        if ($faceSize < 65 || ($minSide > 0 && ($faceSize / $minSide) < 0.22)) {
+            return [
+                'ok' => false,
+                'status' => self::StatusFaceTooSmall,
+                'message' => 'Wajah terlalu jauh. Dekatkan wajah ke dalam lingkaran oval.',
+            ];
+        }
+
+        // Periksa apakah titik tengah wajah berada di area tengah (dalam oval panduan)
+        if ($box !== []) {
+            $cx = (((int) ($box['left'] ?? 0) + (int) ($box['right'] ?? $width)) / 2.0) / $width;
+            $cy = (((int) ($box['top'] ?? 0) + (int) ($box['bottom'] ?? $height)) / 2.0) / $height;
+
+            if (abs($cx - 0.5) > 0.25 || abs($cy - 0.5) > 0.28) {
+                return [
+                    'ok' => false,
+                    'status' => 'off_center',
+                    'message' => 'Posisikan wajah tepat di tengah lingkaran oval.',
+                ];
+            }
+        }
+
+        $brightness = (float) ($quality['brightness'] ?? 120.0);
+        $sharpness = (float) ($quality['sharpness'] ?? 50.0);
+        $yaw = isset($quality['yaw']) ? (float) $quality['yaw'] : null;
+        $yawSigned = isset($quality['yaw_signed']) ? (float) $quality['yaw_signed'] : null;
+        $roll = isset($quality['roll']) ? (float) $quality['roll'] : null;
+        $pitch = isset($quality['pitch']) ? (float) $quality['pitch'] : null;
+
+        if ($brightness > 0 && $brightness < 42.0) {
+            return [
+                'ok' => false,
+                'status' => self::StatusTooDark,
+                'message' => 'Cahaya terlalu gelap. Cari tempat yang lebih terang.',
+            ];
+        }
+
+        if ($brightness > 225.0) {
+            return [
+                'ok' => false,
+                'status' => self::StatusTooBright,
+                'message' => 'Cahaya terlalu silau. Jangan menghadap/membelakangi lampu langsung.',
+            ];
+        }
+
+        if ($sharpness > 0 && $sharpness < 18.0) {
+            return [
+                'ok' => false,
+                'status' => self::StatusBlurry,
+                'message' => 'Gambar buram atau goyang. Pegang kamera dengan tenang.',
+            ];
+        }
+
+        if ($roll !== null && $roll > 0.28) {
+            return [
+                'ok' => false,
+                'status' => self::StatusBadPose,
+                'message' => 'Kepala terlalu miring. Tegakkan posisi kepala Anda.',
+            ];
+        }
+
+        // Batas luar agar foto yang lolos di sini dijamin lolos saat dikirim ke antrean
+        if ($yaw !== null && $yaw > 0.43) {
+            return [
+                'ok' => false,
+                'status' => self::StatusBadPose,
+                'message' => 'Wajah menengok terlalu jauh ke samping. Kurangi sedikit sudut tengokan.',
+            ];
+        }
+
+        if ($pitch !== null && ($pitch < 0.24 || $pitch > 0.76)) {
+            return [
+                'ok' => false,
+                'status' => self::StatusBadPose,
+                'message' => 'Sudut kepala terlalu ekstrem. Kurangi sedikit dongakan atau tundukan.',
+            ];
+        }
+
+        // Evaluasi kesesuaian arah hadap terhadap pose yang diminta
+        $pose = mb_strtolower(trim($poseKey));
+
+        if ($pose === 'lurus' || str_contains($pose, 'lurus')) {
+            if ($yaw !== null && $yaw > 0.16) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih serong ke samping. Hadapkan lurus ke depan kamera.',
+                ];
+            }
+            if ($pitch !== null && $pitch < 0.36) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih mendongak. Hadapkan lurus ke depan kamera.',
+                ];
+            }
+            if ($pitch !== null && $pitch > 0.66) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih menunduk. Hadapkan lurus ke depan kamera.',
+                ];
+            }
+        } elseif ($pose === 'kiri' || str_contains($pose, 'kiri')) {
+            if ($yaw !== null && $yaw < 0.06) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih menghadap lurus. Tengokkan sedikit ke kiri.',
+                ];
+            }
+        } elseif ($pose === 'kanan' || str_contains($pose, 'kanan')) {
+            if ($yaw !== null && $yaw < 0.06) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih menghadap lurus. Tengokkan sedikit ke kanan.',
+                ];
+            }
+        } elseif ($pose === 'atas' || str_contains($pose, 'atas') || str_contains($pose, 'mendongak')) {
+            if ($yaw !== null && $yaw > 0.24) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Hadapkan wajah ke depan sambil mengangkat dagu sedikit ke atas.',
+                ];
+            }
+            if ($pitch !== null && $pitch > 0.52) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Angkat dagu/kepala sedikit ke atas.',
+                ];
+            }
+        } elseif ($pose === 'bawah' || str_contains($pose, 'bawah') || str_contains($pose, 'menunduk')) {
+            if ($yaw !== null && $yaw > 0.24) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Hadapkan wajah ke depan sambil menundukkan kepala sedikit.',
+                ];
+            }
+            if ($pitch !== null && $pitch < 0.50) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Tundukkan kepala sedikit ke bawah.',
+                ];
+            }
+        }
+
+        return [
+            'ok' => true,
+            'status' => 'ok',
+            'message' => 'Posisi pas! Tahan posisi 3 detik...',
+            'yaw' => $yaw,
+            'yaw_signed' => $yawSigned,
+            'pitch' => $pitch,
+            'sharpness' => $sharpness,
+            'brightness' => $brightness,
+        ];
+    }
+
+    /**
      * Layanan wajah hidup atau tidak. Dipakai halaman wajah untuk memberi tahu
      * operator kalau mesin wajahnya belum dinyalakan.
      */

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FaceEnrollmentUploadRequest;
 use App\Models\FaceEmbedding;
 use App\Models\User;
+use App\Services\FaceEncodingService;
 use App\Services\StudentEnrollmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -91,6 +92,37 @@ class EnrollmentController extends Controller
         }
 
         return redirect()->to(route('enrollment.show').'#kemajuan-pemeriksaan')->with('status', $message);
+    }
+
+    /**
+     * Periksa posisi dan mutu wajah secara langsung (real-time) dari kamera
+     * pendaftaran sebelum hitung mundur 3 detik dan pemotretan dilakukan.
+     */
+    public function checkPose(Request $request, FaceEncodingService $encoder): JsonResponse
+    {
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
+        $request->validate([
+            'photo' => ['required', 'image', 'max:2048'],
+            'pose' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $path = $request->file('photo')->getRealPath();
+        $contents = $path !== false ? @file_get_contents($path) : false;
+
+        if (! is_string($contents) || $contents === '') {
+            return response()->json([
+                'ok' => false,
+                'status' => 'invalid',
+                'message' => 'Bingkai kamera tidak terbaca.',
+            ], 422);
+        }
+
+        $poseKey = (string) $request->input('pose', 'lurus');
+
+        return response()->json($encoder->checkEnrollmentFrame($contents, $poseKey));
     }
 
     /**

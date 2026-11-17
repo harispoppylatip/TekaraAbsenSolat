@@ -281,7 +281,10 @@ function setupShooter(root, staging) {
     const guideStep = root.querySelector("[data-shoot-guide-step]");
     const guideText = root.querySelector("[data-shoot-guide-text]");
     const guideCountdown = root.querySelector("[data-shoot-guide-countdown]");
+    const guideFeedback = root.querySelector("[data-shoot-guide-feedback]");
     const flashEl = root.querySelector("[data-shoot-flash]");
+    const checkPoseUrl = root.dataset.checkPoseUrl || "";
+    const probeCanvas = document.createElement("canvas");
     const picker = root.querySelector("[data-shoot-facing]");
     const status = root.querySelector("[data-shoot-status]");
     const placeholder = root.querySelector("[data-shoot-placeholder]");
@@ -430,10 +433,14 @@ function setupShooter(root, staging) {
 
         if (guideOverlay) {
             guideOverlay.hidden = true;
-            guideOverlay.classList.remove("is-active", "is-snapped");
+            guideOverlay.classList.remove("is-active", "is-ready", "is-warning", "is-snapped");
         }
         if (guideCountdown) {
             guideCountdown.hidden = true;
+        }
+        if (guideFeedback) {
+            guideFeedback.hidden = true;
+            guideFeedback.classList.remove("is-ready", "is-warning");
         }
 
         updateAutoButtonText();
@@ -597,6 +604,105 @@ function setupShooter(root, staging) {
         });
     };
 
+    const setFeedback = (text, state = "neutral") => {
+        if (!guideFeedback) return;
+        guideFeedback.hidden = false;
+        guideFeedback.textContent = text;
+        guideFeedback.classList.remove("is-ready", "is-warning");
+        if (guideOverlay) {
+            guideOverlay.classList.remove("is-ready", "is-warning");
+        }
+        if (state === "ready") {
+            guideFeedback.classList.add("is-ready");
+            if (guideOverlay) guideOverlay.classList.add("is-ready");
+        } else if (state === "warning") {
+            guideFeedback.classList.add("is-warning");
+            if (guideOverlay) guideOverlay.classList.add("is-warning");
+        }
+    };
+
+    const checkCurrentPose = (poseKey, prevKiriSign = 0) => {
+        return new Promise((resolve) => {
+            if (!checkPoseUrl) {
+                resolve({ ok: true, message: "Posisi pas! Tahan 3 detik..." });
+                return;
+            }
+
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            if (width === 0 || height === 0) {
+                resolve({ ok: false, message: "Menunggu gambar kamera siap..." });
+                return;
+            }
+
+            const scale = Math.min(1, 480 / Math.max(width, height));
+            probeCanvas.width = Math.round(width * scale);
+            probeCanvas.height = Math.round(height * scale);
+
+            const ctx = probeCanvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, probeCanvas.width, probeCanvas.height);
+
+            probeCanvas.toBlob(
+                async (blob) => {
+                    if (!blob) {
+                        resolve({ ok: false, message: "Gagal membaca bingkai kamera." });
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append("photo", blob, "probe.jpg");
+                    formData.append("pose", poseKey || "lurus");
+
+                    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                    const headers = {
+                        "X-Requested-With": "XMLHttpRequest",
+                        Accept: "application/json",
+                    };
+                    if (csrfMeta && csrfMeta.content) {
+                        headers["X-CSRF-TOKEN"] = csrfMeta.content;
+                    }
+
+                    try {
+                        const res = await fetch(checkPoseUrl, {
+                            method: "POST",
+                            body: formData,
+                            headers,
+                            credentials: "same-origin",
+                        });
+
+                        if (!res.ok) {
+                            resolve({ ok: false, message: "Memeriksa posisi wajah..." });
+                            return;
+                        }
+
+                        const data = await res.json();
+                        if (
+                            data &&
+                            data.ok &&
+                            String(poseKey).toLowerCase().includes("kanan") &&
+                            prevKiriSign !== 0 &&
+                            typeof data.yaw_signed === "number" &&
+                            Math.sign(data.yaw_signed) === prevKiriSign
+                        ) {
+                            resolve({
+                                ok: false,
+                                status: "wrong_pose",
+                                message: "Itu arah yang sama dengan pose kiri tadi. Tengok ke arah sebaliknya (serong kanan).",
+                            });
+                            return;
+                        }
+
+                        resolve(data || { ok: false, message: "Posisikan wajah sesuai arahan." });
+                    } catch (e) {
+                        resolve({ ok: false, message: "Memeriksa koneksi deteksi wajah..." });
+                    }
+                },
+                "image/jpeg",
+                0.78,
+            );
+        });
+    };
+
     const runAutoCapture = async () => {
         if (isAutoRunning) {
             stopAuto();
@@ -636,6 +742,7 @@ function setupShooter(root, staging) {
         }
 
         const posesToTake = getPosesToTake();
+        let recordedKiriSign = 0;
 
         for (let i = 0; i < posesToTake.length; i++) {
             if (!isAutoRunning) break;
@@ -645,25 +752,88 @@ function setupShooter(root, staging) {
             const stepTitle = `Pose ${pose.id}: ${pose.label}`;
             if (guideStep) guideStep.textContent = currentStep;
             if (guideText) guideText.textContent = `${stepTitle} - ${pose.instruction || pose.text}`;
-            say(`Langkah ${currentStep}: ${stepTitle}. ${pose.instruction || pose.text}`);
+            if (guideCountdown) guideCountdown.hidden = true;
 
-            if (guideCountdown) {
-                guideCountdown.hidden = false;
-            }
+            setFeedback(`Arahkan wajah: ${pose.instruction || pose.text}`, "neutral");
+            say(`Langkah ${currentStep} (${stepTitle}): ${pose.instruction || pose.text}. Menunggu posisi wajah pas...`);
 
-            for (let c = 3; c >= 1; c--) {
+            let captured = false;
+
+            while (isAutoRunning && !captured) {
+                const check = await checkCurrentPose(pose.key, recordedKiriSign);
                 if (!isAutoRunning) break;
-                if (guideCountdown) guideCountdown.textContent = c;
-                await wait(1000);
+
+                if (!check.ok) {
+                    if (guideCountdown) guideCountdown.hidden = true;
+                    const msg = check.message || `Sesuaikan posisi: ${pose.instruction || pose.text}`;
+                    setFeedback(msg, "warning");
+                    say(`Langkah ${currentStep} (${stepTitle}): ${msg}`);
+                    await wait(450);
+                    continue;
+                }
+
+                // Posisi sudah pas! Minta tahan selama 3 detik sambil terus memvalidasi ketajaman & pose
+                let holdSuccess = true;
+                let lastValidCheck = check;
+
+                for (let c = 3; c >= 1; c--) {
+                    if (!isAutoRunning) {
+                        holdSuccess = false;
+                        break;
+                    }
+
+                    if (guideCountdown) {
+                        guideCountdown.hidden = false;
+                        guideCountdown.textContent = c;
+                    }
+                    setFeedback(`Posisi pas! Tahan posisi ${c} detik...`, "ready");
+                    say(`Langkah ${currentStep} (${stepTitle}): Posisi pas! Tahan jangan bergerak (${c})...`);
+
+                    await wait(900);
+                    if (!isAutoRunning) {
+                        holdSuccess = false;
+                        break;
+                    }
+
+                    const verify = await checkCurrentPose(pose.key, recordedKiriSign);
+                    if (!verify.ok) {
+                        holdSuccess = false;
+                        if (guideCountdown) guideCountdown.hidden = true;
+                        const warnMsg = verify.message || "Posisi bergeser atau gambar buram. Tahan kembali posisi wajah.";
+                        setFeedback(`Ulangi tahan: ${warnMsg}`, "warning");
+                        say(`Langkah ${currentStep}: Batal memotret karena ${warnMsg}`);
+                        await wait(500);
+                        break;
+                    }
+                    lastValidCheck = verify;
+                }
+
+                if (!isAutoRunning || !holdSuccess) {
+                    continue;
+                }
+
+                if (guideCountdown) guideCountdown.hidden = true;
+
+                if (
+                    String(pose.key).toLowerCase().includes("kiri") &&
+                    lastValidCheck &&
+                    typeof lastValidCheck.yaw_signed === "number" &&
+                    lastValidCheck.yaw_signed !== 0
+                ) {
+                    recordedKiriSign = Math.sign(lastValidCheck.yaw_signed);
+                }
+
+                const success = await takeSnapshot(pose.label);
+                if (!success) {
+                    isAutoRunning = false;
+                    break;
+                }
+
+                captured = true;
+                setFeedback(`Foto ${pose.label} berhasil diambil!`, "ready");
             }
 
             if (!isAutoRunning) break;
-            if (guideCountdown) guideCountdown.hidden = true;
-
-            const success = await takeSnapshot(pose.label);
-            if (!success) {
-                break;
-            }
 
             if (i < posesToTake.length - 1) {
                 say(`Bagus! Bersiap untuk pose berikutnya...`);

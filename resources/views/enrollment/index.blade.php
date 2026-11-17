@@ -638,7 +638,7 @@
                 <div>
                     <h2 class="enroll-card-title">Ambil Foto Wajah Mandiri</h2>
                     <p class="enroll-card-subtitle">
-                        Nyalakan kamera, lalu klik tombol pemotretan otomatis. Sistem akan menghitung mundur 3 detik untuk setiap sudut wajah secara terpadu.
+                        Nyalakan kamera, lalu klik tombol pemotretan otomatis. Sistem mendeteksi posisi serta ketajaman wajah secara langsung, lalu meminta tahan 3 detik saat posisi sudah pas.
                     </p>
                 </div>
 
@@ -660,6 +660,7 @@
                         data-needed="{{ $kurang }}"
                         data-required="{{ $state['required'] }}"
                         data-usable="{{ $state['usable'] }}"
+                        data-check-pose-url="{{ route('enrollment.check-pose') }}"
                         data-missing-poses="{{ json_encode($missingPoses) }}">
 
                         {{-- Frame Kamera --}}
@@ -683,6 +684,7 @@
                                         <span class="guide-text" data-shoot-guide-text>Hadap lurus ke kamera</span>
                                     </div>
                                     <div class="camera-guide-countdown" data-shoot-guide-countdown hidden>3</div>
+                                    <div class="camera-guide-feedback" data-shoot-guide-feedback hidden>Memeriksa posisi wajah...</div>
                                 </div>
 
                                 <div class="camera-flash" data-shoot-flash hidden></div>

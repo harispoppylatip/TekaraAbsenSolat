@@ -215,4 +215,62 @@ class AntiSpoofingTest extends TestCase
 
         $this->assertDatabaseHas('prayer_times', ['prayer_name' => 'duha']);
     }
+
+    public function test_pemeriksaan_pose_dan_ketajaman_wajah_sebelum_memotret(): void
+    {
+        Http::fakeSequence()
+            // 1. Foto buram -> ditolak
+            ->push([
+                'status' => 'success',
+                'face_count' => 1,
+                'width' => 480,
+                'height' => 360,
+                'faces' => [[
+                    'index' => 0,
+                    'bbox' => ['top' => 80, 'right' => 320, 'bottom' => 280, 'left' => 160],
+                    'face_size' => 160,
+                    'quality' => ['brightness' => 120.0, 'sharpness' => 8.5, 'yaw' => 0.04, 'yaw_signed' => 0.04, 'roll' => 0.02, 'pitch' => 0.50],
+                ]],
+            ], 200)
+            // 2. Diminta serong kiri tapi masih hadap lurus -> ditolak
+            ->push([
+                'status' => 'success',
+                'face_count' => 1,
+                'width' => 480,
+                'height' => 360,
+                'faces' => [[
+                    'index' => 0,
+                    'bbox' => ['top' => 80, 'right' => 320, 'bottom' => 280, 'left' => 160],
+                    'face_size' => 160,
+                    'quality' => ['brightness' => 120.0, 'sharpness' => 45.0, 'yaw' => 0.02, 'yaw_signed' => 0.02, 'roll' => 0.02, 'pitch' => 0.50],
+                ]],
+            ], 200)
+            // 3. Posisi lurus pas dan tajam -> lolos
+            ->push([
+                'status' => 'success',
+                'face_count' => 1,
+                'width' => 480,
+                'height' => 360,
+                'faces' => [[
+                    'index' => 0,
+                    'bbox' => ['top' => 80, 'right' => 320, 'bottom' => 280, 'left' => 160],
+                    'face_size' => 160,
+                    'quality' => ['brightness' => 120.0, 'sharpness' => 52.0, 'yaw' => 0.05, 'yaw_signed' => 0.05, 'roll' => 0.02, 'pitch' => 0.50],
+                ]],
+            ], 200);
+
+        $service = app(FaceEncodingService::class);
+
+        $blurry = $service->checkEnrollmentFrame('dummy', 'lurus');
+        $this->assertFalse($blurry['ok']);
+        $this->assertSame(FaceEncodingService::StatusBlurry, $blurry['status']);
+
+        $wrongPose = $service->checkEnrollmentFrame('dummy', 'kiri');
+        $this->assertFalse($wrongPose['ok']);
+        $this->assertSame('wrong_pose', $wrongPose['status']);
+
+        $valid = $service->checkEnrollmentFrame('dummy', 'lurus');
+        $this->assertTrue($valid['ok']);
+        $this->assertSame('ok', $valid['status']);
+    }
 }
