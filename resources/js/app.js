@@ -171,7 +171,21 @@ function setupLiveRegions() {
         return;
     }
 
-    window.setInterval(refreshLiveRegions, LIVE_INTERVAL);
+    let lastRegionFallbackMs = Date.now();
+    window.setInterval(() => {
+        const wsActive = window.SolatRealtime && window.SolatRealtime.isConnected();
+        if (!wsActive || (Date.now() - lastRegionFallbackMs) >= 30000) {
+            lastRegionFallbackMs = Date.now();
+            refreshLiveRegions();
+        }
+    }, LIVE_INTERVAL);
+
+    if (window.SolatRealtime) {
+        window.SolatRealtime.subscribe(() => {
+            lastRegionFallbackMs = Date.now();
+            refreshLiveRegions();
+        });
+    }
 }
 
 /* ---------- Tombol cetak dan penghapusan ---------- */

@@ -47,16 +47,23 @@ function initRealtime() {
             });
         }
 
+        const notify = (type, payload) => {
+            subscribers.forEach((fn) => {
+                try {
+                    fn({ type, ...(payload || {}) });
+                } catch (e) {
+                    // Abaikan error handler tunggal
+                }
+            });
+        };
+
         echoInstance
             .channel("solat.realtime")
             .listen(".attendance.recorded", (payload) => {
-                subscribers.forEach((fn) => {
-                    try {
-                        fn(payload);
-                    } catch (e) {
-                        // Abaikan error handler tunggal
-                    }
-                });
+                notify("attendance", payload);
+            })
+            .listen(".session.updated", (payload) => {
+                notify("session", payload);
             });
     } catch (e) {
         connected = false;

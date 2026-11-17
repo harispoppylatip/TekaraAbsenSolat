@@ -535,6 +535,8 @@ class SolatSessionService
             'closed_at' => null,
             'closed_by' => null,
         ])->save();
+
+        $this->broadcastSessionChange('opened', $session);
     }
 
     private function markClosed(SolatSession $session, ?User $by, CarbonInterface $stamp): void
@@ -544,6 +546,21 @@ class SolatSessionService
             'closed_at' => $stamp,
             'closed_by' => $by?->id,
         ])->save();
+
+        $this->broadcastSessionChange('closed', $session);
+    }
+
+    private function broadcastSessionChange(string $action, SolatSession $session): void
+    {
+        try {
+            event(new \App\Events\SessionUpdated(
+                action: $action,
+                prayer: (string) $session->prayer_name,
+                isTest: (bool) $session->is_test,
+            ));
+        } catch (\Throwable) {
+            // Abaikan bila layanan WebSocket tidak aktif
+        }
     }
 
     /**
