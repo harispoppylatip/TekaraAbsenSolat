@@ -751,8 +751,8 @@
                         </div>
                     </div>
 
-                    {{-- Area Pratinjau Foto Hasil Pemotretan --}}
-                    <div class="enroll-staging-box">
+                    {{-- Area Pratinjau Internal (Disembunyikan karena foto langsung dikirim otomatis) --}}
+                    <div class="enroll-staging-box" hidden>
                         <div class="enroll-staging-head">
                             <div>
                                 <span class="enroll-staging-title">Foto Siap Dikirim</span>
@@ -763,15 +763,10 @@
 
                         <div class="enroll-staging-grid" data-shoot-preview></div>
 
-                        <div class="enroll-staging-actions">
-                            <button class="btn btn-primary" type="submit" data-shoot-submit disabled style="display: inline-flex; align-items: center; gap: 8px;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
+                        <div class="enroll-staging-actions" hidden>
+                            <button class="btn btn-primary" type="submit" data-shoot-submit disabled>
                                 Kirim Foto untuk Diperiksa
                             </button>
-                            <a class="btn btn-text" href="{{ route('enrollment.show') }}" style="color: #64748b;">Bersihkan Pilihan</a>
                         </div>
                     </div>
                 </form>

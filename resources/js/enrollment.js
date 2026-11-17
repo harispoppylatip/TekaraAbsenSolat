@@ -149,37 +149,19 @@ function setupPhotoStaging(form) {
         }
     });
 
-    // Kirim foto melalui AJAX agar halaman TIDAK refresh ke atas,
-    // melainkan tetap di bawah pada area kemajuan pemeriksaan foto.
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-
-        if (!submit || submit.disabled || busy) {
-            return;
+    // Kirim foto melalui AJAX secara otomatis begitu pengambilan selesai
+    // agar pengguna tidak perlu menekan tombol kirim manual lagi.
+    const submitNow = async () => {
+        if (busy || staged.length === 0) {
+            return false;
         }
 
-        if (staged.length === 0) {
-            alert("Belum ada foto yang siap dikirim. Ambil foto terlebih dahulu.");
-            return;
+        busy = true;
+        const originalHtml = submit ? submit.innerHTML : "";
+        if (submit) {
+            submit.disabled = true;
+            submit.innerHTML = "Mengirim foto...";
         }
-
-        const originalHtml = submit.innerHTML;
-        submit.disabled = true;
-        submit.innerHTML = `
-            <span style="display: inline-flex; align-items: center; gap: 8px;">
-                <svg style="animation: spin 1s linear infinite;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="2" x2="12" y2="6"></line>
-                    <line x1="12" y1="18" x2="12" y2="22"></line>
-                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                    <line x1="2" y1="12" x2="6" y2="12"></line>
-                    <line x1="18" y1="12" x2="22" y2="12"></line>
-                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-                </svg>
-                Mengirim foto...
-            </span>
-        `;
 
         try {
             const formData = new FormData(form);
@@ -194,24 +176,26 @@ function setupPhotoStaging(form) {
             });
 
             if (response.ok) {
-                // Foto berhasil diterima server! Kosongkan daftar staged
+                busy = false;
+                if (submit) {
+                    submit.innerHTML = originalHtml;
+                }
                 staged.splice(0, staged.length);
                 sync();
 
-                // Matikan kamera agar hemat baterai/performa
                 const stopBtn = form.querySelector("[data-shoot-stop]");
                 if (stopBtn && !stopBtn.disabled) {
                     stopBtn.click();
                 }
 
-                // Gulir mulus ke bagian kemajuan pemeriksaan di bawah
                 scrollToProgressSection();
 
-                // Picu pembaruan status antrean seketika
                 if (typeof window._triggerQueueCheck === "function") {
                     window._triggerQueueCheck();
                 }
+                return true;
             } else {
+                busy = false;
                 let errorMsg = "Gagal mengirim foto.";
                 try {
                     const errJson = await response.json();
@@ -224,13 +208,23 @@ function setupPhotoStaging(form) {
                     // response is not json
                 }
                 alert(errorMsg);
-                submit.disabled = false;
-                submit.innerHTML = originalHtml;
+                if (submit) {
+                    submit.disabled = false;
+                    submit.innerHTML = originalHtml;
+                }
+                sync();
+                return false;
             }
         } catch (error) {
-            // Jika ada kesalahan fetch, fallback pengiriman normal
+            busy = false;
             form.submit();
+            return false;
         }
+    };
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await submitNow();
     });
 
     sync();
@@ -238,6 +232,7 @@ function setupPhotoStaging(form) {
     return {
         canvas,
         add,
+        submitNow,
         getFiles() {
             return [...staged];
         },
@@ -842,12 +837,11 @@ function setupShooter(root, staging) {
         }
 
         if (isAutoRunning) {
-            if (posesToTake.length === 5) {
-                say("Selesai! 5 foto dari 5 sudut berhasil diambil. Periksa pilihan foto di bawah lalu kirim.");
-            } else {
-                say(`Selesai! ${posesToTake.length} foto berhasil diambil. Periksa pilihan foto di bawah lalu kirim.`);
-            }
             stopAuto();
+            if (staging.count && staging.count() > 0) {
+                say("Selesai memotret! Mengirim foto ke sistem secara otomatis...");
+                await staging.submitNow();
+            }
         }
     };
 
