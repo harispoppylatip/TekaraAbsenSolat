@@ -538,11 +538,11 @@ class FaceEncodingService
         $roll = isset($quality['roll']) ? (float) $quality['roll'] : null;
         $pitch = isset($quality['pitch']) ? (float) $quality['pitch'] : null;
 
-        if ($brightness > 0 && $brightness < 48.0) {
+        if ($brightness > 0 && $brightness < 62.0) {
             return [
                 'ok' => false,
                 'status' => self::StatusTooDark,
-                'message' => 'Cahaya terlalu gelap. Cari tempat yang lebih terang.',
+                'message' => 'Cahaya terlalu gelap. Cari tempat yang lebih terang atau nyalakan lampu.',
             ];
         }
 
