@@ -1676,7 +1676,21 @@
                 }
             }
 
-            setInterval(pollLiveStatus, 2500);
+            let lastKioskFallbackMs = Date.now();
+            setInterval(function () {
+                const wsActive = window.SolatRealtime && window.SolatRealtime.isConnected();
+                if (!wsActive || (Date.now() - lastKioskFallbackMs) >= 30000) {
+                    lastKioskFallbackMs = Date.now();
+                    pollLiveStatus();
+                }
+            }, 2500);
+
+            if (window.SolatRealtime) {
+                window.SolatRealtime.subscribe(function () {
+                    lastKioskFallbackMs = Date.now();
+                    pollLiveStatus();
+                });
+            }
 
             // ================= 7. EVENT GANTI SUMBER KAMERA =================
             function activateSelectedSource(sourceVal) {

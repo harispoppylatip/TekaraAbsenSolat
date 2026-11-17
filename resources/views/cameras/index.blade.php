@@ -1089,9 +1089,9 @@
                 });
             }
 
-            // Polling log otomatis setiap 2.5 detik untuk menyelaraskan dengan Background Worker di server
+            // Polling log otomatis (2.5 detik saat polling biasa, atau fallback 30 detik saat WebSocket aktif)
             if (logsUrl) {
-                setInterval(async function () {
+                async function fetchCctvLogs() {
                     try {
                         const res = await fetch(logsUrl, { credentials: 'same-origin' });
                         if (!res.ok) return;
@@ -1110,7 +1110,23 @@
                     } catch (e) {
                         // Abaikan kesalahan polling
                     }
+                }
+
+                let lastCctvFallbackMs = Date.now();
+                setInterval(function () {
+                    const wsActive = window.SolatRealtime && window.SolatRealtime.isConnected();
+                    if (!wsActive || (Date.now() - lastCctvFallbackMs) >= 30000) {
+                        lastCctvFallbackMs = Date.now();
+                        fetchCctvLogs();
+                    }
                 }, 2500);
+
+                if (window.SolatRealtime) {
+                    window.SolatRealtime.subscribe(function () {
+                        lastCctvFallbackMs = Date.now();
+                        fetchCctvLogs();
+                    });
+                }
             }
 
             function addCctvLogRow(name, identity, status, proofUrl) {

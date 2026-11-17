@@ -1243,6 +1243,59 @@
             </form>
         </section>
 
+        {{-- 6B. Mode Pembaruan Real-time (Polling Biasa vs WebSocket) --}}
+        <section class="clean-section-card">
+            <div class="clean-section-header">
+                <div class="clean-header-title-row">
+                    <div class="clean-header-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="clean-header-title">Mode Real-time Data (Polling vs WebSocket)</h2>
+                        <p class="clean-header-sub">Pilih cara halaman /layar, /kamera, dan /login menerima pembaruan data absensi masuk secara langsung.</p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('settings.realtime-mode') }}">
+                @csrf
+                @method('PUT')
+
+                <div style="display: grid; gap: 10px; margin-bottom: 16px;">
+                    <label class="checkbox-row" style="cursor: pointer; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px;">
+                        <input type="radio" name="realtime_mode" value="polling" @checked($realtimeMode === 'polling') style="margin-top: 3px; width: 17px; height: 17px; cursor: pointer;">
+                        <div>
+                            <strong style="display: block; font-size: 14px; color: #0f172a;">Mode Biasa (HTTP Polling — Default)</strong>
+                            <span style="display: block; margin-top: 3px; color: #64748b; font-size: 12.5px; line-height: 1.5;">
+                                Browser meminta pembaruan berkala tanpa server WebSocket tambahan. Paling hemat RAM dan stabil di jaringan sekolah.
+                            </span>
+                        </div>
+                    </label>
+
+                    <label class="checkbox-row" style="cursor: pointer; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px;">
+                        <input type="radio" name="realtime_mode" value="websocket" @checked($realtimeMode === 'websocket') style="margin-top: 3px; width: 17px; height: 17px; cursor: pointer;">
+                        <div>
+                            <strong style="display: block; font-size: 14px; color: #0f172a;">Mode WebSocket (Laravel Reverb — Instan)</strong>
+                            <span style="display: block; margin-top: 3px; color: #64748b; font-size: 12.5px; line-height: 1.5;">
+                                Pembaruan absensi langsung didorong ke browser seketika (&lt;0,2 detik). Memerlukan service <code>reverb</code> aktif di Docker; jika terputus otomatis fallback ke polling.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit">
+                        Simpan Mode Real-time
+                    </button>
+                </div>
+            </form>
+        </section>
+
         {{-- 7. Pengaturan Foto Bukti Absensi --}}
         <section class="clean-section-card">
             <div class="clean-section-header">

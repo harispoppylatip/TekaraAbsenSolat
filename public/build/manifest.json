@@ -1,6 +1,6 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-C3_FXl8V.css",
+    "file": "assets/app-BMDDUBVS.css",
     "name": "app",
     "names": [
       "app.css"
@@ -9,15 +9,25 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-DdO-p1qA.js",
+    "file": "assets/app-C9-sof6I.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "resources/js/realtime.js",
+      "resources/js/realtime.js"
+    ]
   },
   "resources/js/enrollment.js": {
     "file": "assets/enrollment-D1yEwK0F.js",
     "name": "enrollment",
     "src": "resources/js/enrollment.js",
+    "isEntry": true
+  },
+  "resources/js/realtime.js": {
+    "file": "assets/realtime-DS5hJVWl.js",
+    "name": "realtime",
+    "src": "resources/js/realtime.js",
     "isEntry": true
   }
 }

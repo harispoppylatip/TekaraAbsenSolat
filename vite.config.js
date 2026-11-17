@@ -11,6 +11,7 @@ export default defineConfig({
                 "resources/css/app.css",
                 "resources/js/app.js",
                 "resources/js/enrollment.js",
+                "resources/js/realtime.js",
             ],
             refresh: true,
         }),

@@ -57,6 +57,7 @@ class SettingController extends Controller
             'kioskUser' => User::query()->where('role', User::RoleKiosk)->first(),
             'kioskCameras' => Camera::query()->where('is_active', true)->orderBy('name')->get(),
             'kioskDefaultSource' => Setting::kioskDefaultSource(),
+            'realtimeMode' => Setting::realtimeMode(),
         ]);
     }
 
@@ -190,6 +191,25 @@ class SettingController extends Controller
         $message = $enabled
             ? 'Pengaturan diperbarui: Foto bukti absen kini menyertakan kotak pendeteksi dan label nama hasil pemindaian wajah.'
             : 'Pengaturan diperbarui: Foto bukti absen kini disimpan tanpa kotak/label nama (foto polos).';
+
+        return back()->with('status', $message);
+    }
+
+    /**
+     * Perbarui mode pembaruan real-time halaman web ('polling' biasa atau 'websocket' Reverb).
+     */
+    public function updateRealtimeMode(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'realtime_mode' => ['required', 'in:polling,websocket'],
+        ]);
+
+        $mode = $validated['realtime_mode'];
+        Setting::set(Setting::KeyRealtimeMode, $mode);
+
+        $message = $mode === 'websocket'
+            ? 'Mode Real-time diubah ke WebSocket (Laravel Reverb). Pastikan container reverb berjalan; jika tidak terjangkau, browser otomatis fallback ke polling.'
+            : 'Mode Real-time diubah ke Mode Biasa (HTTP Polling). Koneksi WebSocket data dimatikan.';
 
         return back()->with('status', $message);
     }

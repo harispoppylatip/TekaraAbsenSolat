@@ -27,6 +27,7 @@ class Setting extends Model
     public const KeyFaceCctvMinFaceSize = 'face_cctv_min_face_size';
     public const KeyFaceMinFaceSize = 'face_min_face_size';
     public const KeyKioskDefaultSource = 'kiosk_default_source';
+    public const KeyRealtimeMode = 'realtime_mode';
 
     /**
      * Ambil nilai pengaturan berdasarkan kunci.
@@ -154,5 +155,32 @@ class Setting extends Model
         $val = trim((string) static::get(self::KeyKioskDefaultSource, 'webcam'));
 
         return $val !== '' ? $val : 'webcam';
+    }
+
+    /**
+     * Mode pembaruan real-time halaman web: 'polling' (biasa/default) atau 'websocket' (Reverb).
+     */
+    public static function realtimeMode(): string
+    {
+        $fallback = strtolower(trim((string) config('solat.realtime.mode', 'polling')));
+        $raw = strtolower(trim((string) static::get(self::KeyRealtimeMode, $fallback)));
+
+        return $raw === 'websocket' ? 'websocket' : 'polling';
+    }
+
+    /**
+     * Konfigurasi ringkas real-time untuk frontend (tanpa membocorkan secret).
+     *
+     * @return array{mode: string, key: string, path: string}
+     */
+    public static function frontendRealtimeConfig(): array
+    {
+        $mode = static::realtimeMode();
+
+        return [
+            'mode' => $mode,
+            'key' => $mode === 'websocket' ? (string) config('reverb.apps.apps.0.key', '') : '',
+            'path' => '/app',
+        ];
     }
 }

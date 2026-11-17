@@ -1,3 +1,5 @@
+import "./realtime";
+
 /* =========================================================
    Absen Solat SMKIM4
    Menangani menu samping, penyegaran wilayah halaman, kamera

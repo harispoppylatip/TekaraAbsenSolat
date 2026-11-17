@@ -159,6 +159,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/pengaturan/sensitivitas-wajah', [SettingController::class, 'updateFaceSensitivity'])->name('settings.face-sensitivity');
         Route::put('/pengaturan/anti-foto-palsu', [SettingController::class, 'updateAntiSpoofing'])->name('settings.anti-spoofing');
         Route::put('/pengaturan/foto-bukti', [SettingController::class, 'updateProofOverlay'])->name('settings.proof-overlay');
+        Route::put('/pengaturan/mode-realtime', [SettingController::class, 'updateRealtimeMode'])->name('settings.realtime-mode');
         Route::get('/pengaturan/backup', [SettingController::class, 'downloadBackup'])->name('settings.backup.download');
         Route::post('/pengaturan/backup/pulihkan', [SettingController::class, 'restoreBackup'])->name('settings.backup.restore');
         Route::delete('/pengaturan/riwayat-absen', [SettingController::class, 'clearAttendance'])->name('settings.clear-attendance');

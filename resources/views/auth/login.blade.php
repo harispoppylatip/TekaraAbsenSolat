@@ -1300,7 +1300,22 @@
 
             tick();
             setInterval(tick, 1000);
-            setInterval(pollLiveData, 4000);
+
+            let lastFallbackPollMs = Date.now();
+            setInterval(function () {
+                const wsActive = window.SolatRealtime && window.SolatRealtime.isConnected();
+                if (!wsActive || (Date.now() - lastFallbackPollMs) >= 30000) {
+                    lastFallbackPollMs = Date.now();
+                    pollLiveData();
+                }
+            }, 4000);
+
+            if (window.SolatRealtime) {
+                window.SolatRealtime.subscribe(function () {
+                    lastFallbackPollMs = Date.now();
+                    pollLiveData();
+                });
+            }
 
             document.addEventListener('visibilitychange', function () {
                 if (!document.hidden) {

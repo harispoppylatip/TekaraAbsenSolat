@@ -15,6 +15,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@500;600;700&display=swap">
+    <script>
+        window.__REALTIME_CONFIG__ = @json(\App\Models\Setting::frontendRealtimeConfig());
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 

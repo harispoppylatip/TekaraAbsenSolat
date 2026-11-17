@@ -88,6 +88,14 @@ x-app-lingkungan: &app-lingkungan
     GO2RTC_URL: ${GO2RTC_URL_DOCKER:-http://go2rtc:1984}
     FACE_CCTV_TOLERANCE: ${FACE_CCTV_TOLERANCE:-1.15}
     FACE_CCTV_MIN_FACE_SIZE: ${FACE_CCTV_MIN_FACE_SIZE:-40}
+    REALTIME_MODE: ${REALTIME_MODE:-polling}
+    BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-reverb}
+    REVERB_APP_ID: ${REVERB_APP_ID:-absen-solat}
+    REVERB_APP_KEY: ${REVERB_APP_KEY:-absen-solat-key}
+    REVERB_APP_SECRET: ${REVERB_APP_SECRET:-absen-solat-secret}
+    REVERB_HOST: ${REVERB_HOST:-reverb}
+    REVERB_PORT: ${REVERB_PORT:-8080}
+    REVERB_SCHEME: ${REVERB_SCHEME:-http}
 
 x-app-wadah: &app-wadah
     build:
@@ -298,6 +306,29 @@ services:
             - ./docker/go2rtc/go2rtc.yaml:/config/go2rtc.yaml
         extra_hosts:
             - host.docker.internal:host-gateway
+        networks:
+            - absen
+
+    # -------------------------------------------------------------------------
+    # Laravel Reverb (WebSocket Server Opsional — hanya jalan bila --profile reverb)
+    # -------------------------------------------------------------------------
+    reverb:
+        <<: *app-wadah
+        container_name: absen-solat-reverb
+        profiles: ["reverb"]
+        command:
+            - php
+            - artisan
+            - reverb:start
+            - --host=0.0.0.0
+            - --port=8080
+        healthcheck:
+            test:
+                ["CMD-SHELL", "php artisan --version >/dev/null 2>&1 || exit 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 30s
         networks:
             - absen
 

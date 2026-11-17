@@ -785,6 +785,16 @@ class SolatAttendanceService
             'proof_photo_path' => $proofPath ?? $this->keepProof($photo, $session, $moment),
         ]);
 
+        try {
+            event(new \App\Events\AttendanceRecorded(
+                prayer: (string) $session->prayerLabel(),
+                status: $late ? 'late' : 'hadir',
+                source: $log->isFingerprint() ? 'fingerprint' : 'face',
+            ));
+        } catch (\Throwable) {
+            // Jangan gagalkan pencatatan absen bila layanan WebSocket sedang mati
+        }
+
         $via = $log->isFingerprint() ? ' via sidik jari' : '';
 
         return $this->reply(
