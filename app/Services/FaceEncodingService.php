@@ -513,7 +513,7 @@ class FaceEncodingService
         $roll = isset($quality['roll']) ? (float) $quality['roll'] : null;
         $pitch = isset($quality['pitch']) ? (float) $quality['pitch'] : null;
 
-        if ($brightness > 0 && $brightness < 42.0) {
+        if ($brightness > 0 && $brightness < 48.0) {
             return [
                 'ok' => false,
                 'status' => self::StatusTooDark,
@@ -521,7 +521,7 @@ class FaceEncodingService
             ];
         }
 
-        if ($brightness > 225.0) {
+        if ($brightness > 228.0) {
             return [
                 'ok' => false,
                 'status' => self::StatusTooBright,
@@ -529,7 +529,7 @@ class FaceEncodingService
             ];
         }
 
-        if ($sharpness > 0 && $sharpness < 18.0) {
+        if ($sharpness > 0 && $sharpness < 24.0) {
             return [
                 'ok' => false,
                 'status' => self::StatusBlurry,
@@ -537,7 +537,7 @@ class FaceEncodingService
             ];
         }
 
-        if ($roll !== null && $roll > 0.28) {
+        if ($roll !== null && $roll > 0.30) {
             return [
                 'ok' => false,
                 'status' => self::StatusBadPose,
@@ -546,7 +546,7 @@ class FaceEncodingService
         }
 
         // Batas luar agar foto yang lolos di sini dijamin lolos saat dikirim ke antrean
-        if ($yaw !== null && $yaw > 0.43) {
+        if ($yaw !== null && $yaw > 0.48) {
             return [
                 'ok' => false,
                 'status' => self::StatusBadPose,
@@ -554,7 +554,7 @@ class FaceEncodingService
             ];
         }
 
-        if ($pitch !== null && ($pitch < 0.24 || $pitch > 0.76)) {
+        if ($pitch !== null && ($pitch < 0.26 || $pitch > 0.78)) {
             return [
                 'ok' => false,
                 'status' => self::StatusBadPose,

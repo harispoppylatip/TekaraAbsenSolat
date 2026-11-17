@@ -536,8 +536,46 @@ function setupShooter(root, staging) {
         say(`Kamera menyala. Tekan '${btnLabel}' untuk pengambilan otomatis.`);
     };
 
-    const takeSnapshot = (customLabel = null) => {
+    const takeSnapshot = (customLabel = null, verifiedBlob = null) => {
         return new Promise((resolve) => {
+            const saveBlob = (blob) => {
+                if (!blob) {
+                    say("Foto gagal diambil. Coba lagi.");
+                    resolve(false);
+                    return;
+                }
+
+                triggerFlash();
+
+                if (guideOverlay) {
+                    guideOverlay.classList.add("is-snapped");
+                    setTimeout(() => guideOverlay.classList.remove("is-snapped"), 300);
+                }
+
+                const suffix = customLabel
+                    ? `-${customLabel.toLowerCase().replace(/\s+/g, "-")}`
+                    : "";
+                const file = new File([blob], `kamera${suffix}-${Date.now()}.jpg`, {
+                    type: "image/jpeg",
+                });
+                const rejected = staging.add([file]);
+
+                if (rejected > 0) {
+                    say(
+                        "Jatah foto sekali kirim sudah penuh. Kirim dulu, lalu ambil foto berikutnya.",
+                    );
+                    resolve(false);
+                    return;
+                }
+
+                resolve(true);
+            };
+
+            if (verifiedBlob) {
+                saveBlob(verifiedBlob);
+                return;
+            }
+
             const width = video.videoWidth;
             const height = video.videoHeight;
 
@@ -560,42 +598,7 @@ function setupShooter(root, staging) {
                 staging.canvas.height,
             );
 
-            triggerFlash();
-
-            if (guideOverlay) {
-                guideOverlay.classList.add("is-snapped");
-                setTimeout(() => guideOverlay.classList.remove("is-snapped"), 300);
-            }
-
-            staging.canvas.toBlob(
-                (blob) => {
-                    if (!blob) {
-                        say("Foto gagal diambil. Coba lagi.");
-                        resolve(false);
-                        return;
-                    }
-
-                    const suffix = customLabel
-                        ? `-${customLabel.toLowerCase().replace(/\s+/g, "-")}`
-                        : "";
-                    const file = new File([blob], `kamera${suffix}-${Date.now()}.jpg`, {
-                        type: "image/jpeg",
-                    });
-                    const rejected = staging.add([file]);
-
-                    if (rejected > 0) {
-                        say(
-                            "Jatah foto sekali kirim sudah penuh. Kirim dulu, lalu ambil foto berikutnya.",
-                        );
-                        resolve(false);
-                        return;
-                    }
-
-                    resolve(true);
-                },
-                "image/jpeg",
-                0.9,
-            );
+            staging.canvas.toBlob(saveBlob, "image/jpeg", 0.9);
         });
     };
 
@@ -630,7 +633,7 @@ function setupShooter(root, staging) {
                 return;
             }
 
-            const scale = Math.min(1, 480 / Math.max(width, height));
+            const scale = Math.min(1, 720 / Math.max(width, height));
             probeCanvas.width = Math.round(width * scale);
             probeCanvas.height = Math.round(height * scale);
 
@@ -687,13 +690,13 @@ function setupShooter(root, staging) {
                             return;
                         }
 
-                        resolve(data || { ok: false, message: "Posisikan wajah sesuai arahan." });
+                        resolve(data ? { ...data, blob } : { ok: false, message: "Posisikan wajah sesuai arahan." });
                     } catch (e) {
                         resolve({ ok: false, message: "Memeriksa koneksi deteksi wajah..." });
                     }
                 },
                 "image/jpeg",
-                0.78,
+                0.88,
             );
         });
     };
@@ -818,7 +821,10 @@ function setupShooter(root, staging) {
                     recordedKiriSign = Math.sign(lastValidCheck.yaw_signed);
                 }
 
-                const success = await takeSnapshot(pose.label);
+                const success = await takeSnapshot(
+                    pose.label,
+                    lastValidCheck && lastValidCheck.blob ? lastValidCheck.blob : null,
+                );
                 if (!success) {
                     isAutoRunning = false;
                     break;
