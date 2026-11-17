@@ -107,6 +107,7 @@ class EnrollmentController extends Controller
         $request->validate([
             'photo' => ['required', 'image', 'max:2048'],
             'pose' => ['nullable', 'string', 'max:40'],
+            'mirrored' => ['nullable', 'boolean'],
         ]);
 
         $path = $request->file('photo')->getRealPath();
@@ -121,8 +122,9 @@ class EnrollmentController extends Controller
         }
 
         $poseKey = (string) $request->input('pose', 'lurus');
+        $isMirrored = $request->boolean('mirrored', true);
 
-        return response()->json($encoder->checkEnrollmentFrame($contents, $poseKey));
+        return response()->json($encoder->checkEnrollmentFrame($contents, $poseKey, $isMirrored));
     }
 
     /**

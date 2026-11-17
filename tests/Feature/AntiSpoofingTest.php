@@ -232,7 +232,20 @@ class AntiSpoofingTest extends TestCase
                     'quality' => ['brightness' => 120.0, 'sharpness' => 8.5, 'yaw' => 0.04, 'yaw_signed' => 0.04, 'roll' => 0.02, 'pitch' => 0.50],
                 ]],
             ], 200)
-            // 2. Diminta serong kiri tapi masih hadap lurus -> ditolak
+            // 2. Wajah di luar lingkaran oval (terlalu di pinggir kanan) -> ditolak off_center
+            ->push([
+                'status' => 'success',
+                'face_count' => 1,
+                'width' => 480,
+                'height' => 360,
+                'faces' => [[
+                    'index' => 0,
+                    'bbox' => ['top' => 80, 'right' => 450, 'bottom' => 280, 'left' => 290],
+                    'face_size' => 160,
+                    'quality' => ['brightness' => 120.0, 'sharpness' => 55.0, 'yaw' => 0.04, 'yaw_signed' => 0.04, 'roll' => 0.02, 'pitch' => 0.50],
+                ]],
+            ], 200)
+            // 3. Diminta serong kanan tapi malah menengok ke kiri (pada kamera depan mirrored: yaw_signed > 0 berarti kiri layar) -> ditolak
             ->push([
                 'status' => 'success',
                 'face_count' => 1,
@@ -242,10 +255,10 @@ class AntiSpoofingTest extends TestCase
                     'index' => 0,
                     'bbox' => ['top' => 80, 'right' => 320, 'bottom' => 280, 'left' => 160],
                     'face_size' => 160,
-                    'quality' => ['brightness' => 120.0, 'sharpness' => 45.0, 'yaw' => 0.02, 'yaw_signed' => 0.02, 'roll' => 0.02, 'pitch' => 0.50],
+                    'quality' => ['brightness' => 120.0, 'sharpness' => 55.0, 'yaw' => 0.22, 'yaw_signed' => 0.22, 'roll' => 0.02, 'pitch' => 0.50],
                 ]],
             ], 200)
-            // 3. Posisi lurus pas dan tajam -> lolos
+            // 4. Posisi lurus pas dan tajam di dalam oval -> lolos
             ->push([
                 'status' => 'success',
                 'face_count' => 1,
@@ -265,9 +278,14 @@ class AntiSpoofingTest extends TestCase
         $this->assertFalse($blurry['ok']);
         $this->assertSame(FaceEncodingService::StatusBlurry, $blurry['status']);
 
-        $wrongPose = $service->checkEnrollmentFrame('dummy', 'kiri');
-        $this->assertFalse($wrongPose['ok']);
-        $this->assertSame('wrong_pose', $wrongPose['status']);
+        $offCenter = $service->checkEnrollmentFrame('dummy', 'lurus');
+        $this->assertFalse($offCenter['ok']);
+        $this->assertSame('off_center', $offCenter['status']);
+
+        $wrongDirection = $service->checkEnrollmentFrame('dummy', 'kanan', isMirrored: true);
+        $this->assertFalse($wrongDirection['ok']);
+        $this->assertSame('wrong_pose', $wrongDirection['status']);
+        $this->assertStringContainsString('Arah terbalik', $wrongDirection['message']);
 
         $valid = $service->checkEnrollmentFrame('dummy', 'lurus');
         $this->assertTrue($valid['ok']);

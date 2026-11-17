@@ -397,7 +397,7 @@ class FaceEncodingService
      *
      * @return array{ok: bool, status: string, message: string, yaw?: float|null, yaw_signed?: float|null, pitch?: float|null, sharpness?: float, brightness?: float}
      */
-    public function checkEnrollmentFrame(string $contents, string $poseKey = 'lurus'): array
+    public function checkEnrollmentFrame(string $contents, string $poseKey = 'lurus', bool $isMirrored = true): array
     {
         if ($contents === '') {
             return [
@@ -482,26 +482,51 @@ class FaceEncodingService
         $width = max(1, (int) ($data['width'] ?? 640));
         $height = max(1, (int) ($data['height'] ?? 480));
         $faceSize = (int) ($face['face_size'] ?? 0);
-        $minSide = min($width, $height);
+        $minSide = max(1, min($width, $height));
+        $sizeRatio = $faceSize / $minSide;
 
-        if ($faceSize < 65 || ($minSide > 0 && ($faceSize / $minSide) < 0.22)) {
+        if ($faceSize < 80 || $sizeRatio < 0.28) {
             return [
                 'ok' => false,
                 'status' => self::StatusFaceTooSmall,
-                'message' => 'Wajah terlalu jauh. Dekatkan wajah ke dalam lingkaran oval.',
+                'message' => 'Wajah terlalu jauh. Dekatkan wajah agar pas di dalam lingkaran oval.',
             ];
         }
 
-        // Periksa apakah titik tengah wajah berada di area tengah (dalam oval panduan)
-        if ($box !== []) {
-            $cx = (((int) ($box['left'] ?? 0) + (int) ($box['right'] ?? $width)) / 2.0) / $width;
-            $cy = (((int) ($box['top'] ?? 0) + (int) ($box['bottom'] ?? $height)) / 2.0) / $height;
+        if ($sizeRatio > 0.76) {
+            return [
+                'ok' => false,
+                'status' => 'face_too_close',
+                'message' => 'Wajah terlalu dekat. Mundurkan sedikit agar masuk ke dalam lingkaran oval.',
+            ];
+        }
 
-            if (abs($cx - 0.5) > 0.25 || abs($cy - 0.5) > 0.28) {
+        // Periksa secara ketat apakah seluruh wajah berada di dalam lingkaran oval tengah
+        if ($box !== []) {
+            $left = (int) ($box['left'] ?? 0);
+            $right = (int) ($box['right'] ?? $width);
+            $top = (int) ($box['top'] ?? 0);
+            $bottom = (int) ($box['bottom'] ?? $height);
+
+            $cx = (($left + $right) / 2.0) / $width;
+            $cy = (($top + $bottom) / 2.0) / $height;
+            $leftRatio = $left / $width;
+            $rightRatio = $right / $width;
+            $topRatio = $top / $height;
+            $bottomRatio = $bottom / $height;
+
+            if (
+                abs($cx - 0.5) > 0.13
+                || abs($cy - 0.5) > 0.15
+                || $leftRatio < 0.20
+                || $rightRatio > 0.80
+                || $topRatio < 0.08
+                || $bottomRatio > 0.90
+            ) {
                 return [
                     'ok' => false,
                     'status' => 'off_center',
-                    'message' => 'Posisikan wajah tepat di tengah lingkaran oval.',
+                    'message' => 'Wajah berada di luar lingkaran oval. Posisikan wajah tepat di tengah oval.',
                 ];
             }
         }
@@ -562,25 +587,32 @@ class FaceEncodingService
             ];
         }
 
-        // Evaluasi kesesuaian arah hadap terhadap pose yang diminta
+        // Evaluasi kesesuaian arah hadap terhadap pose yang diminta.
+        // Pada kamera depan (isMirrored = true), tampilan layar dicerminkan secara horizontal:
+        // - menengok ke KIRI layar menghasilkan yaw_signed > 0 pada gambar mentah (screenYaw < 0)
+        // - menengok ke KANAN layar menghasilkan yaw_signed < 0 pada gambar mentah (screenYaw > 0)
+        $screenYaw = $yawSigned !== null
+            ? ($isMirrored ? -$yawSigned : $yawSigned)
+            : null;
+
         $pose = mb_strtolower(trim($poseKey));
 
         if ($pose === 'lurus' || str_contains($pose, 'lurus')) {
-            if ($yaw !== null && $yaw > 0.16) {
+            if ($yaw !== null && $yaw > 0.12) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
-                    'message' => 'Wajah masih serong ke samping. Hadapkan lurus ke depan kamera.',
+                    'message' => 'Wajah masih menengok ke samping. Hadapkan lurus ke depan kamera.',
                 ];
             }
-            if ($pitch !== null && $pitch < 0.36) {
+            if ($pitch !== null && $pitch < 0.38) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
                     'message' => 'Wajah masih mendongak. Hadapkan lurus ke depan kamera.',
                 ];
             }
-            if ($pitch !== null && $pitch > 0.66) {
+            if ($pitch !== null && $pitch > 0.63) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
@@ -588,49 +620,77 @@ class FaceEncodingService
                 ];
             }
         } elseif ($pose === 'kiri' || str_contains($pose, 'kiri')) {
-            if ($yaw !== null && $yaw < 0.06) {
+            if ($screenYaw !== null && $screenYaw > 0.08) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
-                    'message' => 'Wajah masih menghadap lurus. Tengokkan sedikit ke kiri.',
+                    'message' => 'Arah terbalik! Anda menengok ke kanan, silakan tengok ke kiri.',
+                ];
+            }
+            if (($screenYaw !== null && $screenYaw > -0.13) || ($yaw !== null && $yaw < 0.13)) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih menghadap lurus. Tengokkan kepala sedikit ke kiri.',
                 ];
             }
         } elseif ($pose === 'kanan' || str_contains($pose, 'kanan')) {
-            if ($yaw !== null && $yaw < 0.06) {
+            if ($screenYaw !== null && $screenYaw < -0.08) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
-                    'message' => 'Wajah masih menghadap lurus. Tengokkan sedikit ke kanan.',
+                    'message' => 'Arah terbalik! Anda menengok ke kiri, silakan tengok ke kanan.',
+                ];
+            }
+            if (($screenYaw !== null && $screenYaw < 0.13) || ($yaw !== null && $yaw < 0.13)) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih menghadap lurus. Tengokkan kepala sedikit ke kanan.',
                 ];
             }
         } elseif ($pose === 'atas' || str_contains($pose, 'atas') || str_contains($pose, 'mendongak')) {
-            if ($yaw !== null && $yaw > 0.24) {
+            if ($yaw !== null && $yaw > 0.20) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
                     'message' => 'Hadapkan wajah ke depan sambil mengangkat dagu sedikit ke atas.',
                 ];
             }
-            if ($pitch !== null && $pitch > 0.52) {
+            if ($pitch !== null && $pitch > 0.56) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
-                    'message' => 'Angkat dagu/kepala sedikit ke atas.',
+                    'message' => 'Arah terbalik! Anda menunduk ke bawah, silakan angkat dagu sedikit ke atas.',
+                ];
+            }
+            if ($pitch !== null && $pitch > 0.47) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih lurus. Angkat kepala/dagu sedikit ke atas.',
                 ];
             }
         } elseif ($pose === 'bawah' || str_contains($pose, 'bawah') || str_contains($pose, 'menunduk')) {
-            if ($yaw !== null && $yaw > 0.24) {
+            if ($yaw !== null && $yaw > 0.20) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
                     'message' => 'Hadapkan wajah ke depan sambil menundukkan kepala sedikit.',
                 ];
             }
-            if ($pitch !== null && $pitch < 0.50) {
+            if ($pitch !== null && $pitch < 0.45) {
                 return [
                     'ok' => false,
                     'status' => 'wrong_pose',
-                    'message' => 'Tundukkan kepala sedikit ke bawah.',
+                    'message' => 'Arah terbalik! Anda mendongak ke atas, silakan tundukkan kepala sedikit ke bawah.',
+                ];
+            }
+            if ($pitch !== null && $pitch < 0.55) {
+                return [
+                    'ok' => false,
+                    'status' => 'wrong_pose',
+                    'message' => 'Wajah masih lurus. Tundukkan kepala sedikit ke bawah.',
                 ];
             }
         }

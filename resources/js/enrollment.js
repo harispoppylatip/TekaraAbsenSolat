@@ -278,7 +278,7 @@ function setupShooter(root, staging) {
     const guideCountdown = root.querySelector("[data-shoot-guide-countdown]");
     const guideFeedback = root.querySelector("[data-shoot-guide-feedback]");
     const flashEl = root.querySelector("[data-shoot-flash]");
-    const checkPoseUrl = root.dataset.checkPoseUrl || "";
+    const checkPoseUrl = root.dataset.checkPoseUrl || "/pendaftaran-wajah/cek-pose";
     const probeCanvas = document.createElement("canvas");
     const picker = root.querySelector("[data-shoot-facing]");
     const status = root.querySelector("[data-shoot-status]");
@@ -650,6 +650,7 @@ function setupShooter(root, staging) {
                     const formData = new FormData();
                     formData.append("photo", blob, "probe.jpg");
                     formData.append("pose", poseKey || "lurus");
+                    formData.append("mirrored", facing === "user" ? "1" : "0");
 
                     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
                     const headers = {
