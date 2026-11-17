@@ -806,7 +806,8 @@
                 display: none;
             }
 
-            .info-countdown-card {
+            .info-countdown-card,
+            .info-subtabs {
                 display: none;
             }
 
