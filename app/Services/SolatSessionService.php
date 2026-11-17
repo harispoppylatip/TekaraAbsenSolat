@@ -693,6 +693,8 @@ class SolatSessionService
             $session->delete();
         }
 
+        $this->broadcastSessionChange('deleted', $sessions->first());
+
         return [
             'ok' => true,
             'message' => 'Sesi uji coba dihapus bersama '.$total.' catatan percobaan dan foto buktinya.',
@@ -774,6 +776,8 @@ class SolatSessionService
         foreach ($rows as $session) {
             $session->delete();
         }
+
+        $this->broadcastSessionChange('deleted', $rows->first());
 
         $deleted = $rows->count();
 
