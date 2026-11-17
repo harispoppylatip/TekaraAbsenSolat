@@ -211,21 +211,30 @@
                         <span style="font-size: 12px; color: #2563eb;">Lihat Detail</span>
                     </summary>
 
-                    <div style="margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
                         @foreach ($batch['rows'] as $row)
-                            <div class="queue-row" data-row="{{ $row['id'] }}" data-tone="{{ $row['status'] }}" style="font-size: 12.5px; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #f1f5f9;">
-                                <div>
-                                    <strong style="color: #0f172a;">{{ $row['pose_label'] ?? \App\Support\FacePose::humanLabel($row['name']) }}</strong>
-                                    <span style="color: #94a3b8; font-size: 11px; margin-left: 4px;">({{ $row['name'] }})</span>
-                                    <div style="font-size: 11.5px; color: #64748b;">{{ $row['note'] }}</div>
+                            @php
+                                $isSaved = in_array($row['status'], [\App\Models\FacePhotoUpload::StatusBerhasil, 'saved'], true);
+                                $isFailed = in_array($row['status'], [\App\Models\FacePhotoUpload::StatusGagal, 'failed'], true);
+                                $rowBg = $isSaved ? '#f0fdf4' : ($isFailed ? '#fef2f2' : '#f8fafc');
+                                $rowBorder = $isSaved ? '#bbf7d0' : ($isFailed ? '#fecaca' : '#e2e8f0');
+                            @endphp
+                            <div class="queue-row" data-row="{{ $row['id'] }}" data-tone="{{ $row['status'] }}"
+                                style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; text-align: left; padding: 10px 14px; border-radius: 10px; background: {{ $rowBg }}; border: 1px solid {{ $rowBorder }};">
+                                <div style="min-width: 0; flex: 1;">
+                                    <div style="font-size: 13px; color: #0f172a; line-height: 1.4;">
+                                        <strong>{{ $row['pose_label'] ?? \App\Support\FacePose::humanLabel($row['name']) }}</strong>
+                                        <span style="color: #64748b; font-size: 11.5px; margin-left: 4px; word-break: break-all;">({{ $row['name'] }})</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #475569; margin-top: 2px; line-height: 1.4;">{{ $row['note'] }}</div>
                                 </div>
-                                <div>
-                                    @if ($row['status'] === 'saved')
-                                        <span style="background: #dcfce7; color: #166534; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px;">Lolos</span>
-                                    @elseif ($row['status'] === 'failed')
-                                        <span style="background: #fee2e2; color: #991b1b; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px;">Ditolak</span>
+                                <div style="flex-shrink: 0;">
+                                    @if ($isSaved)
+                                        <span style="display: inline-block; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; white-space: nowrap;">Lolos</span>
+                                    @elseif ($isFailed)
+                                        <span style="display: inline-block; background: #fee2e2; color: #991b1b; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; white-space: nowrap;">Ditolak</span>
                                     @else
-                                        <span style="background: #eff6ff; color: #1e40af; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px;">Memproses</span>
+                                        <span style="display: inline-block; background: #eff6ff; color: #1e40af; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; white-space: nowrap;">Memproses</span>
                                     @endif
                                 </div>
                             </div>
