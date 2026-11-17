@@ -8,6 +8,7 @@
         $testOpen = $testSession?->isOpen() ?? false;
     @endphp
 
+    <div data-live="absen-wajah-banner">
     @if ($activeSession === null && !$testOpen)
         <details class="alert alert-warning fold-alert" data-record="alert-belum-ada-sesi">
             <summary>
@@ -74,6 +75,7 @@
             </div>
         </details>
     @endif
+    </div>
 
     {{-- Kamera dibiarkan di luar wilayah yang menyegarkan diri sendiri. Kalau ikut
          disegarkan, siaran kamera dan pilihan perangkatnya terputus berkala. --}}
