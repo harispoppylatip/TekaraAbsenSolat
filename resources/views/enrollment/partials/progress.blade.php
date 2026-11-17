@@ -140,7 +140,21 @@
         align-items: flex-start;
         gap: 14px;
         flex: 1;
-        min-width: 260px;
+        min-width: min(260px, 100%);
+    }
+
+    @media (max-width: 640px) {
+        .progress-section-card {
+            padding: 16px;
+        }
+
+        .progress-queue-card {
+            padding: 14px;
+        }
+
+        .enroll-complete-banner {
+            padding: 16px;
+        }
     }
 
     .enroll-complete-icon {

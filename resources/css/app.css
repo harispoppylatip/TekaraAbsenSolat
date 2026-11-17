@@ -66,6 +66,8 @@
 
 html {
     -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
+    max-width: 100%;
 }
 
 body {
@@ -76,6 +78,8 @@ body {
     font-size: 15px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+    max-width: 100%;
 }
 
 h1,
@@ -118,6 +122,9 @@ a:hover {
 .app-shell {
     display: flex;
     min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
 }
 
 .sidebar {
@@ -292,6 +299,17 @@ a:hover {
     gap: 20px;
     flex: 1;
     min-width: 0;
+    max-width: 100%;
+}
+
+.app-main {
+    min-width: 0;
+    max-width: 100%;
+}
+
+[data-live] {
+    min-width: 0;
+    max-width: 100%;
 }
 
 /*
@@ -420,13 +438,13 @@ div[data-live]:empty {
 
 .grid-2 {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
     gap: 18px;
 }
 
 .grid-3 {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
     gap: 14px;
 }
 
@@ -1361,19 +1379,22 @@ select.select-field {
 
 .camera-guide-prompt {
     position: absolute;
-    top: 14px;
+    top: 12px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(15, 23, 42, 0.9);
     color: #ffffff;
-    padding: 8px 16px;
+    padding: 7px 12px;
     border-radius: var(--radius-sm);
-    font-size: 13.5px;
+    font-size: 12.5px;
     font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 8px;
-    white-space: nowrap;
+    justify-content: center;
+    flex-wrap: wrap;
+    text-align: center;
+    gap: 6px;
+    max-width: calc(100% - 20px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 

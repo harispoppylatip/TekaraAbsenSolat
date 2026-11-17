@@ -326,6 +326,8 @@
 
         .camera-device-select {
             flex: 1;
+            min-width: 0;
+            max-width: 100%;
             background: transparent;
             border: none;
             font-size: 13.5px;
@@ -434,6 +436,10 @@
 
         /* Responsive Breakpoints */
         @media (max-width: 640px) {
+            .enroll-camera-card {
+                padding: 16px;
+            }
+
             .enroll-profile-header {
                 flex-direction: column;
                 align-items: flex-start;
