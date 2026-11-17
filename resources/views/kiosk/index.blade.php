@@ -1159,8 +1159,9 @@
 
             // ================= 4. MANAJEMEN SUMBER KAMERA (WEBCAM PC ATAU CCTV) =================
             function stopAllStreams() {
+                scanSessionSeq++;
                 if (scanTimer) {
-                    clearInterval(scanTimer);
+                    clearTimeout(scanTimer);
                     scanTimer = null;
                 }
                 if (snapshotTimer) {
@@ -1260,11 +1261,9 @@
                     await videoEl.play();
 
                     stageMessage.hidden = true;
-                    scanStatusEl.textContent = 'Pemindai aktif — memeriksa wajah otomatis setiap 2 detik';
+                    scanStatusEl.textContent = 'Pemindai adaptif aktif — cepat saat ada gerakan/wajah';
 
-                    scanTimer = setInterval(function () {
-                        captureAndScan(webcamScanUrl);
-                    }, 2000);
+                    startAdaptiveScanLoop(webcamScanUrl, null);
                 } catch (err) {
                     stageMessage.hidden = false;
                     stageMessageText.textContent = 'Gagal mengakses webcam PC. Pastikan izin kamera diizinkan di browser.';
@@ -1304,10 +1303,8 @@
                     snapshotImg.src = cam.stream_url;
                 }
 
-                scanStatusEl.textContent = 'Pemindai CCTV aktif — memeriksa wajah setiap 2 detik';
-                scanTimer = setInterval(function () {
-                    captureAndScan(cam.scan_url, cam.snapshot_url);
-                }, 2000);
+                scanStatusEl.textContent = 'Pemindai CCTV adaptif aktif — cepat saat ada gerakan/wajah';
+                startAdaptiveScanLoop(cam.scan_url, cam.snapshot_url);
             }
 
             function startSnapshotPolling(cam) {
@@ -1466,10 +1463,87 @@
                 }, 8000);
             }
 
-            // ================= 5. PEMINDAIAN WAJAH OTOMATIS =================
+            // ================= 5. PEMINDAIAN WAJAH ADAPTIF (MOTION + BURST) =================
+            const motionCanvas = document.createElement('canvas');
+            motionCanvas.width = 64;
+            motionCanvas.height = 36;
+            const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
+            let prevMotionData = null;
+            let burstUntilMs = 0;
+            let lastAiScanMs = 0;
+            let scanSessionSeq = 0;
+
+            function detectFrameMotion() {
+                if (!motionCtx) return true;
+                let source = null;
+                if (!isSnapshotMode && !videoEl.hidden && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+                    source = videoEl;
+                } else if (!snapshotImg.hidden && snapshotImg.complete && snapshotImg.naturalWidth > 0) {
+                    source = snapshotImg;
+                }
+                if (!source) return true;
+
+                try {
+                    motionCtx.drawImage(source, 0, 0, 64, 36);
+                    const data = motionCtx.getImageData(0, 0, 64, 36).data;
+                    if (!prevMotionData || prevMotionData.length !== data.length) {
+                        prevMotionData = new Uint8ClampedArray(data);
+                        return true;
+                    }
+                    let diffSum = 0;
+                    let samples = 0;
+                    for (let i = 0; i < data.length; i += 8) {
+                        diffSum += Math.abs(data[i] - prevMotionData[i])
+                            + Math.abs(data[i + 1] - prevMotionData[i + 1])
+                            + Math.abs(data[i + 2] - prevMotionData[i + 2]);
+                        samples += 3;
+                    }
+                    prevMotionData.set(data);
+                    return samples > 0 ? (diffSum / samples) >= 6.5 : true;
+                } catch (e) {
+                    return true;
+                }
+            }
+
+            function startAdaptiveScanLoop(endpointUrl, fallbackSnapUrl) {
+                scanSessionSeq++;
+                const mySeq = scanSessionSeq;
+                prevMotionData = null;
+                burstUntilMs = Date.now() + 3000;
+                lastAiScanMs = 0;
+
+                async function tick() {
+                    if (mySeq !== scanSessionSeq) return;
+
+                    const now = Date.now();
+                    const hasMotion = detectFrameMotion();
+                    if (hasMotion) {
+                        burstUntilMs = Math.max(burstUntilMs, now + 4500);
+                    }
+
+                    const inBurst = now <= burstUntilMs;
+                    const needHeartbeat = (now - lastAiScanMs) >= 2500;
+
+                    if (inBurst || needHeartbeat) {
+                        lastAiScanMs = now;
+                        const facesCount = await captureAndScan(endpointUrl, fallbackSnapUrl);
+                        if (facesCount > 0) {
+                            burstUntilMs = Date.now() + 6000;
+                        }
+                    }
+
+                    if (mySeq !== scanSessionSeq) return;
+                    const nextDelay = Date.now() <= burstUntilMs ? 500 : 250;
+                    scanTimer = setTimeout(tick, nextDelay);
+                }
+
+                scanTimer = setTimeout(tick, 350);
+            }
+
             async function captureAndScan(endpointUrl, fallbackSnapUrl = null) {
-                if (busyScanning || !endpointUrl) return;
+                if (busyScanning || !endpointUrl) return 0;
                 busyScanning = true;
+                let detectedCount = 0;
 
                 try {
                     const ctx = captureCanvas.getContext('2d');
@@ -1501,8 +1575,7 @@
                     }
 
                     if (!blob) {
-                        busyScanning = false;
-                        return;
+                        return 0;
                     }
 
                     const formData = new FormData();
@@ -1520,6 +1593,7 @@
 
                     const data = await res.json().catch(() => null);
                     if (data && Array.isArray(data.faces)) {
+                        detectedCount = data.faces.length;
                         currentFaces = data.faces;
                         currentFrame = {
                             width: Number(data.width || targetW || 1280),
@@ -1556,6 +1630,7 @@
                 } finally {
                     busyScanning = false;
                 }
+                return detectedCount;
             }
 
             // ================= 6. POLLING LOG & STATUS SESI =================

@@ -34,6 +34,15 @@ class CctvAutoScanCommand extends Command
     /** @var array<int, int> */
     private array $skipUntil = [];
 
+    /** @var array<int, array<int, int>> */
+    private array $prevMotionSig = [];
+
+    /** @var array<int, int> */
+    private array $burstUntil = [];
+
+    /** @var array<int, int> */
+    private array $lastAiScanAt = [];
+
     public function handle(
         CameraStreamService $streamService,
         SolatAttendanceService $attendanceService,
@@ -109,20 +118,27 @@ class CctvAutoScanCommand extends Command
             $sessionName = $activeSession ? $activeSession->prayerLabel() : 'Uji Coba';
 
             // 3. Pindai setiap kamera CCTV aktif (dengan jeda otomatis bagi kamera offline)
+            $anyBurst = false;
             foreach ($cameras as $camera) {
                 $camId = (int) $camera->id;
                 if (isset($this->skipUntil[$camId]) && now()->timestamp < $this->skipUntil[$camId]) {
                     continue;
                 }
 
-                $this->scanCamera($camera, $sessionName, $streamService, $attendanceService);
+                if ($this->scanCamera($camera, $sessionName, $streamService, $attendanceService)) {
+                    $anyBurst = true;
+                }
             }
 
             if ($singleRun) {
                 break;
             }
 
-            sleep($interval);
+            if ($anyBurst) {
+                usleep(450000);
+            } else {
+                sleep($interval);
+            }
         }
 
         Cache::forget(self::CacheKey);
@@ -136,7 +152,7 @@ class CctvAutoScanCommand extends Command
         string $sessionName,
         CameraStreamService $streamService,
         SolatAttendanceService $attendanceService
-    ): void {
+    ): bool {
         try {
             $camId = (int) $camera->id;
             $frame = $streamService->captureSnapshot($camera);
@@ -151,17 +167,36 @@ class CctvAutoScanCommand extends Command
                 } else {
                     $this->warn('[' . now()->format('H:i:s') . "] [{$camera->name}] Gagal mengambil frame siaran.");
                 }
-                return;
+                return false;
             }
 
             $this->failCounts[$camId] = 0;
             unset($this->skipUntil[$camId]);
 
+            $nowTs = now()->timestamp;
+            $hasMotion = $this->hasMotion($camId, $frame);
+            if ($hasMotion) {
+                $this->burstUntil[$camId] = max($this->burstUntil[$camId] ?? 0, $nowTs + 5);
+            }
+
+            $inBurst = $nowTs <= ($this->burstUntil[$camId] ?? 0);
+            $needHeartbeat = ($nowTs - ($this->lastAiScanAt[$camId] ?? 0)) >= 4;
+
+            if (! $inBurst && ! $needHeartbeat) {
+                return false;
+            }
+
+            $this->lastAiScanAt[$camId] = $nowTs;
             $deviceId = 'cctv-' . $camera->id;
             $result = $attendanceService->recordFacesFromImage($frame, $deviceId, now(), allowTestSession: true);
 
             $faces = $result['faces'] ?? [];
             $count = count($faces);
+
+            if ($count > 0) {
+                $this->burstUntil[$camId] = now()->timestamp + 6;
+                $inBurst = true;
+            }
 
             Cache::put('cctv_last_scan_' . $camera->id, [
                 'faces' => $faces,
@@ -172,7 +207,7 @@ class CctvAutoScanCommand extends Command
 
             if ($count === 0) {
                 $this->line('[' . now()->format('H:i:s') . "] [{$camera->name}] [Sesi {$sessionName}] Tidak ada wajah terdeteksi.");
-                return;
+                return $inBurst;
             }
 
             foreach ($faces as $face) {
@@ -189,9 +224,63 @@ class CctvAutoScanCommand extends Command
                     $this->line('[' . now()->format('H:i:s') . "] [{$camera->name}] Terdeteksi: {$memberName} — {$displayMsg}");
                 }
             }
+
+            return $inBurst;
         } catch (\Throwable $e) {
             $this->error('[' . now()->format('H:i:s') . "] [{$camera->name}] Error: " . $e->getMessage());
+            return false;
         }
+    }
+
+    /**
+     * Deteksi gerakan ringan (16x9 grayscale) agar CPU AI tidak bekerja saat koridor sepi.
+     */
+    protected function hasMotion(int $camId, string $frameBytes): bool
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return true;
+        }
+
+        $src = @imagecreatefromstring($frameBytes);
+        if ($src === false) {
+            return true;
+        }
+
+        $thumb = imagecreatetruecolor(16, 9);
+        if ($thumb === false) {
+            imagedestroy($src);
+            return true;
+        }
+
+        imagecopyresampled($thumb, $src, 0, 0, 0, 0, 16, 9, imagesx($src), imagesy($src));
+        imagedestroy($src);
+
+        $sig = [];
+        for ($y = 0; $y < 9; $y++) {
+            for ($x = 0; $x < 16; $x++) {
+                $rgb = imagecolorat($thumb, $x, $y);
+                $r = ($rgb >> 16) & 0xFF;
+                $g = ($rgb >> 8) & 0xFF;
+                $b = $rgb & 0xFF;
+                $sig[] = (int) (($r * 30 + $g * 59 + $b * 11) / 100);
+            }
+        }
+        imagedestroy($thumb);
+
+        $prev = $this->prevMotionSig[$camId] ?? null;
+        $this->prevMotionSig[$camId] = $sig;
+
+        if ($prev === null || count($prev) !== count($sig)) {
+            return true;
+        }
+
+        $diff = 0;
+        $total = count($sig);
+        for ($i = 0; $i < $total; $i++) {
+            $diff += abs($sig[$i] - $prev[$i]);
+        }
+
+        return ($diff / $total) >= 3.5;
     }
 }
 

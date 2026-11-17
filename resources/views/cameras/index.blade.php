@@ -687,6 +687,71 @@
                 });
             }
 
+            const motionCanvas = document.createElement('canvas');
+            motionCanvas.width = 64;
+            motionCanvas.height = 36;
+            const motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
+            let prevMotionData = null;
+            let burstUntilMs = 0;
+            let lastAiScanMs = 0;
+
+            function detectCctvMotion() {
+                if (!motionCtx) return true;
+                let source = null;
+                if (!isSnapshotMode && video && video.videoWidth > 0) {
+                    source = video;
+                } else if (img && img.naturalWidth > 0) {
+                    source = img;
+                }
+                if (!source) return true;
+
+                try {
+                    motionCtx.drawImage(source, 0, 0, 64, 36);
+                    const data = motionCtx.getImageData(0, 0, 64, 36).data;
+                    if (!prevMotionData || prevMotionData.length !== data.length) {
+                        prevMotionData = new Uint8ClampedArray(data);
+                        return true;
+                    }
+                    let diffSum = 0;
+                    let samples = 0;
+                    for (let i = 0; i < data.length; i += 8) {
+                        diffSum += Math.abs(data[i] - prevMotionData[i])
+                            + Math.abs(data[i + 1] - prevMotionData[i + 1])
+                            + Math.abs(data[i + 2] - prevMotionData[i + 2]);
+                        samples += 3;
+                    }
+                    prevMotionData.set(data);
+                    return samples > 0 ? (diffSum / samples) >= 6.5 : true;
+                } catch (e) {
+                    return true;
+                }
+            }
+
+            async function runAdaptiveFaceTick() {
+                if (!isScanning) return;
+
+                const now = Date.now();
+                const hasMotion = detectCctvMotion();
+                if (hasMotion) {
+                    burstUntilMs = Math.max(burstUntilMs, now + 4500);
+                }
+
+                const inBurst = now <= burstUntilMs;
+                const needHeartbeat = (now - lastAiScanMs) >= 2500;
+
+                if (inBurst || needHeartbeat) {
+                    lastAiScanMs = now;
+                    const facesCount = await captureAndScanFace();
+                    if (facesCount > 0) {
+                        burstUntilMs = Date.now() + 6000;
+                    }
+                }
+
+                if (!isScanning) return;
+                const nextDelay = Date.now() <= burstUntilMs ? 500 : 250;
+                scanTimer = setTimeout(runAdaptiveFaceTick, nextDelay);
+            }
+
             function startFaceScanner() {
                 if (isScanning) return;
                 isScanning = true;
@@ -694,11 +759,13 @@
                     btnToggleScanner.textContent = 'Hentikan pemindai wajah';
                     btnToggleScanner.className = 'btn btn-danger';
                 }
-                updateStatus('Pemindai wajah CCTV AKTIF. Memeriksa wajah setiap 2 detik...');
+                updateStatus('Pemindai wajah CCTV adaptif AKTIF — cepat saat ada gerakan/wajah...');
 
-                if (scanTimer) clearInterval(scanTimer);
-                scanTimer = setInterval(captureAndScanFace, 2000);
-                setTimeout(captureAndScanFace, 400);
+                if (scanTimer) clearTimeout(scanTimer);
+                prevMotionData = null;
+                burstUntilMs = Date.now() + 3000;
+                lastAiScanMs = 0;
+                scanTimer = setTimeout(runAdaptiveFaceTick, 350);
             }
 
             // Otomatis nyalakan pemindai wajah saat halaman dibuka
@@ -711,7 +778,7 @@
                 updateStatus('Siaran aktif untuk pemantauan. Pemindai wajah dihentikan.');
 
                 if (scanTimer) {
-                    clearInterval(scanTimer);
+                    clearTimeout(scanTimer);
                     scanTimer = null;
                 }
 
@@ -721,8 +788,9 @@
             }
 
             async function captureAndScanFace() {
-                if (busyScanning) return;
+                if (busyScanning) return 0;
                 busyScanning = true;
+                let detectedCount = 0;
 
                 try {
                     let blob = null;
@@ -754,8 +822,7 @@
                     }
 
                     if (!blob) {
-                        busyScanning = false;
-                        return;
+                        return 0;
                     }
 
                     const tokenEl = document.querySelector('meta[name="csrf-token"]');
@@ -776,6 +843,7 @@
 
                     const data = await scanRes.json().catch(() => null);
                     if (data && Array.isArray(data.faces)) {
+                        detectedCount = data.faces.length;
                         currentFaces = data.faces;
                         currentFrame = {
                             width: Number(data.width || targetW),
@@ -788,7 +856,7 @@
                         } else if (data.faces.length > 0) {
                             updateStatus('Pemindai aktif — ' + data.faces.length + ' wajah terdeteksi di layar CCTV.');
                         } else {
-                            updateStatus('Pemindai wajah CCTV AKTIF. Memeriksa wajah setiap 2 detik...');
+                            updateStatus('Pemindai adaptif aktif — memantau gerakan & wajah...');
                         }
 
                         // Periksa apakah ada wajah yang berhasil tercatat
@@ -805,6 +873,7 @@
                 } finally {
                     busyScanning = false;
                 }
+                return detectedCount;
             }
 
             function clearFaceOverlay() {
