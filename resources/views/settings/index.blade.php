@@ -17,14 +17,53 @@
         .settings-container {
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 16px;
         }
 
-        /* ---------- 1. Kartu Statistik Utama (Top 3 Cards) ---------- */
+        /* ---------- 0. Kartu Header Utama ---------- */
+        .settings-hero-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+            border: 1px solid #dbeafe;
+            border-radius: 16px;
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0, 30, 64, 0.04);
+        }
+
+        .settings-hero-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: #2563eb;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.22);
+        }
+
+        .settings-hero-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+
+        .settings-hero-sub {
+            margin: 3px 0 0;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        /* ---------- 1. Kartu Statistik Utama (Top 4 Cards) ---------- */
         .stat-banner-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
         }
 
         .stat-banner-card {
@@ -75,6 +114,69 @@
 
         .stat-banner-icon.orange {
             background: #ea580c;
+        }
+
+        .stat-banner-icon.purple {
+            background: #7c3aed;
+        }
+
+        /* ---------- Accordion Pengaturan ---------- */
+        details.settings-accordion {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        summary.settings-accordion-summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            user-select: none;
+            transition: background-color 0.15s ease;
+        }
+
+        summary.settings-accordion-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        summary.settings-accordion-summary:hover {
+            background-color: #f8fafc;
+        }
+
+        .settings-accordion-chevron {
+            color: #64748b;
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        details.settings-accordion[open] > summary.settings-accordion-summary .settings-accordion-chevron {
+            transform: rotate(180deg);
+        }
+
+        details.settings-accordion[open] > summary.settings-accordion-summary {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .settings-accordion-body {
+            padding: 20px 22px 22px;
+        }
+
+        .settings-info-footer {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: #1e3a8a;
+            font-size: 13px;
+            line-height: 1.5;
         }
 
         .stat-banner-label {
@@ -508,7 +610,7 @@
         /* ---------- 5. Responsif Tablet & Ponsel ---------- */
         @media (max-width: 1100px) {
             .stat-banner-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
             .clean-cards-grid {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -551,7 +653,21 @@
 
     <div class="settings-container">
 
-        {{-- 1. Kartu Ringkasan Statistik (3 Banner Cards) --}}
+        {{-- 0. Banner Header Pengaturan --}}
+        <section class="settings-hero-card" aria-label="Header Pengaturan">
+            <div class="settings-hero-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </div>
+            <div>
+                <h2 class="settings-hero-title">Pengaturan, Cadangan &amp; Pembersihan Data</h2>
+                <p class="settings-hero-sub">Kelola konfigurasi sistem, cadangan lengkap, kamera AI, mode real-time, dan pembersihan data sekolah.</p>
+            </div>
+        </section>
+
+        {{-- 1. Kartu Ringkasan Statistik (4 Banner Cards) --}}
         <section class="stat-banner-grid" aria-label="Ringkasan Data Operasional">
             {{-- Kartu Sesi Absen (Hijau) --}}
             <div class="stat-banner-card">
@@ -628,11 +744,32 @@
                     </svg>
                 </div>
             </div>
+
+            {{-- Kartu Data Wajah & Perangkat (Ungu) --}}
+            <div class="stat-banner-card">
+                <div class="stat-banner-left">
+                    <div class="stat-banner-icon purple">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="stat-banner-label">Wajah &amp; Perangkat</div>
+                        <div class="stat-banner-value">{{ number_format($faceCount) }}</div>
+                        <div class="stat-banner-note">{{ number_format($deviceCount) }} perangkat terdaftar</div>
+                    </div>
+                </div>
+                <div class="stat-banner-watermark" style="color: #7c3aed;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </div>
+            </div>
         </section>
 
         {{-- 2. Pembersihan Data per Bagian (5 Cards) --}}
-        <section class="clean-section-card">
-            <div class="clean-section-header">
+        <details class="clean-section-card settings-accordion" data-accordion="clean" open>
+            <summary class="settings-accordion-summary">
                 <div class="clean-header-title-row">
                     <div class="clean-header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -646,14 +783,13 @@
                         <p class="clean-header-sub">Pilih bagian data tertentu yang ingin dibersihkan tanpa mengganggu data lainnya.</p>
                     </div>
                 </div>
-                <div style="color: #94a3b8;" title="Operasi penghapusan data bersifat permanen">
+                <span class="settings-accordion-chevron" aria-hidden="true">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
-                </div>
-            </div>
+                </span>
+            </summary>
+            <div class="settings-accordion-body">
 
             <div class="clean-cards-grid">
                 {{-- 1. Hapus Riwayat Absen (Biru) --}}
@@ -817,7 +953,8 @@
                     </form>
                 </div>
             </div>
-        </section>
+            </div>
+        </details>
 
         {{-- 3. Hapus Seluruh Data (Reset Total Sistem) --}}
         <section class="reset-section-card">
@@ -890,8 +1027,8 @@
         </section>
 
         {{-- 4. Cadangan & Pemulihan Sistem (Backup & Restore) --}}
-        <section class="clean-section-card">
-            <div class="clean-section-header">
+        <details class="clean-section-card settings-accordion" data-accordion="backup">
+            <summary class="settings-accordion-summary">
                 <div class="clean-header-title-row">
                     <div class="clean-header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -905,7 +1042,13 @@
                         <p class="clean-header-sub">Simpan seluruh data website ke dalam berkas .zip atau pulihkan data dari berkas cadangan.</p>
                     </div>
                 </div>
-            </div>
+                <span class="settings-accordion-chevron" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </summary>
+            <div class="settings-accordion-body">
 
             <div class="backup-grid">
                 {{-- Unduh Backup --}}
@@ -971,11 +1114,12 @@
                     </form>
                 </div>
             </div>
-        </section>
+            </div>
+        </details>
 
         {{-- 5. Akun & Pengaturan Layar Monitor / Kiosk Masjid (/layar) --}}
-        <section class="clean-section-card">
-            <div class="clean-section-header" style="flex-wrap: wrap; gap: 12px;">
+        <details class="clean-section-card settings-accordion" data-accordion="kiosk">
+            <summary class="settings-accordion-summary">
                 <div class="clean-header-title-row">
                     <div class="clean-header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -991,8 +1135,14 @@
                         </p>
                     </div>
                 </div>
-
-                <div>
+                <span class="settings-accordion-chevron" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </summary>
+            <div class="settings-accordion-body">
+                <div style="margin-bottom: 14px; display: flex; justify-content: flex-end;">
                     <a class="btn btn-outline btn-small" href="{{ route('kiosk.index') }}" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -1002,7 +1152,6 @@
                         Buka Halaman /layar
                     </a>
                 </div>
-            </div>
 
             <form method="POST" action="{{ route('settings.kiosk-account') }}">
                 @csrf
@@ -1079,11 +1228,12 @@
                     </button>
                 </div>
             </form>
-        </section>
+            </div>
+        </details>
 
         {{-- 6. Sensitivitas & Pengenalan Wajah AI --}}
-        <section class="clean-section-card">
-            <div class="clean-section-header">
+        <details class="clean-section-card settings-accordion" data-accordion="face-ai">
+            <summary class="settings-accordion-summary">
                 <div class="clean-header-title-row">
                     <div class="clean-header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1096,7 +1246,13 @@
                         <p class="clean-header-sub">Atur toleransi kecocokan wajah dan ukuran minimum piksel deteksi untuk CCTV dan kamera pemindai langsung.</p>
                     </div>
                 </div>
-            </div>
+                <span class="settings-accordion-chevron" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </summary>
+            <div class="settings-accordion-body">
 
             <form method="POST" action="{{ route('settings.face-sensitivity') }}">
                 @csrf
@@ -1200,11 +1356,12 @@
                     </button>
                 </div>
             </form>
-        </section>
+            </div>
+        </details>
 
         {{-- 6. Pengaturan Keamanan Anti Foto Palsu --}}
-        <section class="clean-section-card">
-            <div class="clean-section-header">
+        <details class="clean-section-card settings-accordion" data-accordion="anti-spoof">
+            <summary class="settings-accordion-summary">
                 <div class="clean-header-title-row">
                     <div class="clean-header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1217,7 +1374,13 @@
                         <p class="clean-header-sub">Tolak kecurangan absensi menggunakan foto di layar HP, monitor, atau cetakan kertas menggunakan deteksi keaslian wajah MiniFASNet.</p>
                     </div>
                 </div>
-            </div>
+                <span class="settings-accordion-chevron" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </summary>
+            <div class="settings-accordion-body">
 
             <form method="POST" action="{{ route('settings.anti-spoofing') }}">
                 @csrf
@@ -1241,11 +1404,12 @@
                     </button>
                 </div>
             </form>
-        </section>
+            </div>
+        </details>
 
         {{-- 6B. Mode Pembaruan Real-time (Polling Biasa vs WebSocket) --}}
-        <section class="clean-section-card">
-            <div class="clean-section-header">
+        <details class="clean-section-card settings-accordion" data-accordion="realtime">
+            <summary class="settings-accordion-summary">
                 <div class="clean-header-title-row">
                     <div class="clean-header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1260,7 +1424,13 @@
                         <p class="clean-header-sub">Pilih cara halaman /layar, /kamera, dan /login menerima pembaruan data absensi masuk secara langsung.</p>
                     </div>
                 </div>
-            </div>
+                <span class="settings-accordion-chevron" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </summary>
+            <div class="settings-accordion-body">
 
             <form method="POST" action="{{ route('settings.realtime-mode') }}">
                 @csrf
@@ -1294,11 +1464,12 @@
                     </button>
                 </div>
             </form>
-        </section>
+            </div>
+        </details>
 
         {{-- 7. Pengaturan Foto Bukti Absensi --}}
-        <section class="clean-section-card">
-            <div class="clean-section-header">
+        <details class="clean-section-card settings-accordion" data-accordion="proof">
+            <summary class="settings-accordion-summary">
                 <div class="clean-header-title-row">
                     <div class="clean-header-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1311,7 +1482,13 @@
                         <p class="clean-header-sub">Atur apakah foto bukti absensi yang disimpan menyertakan kotak pendeteksi wajah dan label nama jamaah.</p>
                     </div>
                 </div>
-            </div>
+                <span class="settings-accordion-chevron" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </summary>
+            <div class="settings-accordion-body">
 
             <form method="POST" action="{{ route('settings.proof-overlay') }}">
                 @csrf
@@ -1335,7 +1512,57 @@
                     </button>
                 </div>
             </form>
+            </div>
+        </details>
+
+        {{-- 8. Informasi Footer --}}
+        <section class="settings-info-footer" aria-label="Informasi Pengaturan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <div>
+                <strong style="display: block; font-size: 13.5px; margin-bottom: 2px;">Informasi</strong>
+                <span>Klik judul bagian di atas untuk membuka atau menutup pengaturan. Setiap perubahan yang disimpan langsung diterapkan ke sistem tanpa perlu restart server.</span>
+            </div>
         </section>
 
     </div>
+
+    <script>
+        (function () {
+            const accordions = Array.from(document.querySelectorAll('details.settings-accordion[data-accordion]'));
+            if (accordions.length === 0) return;
+
+            const STORAGE_KEY = 'settings_open_accordion';
+
+            // Buka otomatis accordion yang memiliki error validasi
+            let hasErrorAccordion = false;
+            accordions.forEach(function (acc) {
+                if (acc.querySelector('.field-error')) {
+                    acc.open = true;
+                    hasErrorAccordion = true;
+                }
+            });
+
+            if (!hasErrorAccordion) {
+                const saved = sessionStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const target = accordions.find(a => a.dataset.accordion === saved);
+                    if (target) {
+                        accordions.forEach(a => { a.open = (a === target); });
+                    }
+                }
+            }
+
+            accordions.forEach(function (acc) {
+                acc.addEventListener('toggle', function () {
+                    if (acc.open) {
+                        sessionStorage.setItem(STORAGE_KEY, acc.dataset.accordion || '');
+                    }
+                });
+            });
+        })();
+    </script>
 @endsection
