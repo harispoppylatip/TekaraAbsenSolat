@@ -61,6 +61,8 @@ class PrayerTimeController extends Controller
             return back()->with('error', $result['message']);
         }
 
+        app(SolatSessionService::class)->notifyScheduleChanged('khgt_synced');
+
         return back()->with('status', $result['message']);
     }
 
@@ -70,6 +72,8 @@ class PrayerTimeController extends Controller
             $request->validated(),
             ['active_days' => $service->activeDays()],
         ));
+
+        $service->notifyScheduleChanged('prayer_created');
 
         return back()->with('status', 'Waktu solat '.$prayer->label.' ditambahkan.');
     }
@@ -101,6 +105,7 @@ class PrayerTimeController extends Controller
         }
 
         $this->syncSessionsWithActivePrayers($service);
+        $service->notifyScheduleChanged('active_prayers_updated');
 
         $summaryText = $activeLabels !== []
             ? implode(', ', $activeLabels)
@@ -121,6 +126,7 @@ class PrayerTimeController extends Controller
         ]);
 
         $service->updateActiveDays($data['days']);
+        $service->notifyScheduleChanged('active_days_updated');
         $summary = $service->activeDaysSummary();
 
         return back()->with('status', 'Hari absen sekolah diperbarui ('.$summary['summary'].').');
@@ -150,6 +156,7 @@ class PrayerTimeController extends Controller
             ]);
 
         $this->syncSessionsWithActivePrayers($service);
+        $service->notifyScheduleChanged('prayer_updated');
 
         return back()->with('status', 'Waktu solat '.$prayerTime->label.' diperbarui.');
     }

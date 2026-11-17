@@ -209,11 +209,31 @@ class SolatSessionService
             }
         }
 
+        if ($created > 0) {
+            $this->notifyScheduleChanged('generated');
+        }
+
         return [
             'created' => $created,
             'skipped' => $prayers->count() - $created,
             'total' => $prayers->count(),
         ];
+    }
+
+    /**
+     * Kirim sinyal perubahan jadwal/sesi ke semua browser yang terhubung lewat WebSocket.
+     */
+    public function notifyScheduleChanged(string $action = 'schedule_updated'): void
+    {
+        try {
+            event(new \App\Events\SessionUpdated(
+                action: $action,
+                prayer: '',
+                isTest: false,
+            ));
+        } catch (\Throwable) {
+            // Abaikan bila layanan WebSocket tidak aktif
+        }
     }
 
     /**
