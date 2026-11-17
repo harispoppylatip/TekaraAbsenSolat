@@ -806,23 +806,12 @@
                 display: none;
             }
 
+            .info-countdown-card {
+                display: none;
+            }
+
             .info-recent-scroll {
                 max-height: 320px;
-            }
-        }
-
-        @media (max-width: 420px) {
-            .info-countdown-card {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .info-countdown-timer-wrap {
-                width: 100%;
-                text-align: left;
-                display: flex;
-                align-items: baseline;
-                justify-content: space-between;
             }
         }
     </style>

@@ -159,4 +159,12 @@ return [
         'command_ttl' => (int) env('FINGERPRINT_COMMAND_TTL', 120),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Token keamanan API perangkat (opsional, diisi saat sensor mendukung)
+    |--------------------------------------------------------------------------
+    */
+
+    'device_api_token' => env('DEVICE_API_TOKEN', ''),
+
 ];

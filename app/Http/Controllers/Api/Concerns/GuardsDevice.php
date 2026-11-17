@@ -20,7 +20,7 @@ trait GuardsDevice
      */
     protected function guardDevice(Request $request, DeviceRegistryService $devices): array
     {
-        $expectedToken = trim((string) env('DEVICE_API_TOKEN', ''));
+        $expectedToken = trim((string) config('solat.device_api_token', ''));
         if ($expectedToken !== '') {
             $providedToken = (string) $request->header('X-Device-Token', (string) $request->input('api_token', ''));
             if ($providedToken === '' || ! hash_equals($expectedToken, $providedToken)) {

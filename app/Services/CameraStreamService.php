@@ -34,9 +34,20 @@ class CameraStreamService
             }
         }
 
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        if ($host === '' || in_array($host, ['go2rtc', 'db', 'wajah', 'app', 'web', '169.254.169.254'], true)) {
+        $host = strtolower(trim((string) parse_url($url, PHP_URL_HOST), '[]'));
+        if ($host === '' || in_array($host, ['go2rtc', 'db', 'wajah', 'app', 'web', 'localhost', '169.254.169.254', '::1'], true)) {
             return 'Host tujuan URL siaran tidak diizinkan.';
+        }
+
+        if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $long = ip2long($host);
+            $isLoopback = ($long & 0xFF000000) === 0x7F000000; // 127.0.0.0/8
+            $isZeroNet = ($long & 0xFF000000) === 0x00000000; // 0.0.0.0/8
+            $isLinkLocal = ($long & 0xFFFF0000) === 0xA9FE0000; // 169.254.0.0/16
+
+            if ($isLoopback || $isZeroNet || $isLinkLocal) {
+                return 'Host tujuan URL siaran tidak diizinkan.';
+            }
         }
 
         return null;
