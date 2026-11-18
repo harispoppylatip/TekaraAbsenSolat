@@ -318,7 +318,7 @@
                     <div class="fp-enroll-text">
                         <h4>Menunggu Tempelan Jari: {{ $pendingEnroll['name'] ?? '-' }}</h4>
                         <p>
-                            Posisi: <strong>{{ $pendingEnroll['finger_position'] ?? 'Telunjuk Kanan' }}</strong> &bull;
+                            Posisi: <strong>{{ $pendingEnroll['finger_position'] ?? 'Jempol Kanan' }}</strong> &bull;
                             Tempelkan jari 2 kali ke sensor AS608 sebelum jam {{ $pendingEnroll['expires_at'] ?? '-' }}.
                         </p>
                     </div>
@@ -365,7 +365,7 @@
                                 <label style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;" for="enroll-finger-position">Posisi Jari</label>
                                 <select class="select-field" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1;" id="enroll-finger-position" name="finger_position">
                                     @foreach ($fingerPositions as $pos)
-                                        <option value="{{ $pos }}" @selected(old('finger_position', 'Telunjuk Kanan') === $pos)>{{ $pos }}</option>
+                                        <option value="{{ $pos }}" @selected(old('finger_position', 'Jempol Kanan') === $pos)>{{ $pos }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -468,7 +468,7 @@
                                     <td>{{ $member->class_name ?: $member->roleLabel() }}</td>
                                     <td>
                                         @if ($latestFp)
-                                            <span style="font-weight: 600;">{{ $latestFp->finger_position ?: 'Telunjuk Kanan' }}</span>
+                                            <span style="font-weight: 600;">{{ $latestFp->finger_position ?: 'Jempol Kanan' }}</span>
                                         @else
                                             <span style="color: #94a3b8;">Belum ada template</span>
                                         @endif
@@ -499,7 +499,7 @@
                                                 <form method="POST" action="{{ route('fingerprint.enroll') }}">
                                                     @csrf
                                                     <input type="hidden" name="user_id" value="{{ $member->id }}">
-                                                    <input type="hidden" name="finger_position" value="Telunjuk Kanan">
+                                                    <input type="hidden" name="finger_position" value="{{ $latestFp?->finger_position ?: 'Jempol Kanan' }}">
                                                     <button class="btn-fp-action btn-fp-primary" style="padding: 5px 9px; font-size: 11.5px;" type="submit">Rekam Jari</button>
                                                 </form>
                                             @endif

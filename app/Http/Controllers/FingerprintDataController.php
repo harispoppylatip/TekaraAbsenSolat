@@ -20,10 +20,10 @@ class FingerprintDataController extends Controller
      * @var list<string>
      */
     public const FingerPositions = [
-        'Telunjuk Kanan',
-        'Telunjuk Kiri',
         'Jempol Kanan',
         'Jempol Kiri',
+        'Telunjuk Kanan',
+        'Telunjuk Kiri',
         'Jari Tengah Kanan',
         'Jari Tengah Kiri',
     ];
@@ -139,7 +139,7 @@ class FingerprintDataController extends Controller
             );
         }
 
-        $fingerPosition = trim((string) ($data['finger_position'] ?? 'Telunjuk Kanan')) ?: 'Telunjuk Kanan';
+        $fingerPosition = trim((string) ($data['finger_position'] ?? 'Jempol Kanan')) ?: 'Jempol Kanan';
         $targetDeviceId = trim((string) ($data['device_id'] ?? ''));
 
         $this->queueEnrollCommand($member, $fingerPosition, $targetDeviceId !== '' ? $targetDeviceId : null);
@@ -162,8 +162,8 @@ class FingerprintDataController extends Controller
             );
         }
 
-        $lastFinger = $member->fingerprints()->latest('id')->value('finger_position') ?: 'Telunjuk Kanan';
-        $fingerPosition = trim((string) $request->input('finger_position', $lastFinger)) ?: 'Telunjuk Kanan';
+        $lastFinger = $member->fingerprints()->latest('id')->value('finger_position') ?: 'Jempol Kanan';
+        $fingerPosition = trim((string) $request->input('finger_position', $lastFinger)) ?: 'Jempol Kanan';
 
         $member->fingerprints()->delete();
 
