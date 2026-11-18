@@ -1309,11 +1309,118 @@ function setupFaceProgress() {
     tick();
 }
 
+/* ---------- Paginasi tanpa scroll ke atas ---------- */
+
+function setupAjaxPagination() {
+    let activeAbort = null;
+
+    async function loadPage(url, targetSelector, pushHistory) {
+        if (activeAbort) {
+            activeAbort.abort();
+        }
+        activeAbort = new AbortController();
+
+        const container = document.querySelector(targetSelector);
+        if (!container) {
+            window.location.href = url;
+            return;
+        }
+
+        const savedScrollY = window.scrollY;
+        container.style.opacity = "0.65";
+        container.style.transition = "opacity 0.15s ease";
+
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    "X-Live-Refresh": "1",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                credentials: "same-origin",
+                signal: activeAbort.signal,
+            });
+
+            if (!response.ok) {
+                window.location.href = url;
+                return;
+            }
+
+            const html = await response.text();
+            const parsed = new DOMParser().parseFromString(html, "text/html");
+            const incoming = parsed.querySelector(targetSelector);
+
+            if (!incoming) {
+                window.location.href = url;
+                return;
+            }
+
+            container.innerHTML = incoming.innerHTML;
+            if (pushHistory) {
+                window.history.pushState({ ajaxPagination: true, targetSelector }, "", url);
+            }
+            window.scrollTo({ top: savedScrollY, behavior: "instant" });
+        } catch (err) {
+            if (err && err.name === "AbortError") {
+                return;
+            }
+            window.location.href = url;
+        } finally {
+            container.style.opacity = "1";
+        }
+    }
+
+    document.addEventListener("click", (event) => {
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return;
+        }
+
+        const link = event.target.closest(".pagination-wrap .pagination a[href]");
+        if (!link) {
+            return;
+        }
+
+        const href = link.getAttribute("href");
+        if (!href || href === "#" || link.getAttribute("aria-disabled") === "true") {
+            return;
+        }
+
+        let targetUrl;
+        try {
+            targetUrl = new URL(link.href, window.location.origin);
+        } catch (e) {
+            return;
+        }
+
+        if (targetUrl.origin !== window.location.origin) {
+            return;
+        }
+
+        const liveRegion = link.closest("[data-live]");
+        const targetSelector = liveRegion
+            ? `[data-live="${liveRegion.dataset.live}"]`
+            : "main.app-content";
+
+        if (!document.querySelector(targetSelector)) {
+            return;
+        }
+
+        event.preventDefault();
+        loadPage(targetUrl.toString(), targetSelector, true);
+    });
+
+    window.addEventListener("popstate", (event) => {
+        if (event.state && event.state.ajaxPagination && event.state.targetSelector) {
+            loadPage(window.location.href, event.state.targetSelector, false);
+        }
+    });
+}
+
 /* ---------- Mulai ---------- */
 
 function boot() {
     setupDrawer();
     setupLiveRegions();
+    setupAjaxPagination();
     setupPrintButtons();
     setupConfirms();
     setupAutoSubmit();
