@@ -333,6 +333,7 @@ class MemberController extends Controller
         }
 
         $updateExisting = $request->boolean('update_existing', true);
+        $padNisn = $request->boolean('pad_nisn_10', true);
         $created = 0;
         $updated = 0;
         $errors = [];
@@ -346,7 +347,7 @@ class MemberController extends Controller
             }
 
             $name = trim((string) ($row[$headerMap['name']] ?? ''));
-            $identifier = trim((string) ($row[$headerMap['identifier_number']] ?? ''));
+            $rawIdentifier = trim((string) ($row[$headerMap['identifier_number']] ?? ''));
             $rawEmail = isset($headerMap['email']) ? trim((string) ($row[$headerMap['email']] ?? '')) : '';
             $rawRole = isset($headerMap['role']) ? mb_strtolower(trim((string) ($row[$headerMap['role']] ?? ''))) : '';
             $rawClass = isset($headerMap['class_name']) ? trim((string) ($row[$headerMap['class_name']] ?? '')) : '';
@@ -357,6 +358,17 @@ class MemberController extends Controller
 
                 continue;
             }
+
+            $role = User::RoleMurid;
+            if (in_array($rawRole, ['admin', 'administrator', 'operator'], true)) {
+                $role = User::RoleAdmin;
+            } elseif (in_array($rawRole, ['guru', 'petugas', 'teacher', 'staff', 'pengajar', 'ustadz', 'ustadzah'], true)) {
+                $role = User::RolePetugas;
+            } elseif (in_array($rawRole, ['murid', 'murdi', 'siswa', 'santri', 'pelajar', 'student'], true)) {
+                $role = User::RoleMurid;
+            }
+
+            $identifier = $this->normalizeImportedIdentifier($rawIdentifier, $role, $padNisn);
 
             if ($identifier === '') {
                 $errors[] = "Baris {$rowNumber}: Kolom NISN / nomor induk kosong.";
@@ -374,21 +386,26 @@ class MemberController extends Controller
                 $email = $rawEmail;
             }
 
-            $role = User::RoleMurid;
-            if (in_array($rawRole, ['admin', 'administrator', 'operator'], true)) {
-                $role = User::RoleAdmin;
-            } elseif (in_array($rawRole, ['guru', 'petugas', 'teacher', 'staff', 'pengajar', 'ustadz', 'ustadzah'], true)) {
-                $role = User::RolePetugas;
-            } elseif (in_array($rawRole, ['murid', 'murdi', 'siswa', 'santri', 'pelajar', 'student'], true)) {
-                $role = User::RoleMurid;
-            }
-
             $className = $role === User::RoleMurid ? ($rawClass !== '' ? $rawClass : null) : null;
             $major = $role === User::RoleMurid
                 ? ($rawMajor !== '' ? $rawMajor : $this->extractMajorFromClassName($className))
                 : null;
 
             $existing = User::where('identifier_number', $identifier)->first();
+            $matchedStrippedId = null;
+
+            if ($existing === null && $padNisn && $role === User::RoleMurid && str_starts_with($identifier, '0')) {
+                $stripped = ltrim($identifier, '0');
+                if ($stripped !== '') {
+                    $candidate = User::where('role', User::RoleMurid)
+                        ->where('identifier_number', $stripped)
+                        ->first();
+                    if ($candidate !== null) {
+                        $existing = $candidate;
+                        $matchedStrippedId = $stripped;
+                    }
+                }
+            }
 
             if ($email !== null) {
                 $conflict = User::where('email', $email)
@@ -404,6 +421,12 @@ class MemberController extends Controller
 
             if ($existing) {
                 if ($updateExisting) {
+                    if ($matchedStrippedId !== null) {
+                        $existing->identifier_number = $identifier;
+                        if ($existing->password_changed_at === null) {
+                            $existing->password = User::defaultPasswordFor($role, $identifier);
+                        }
+                    }
                     $existing->name = $name;
                     if ($email !== null) {
                         $existing->email = $email;
@@ -976,6 +999,29 @@ class MemberController extends Controller
     /**
      * Ekstrak kode jurusan dari nama kelas bila kolom jurusan tidak diisi terpisah.
      */
+    /**
+     * Bersihkan format teks Excel (mis. ="0099234018" atau '0099234018) dan
+     * pulihkan nol di depan NISN murid 8-9 digit menjadi 10 digit bila diminta.
+     */
+    private function normalizeImportedIdentifier(string $raw, string $role, bool $padNisn): string
+    {
+        $clean = trim($raw);
+        if (preg_match('/^="(.*)"$/', $clean, $m)) {
+            $clean = trim($m[1]);
+        } elseif (str_starts_with($clean, "'")) {
+            $clean = trim(substr($clean, 1));
+        }
+
+        if ($padNisn && $role === User::RoleMurid && ctype_digit($clean)) {
+            $len = strlen($clean);
+            if ($len >= 8 && $len <= 9) {
+                $clean = str_pad($clean, 10, '0', STR_PAD_LEFT);
+            }
+        }
+
+        return $clean;
+    }
+
     private function extractMajorFromClassName(?string $className): ?string
     {
         if (blank($className)) {

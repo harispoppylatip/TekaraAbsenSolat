@@ -32,6 +32,11 @@
                     <label for="update_existing">Perbarui data anggota (nama, email, peran, kelas, dan jurusan) jika nomor induk / NISN sudah terdaftar di sistem</label>
                 </div>
 
+                <div class="check-row" style="margin-top: 10px;">
+                    <input type="checkbox" id="pad_nisn_10" name="pad_nisn_10" value="1" @checked(old('pad_nisn_10', true))>
+                    <label for="pad_nisn_10">Pulihkan angka 0 di depan NISN murid menjadi 10 digit jika terhapus Excel (contoh: <code>99234018</code> otomatis menjadi <code>0099234018</code>)</label>
+                </div>
+
                 <div class="form-actions" style="margin-top: 24px;">
                     <button class="btn btn-primary" type="submit">Mulai impor</button>
                     <a class="btn btn-outline" href="{{ route('members.index') }}">Batal</a>
