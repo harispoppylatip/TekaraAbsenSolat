@@ -219,14 +219,22 @@ function setupConfirms() {
 /* ---------- Saringan langsung ---------- */
 
 function setupAutoSubmit() {
-    document.querySelectorAll("[data-auto-submit]").forEach((field) => {
-        field.addEventListener("change", () => {
-            const form = field.closest("form");
+    document.addEventListener("change", (event) => {
+        const field = event.target.closest("[data-auto-submit]");
+        if (!field) {
+            return;
+        }
 
-            if (form) {
-                form.submit();
-            }
-        });
+        const form = field.closest("form");
+        if (!form) {
+            return;
+        }
+
+        if (typeof form.requestSubmit === "function") {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
     });
 }
 
@@ -1309,7 +1317,7 @@ function setupFaceProgress() {
     tick();
 }
 
-/* ---------- Paginasi tanpa scroll ke atas ---------- */
+/* ---------- Paginasi & pencarian tanpa scroll ke atas ---------- */
 
 function setupAjaxPagination() {
     let activeAbort = null;
@@ -1354,7 +1362,13 @@ function setupAjaxPagination() {
                 return;
             }
 
+            const state = detailState(container);
+            const checks = checkedState(container);
             container.innerHTML = incoming.innerHTML;
+            restoreDetailState(container, state);
+            restoreCheckedState(container, checks);
+            setupCameras(container);
+
             if (pushHistory) {
                 window.history.pushState({ ajaxPagination: true, targetSelector }, "", url);
             }
@@ -1374,13 +1388,18 @@ function setupAjaxPagination() {
             return;
         }
 
-        const link = event.target.closest(".pagination-wrap .pagination a[href]");
+        const paginationLink = event.target.closest(".pagination-wrap .pagination a[href]");
+        const resetLink = !paginationLink
+            ? event.target.closest('form[method="GET" i] a[href]')
+            : null;
+        const link = paginationLink || resetLink;
+
         if (!link) {
             return;
         }
 
         const href = link.getAttribute("href");
-        if (!href || href === "#" || link.getAttribute("aria-disabled") === "true") {
+        if (!href || href === "#" || link.getAttribute("aria-disabled") === "true" || link.hasAttribute("download")) {
             return;
         }
 
@@ -1396,6 +1415,60 @@ function setupAjaxPagination() {
         }
 
         const liveRegion = link.closest("[data-live]");
+        const targetSelector = liveRegion
+            ? `[data-live="${liveRegion.dataset.live}"]`
+            : "main.app-content";
+
+        if (!document.querySelector(targetSelector)) {
+            return;
+        }
+
+        event.preventDefault();
+        loadPage(targetUrl.toString(), targetSelector, true);
+    });
+
+    document.addEventListener("submit", (event) => {
+        if (event.defaultPrevented) {
+            return;
+        }
+
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        if ((form.getAttribute("method") || "GET").toUpperCase() !== "GET") {
+            return;
+        }
+
+        if (form.id === "history-filter-form" || form.id === "members-filter-form") {
+            return;
+        }
+
+        if (form.target && form.target !== "_self") {
+            return;
+        }
+
+        const actionRaw = form.getAttribute("action") || window.location.href;
+        let targetUrl;
+        try {
+            targetUrl = new URL(actionRaw, window.location.origin);
+        } catch (e) {
+            return;
+        }
+
+        if (targetUrl.origin !== window.location.origin) {
+            return;
+        }
+
+        if (/\/(ekspor|export|backup|download)/i.test(targetUrl.pathname)) {
+            return;
+        }
+
+        const params = new URLSearchParams(new FormData(form));
+        targetUrl.search = params.toString();
+
+        const liveRegion = form.closest("[data-live]");
         const targetSelector = liveRegion
             ? `[data-live="${liveRegion.dataset.live}"]`
             : "main.app-content";
