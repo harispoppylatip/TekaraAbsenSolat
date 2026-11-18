@@ -12,7 +12,45 @@
         .prayer-container {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
+        }
+
+        .prayer-hero-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+            border: 1px solid #dbeafe;
+            border-radius: 16px;
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0, 30, 64, 0.04);
+        }
+
+        .prayer-hero-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: #2563eb;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.22);
+        }
+
+        .prayer-hero-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+
+        .prayer-hero-sub {
+            margin: 3px 0 0;
+            font-size: 13px;
+            color: #475569;
         }
 
         .prayer-card {
@@ -21,6 +59,89 @@
             border-radius: 16px;
             padding: 22px 24px;
             box-shadow: 0 2px 8px rgba(0, 30, 64, 0.04);
+        }
+
+        details.prayer-accordion {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        summary.prayer-accordion-summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            user-select: none;
+            transition: background-color 0.15s ease;
+        }
+
+        summary.prayer-accordion-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        summary.prayer-accordion-summary:hover {
+            background-color: #f8fafc;
+        }
+
+        .prayer-accordion-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+        }
+
+        .prayer-accordion-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #2563eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .prayer-accordion-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .prayer-accordion-chevron {
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            transition: transform 0.2s ease;
+        }
+
+        details.prayer-accordion[open] > summary.prayer-accordion-summary .prayer-accordion-chevron {
+            transform: rotate(180deg);
+        }
+
+        details.prayer-accordion[open] > summary.prayer-accordion-summary {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .prayer-accordion-body {
+            padding: 20px 22px 22px;
+        }
+
+        .prayer-info-footer {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: #1e3a8a;
+            font-size: 13px;
+            line-height: 1.5;
         }
 
         .prayer-card-header {
@@ -377,20 +498,50 @@
     @endphp
 
     <div class="prayer-container">
-        {{-- 0. SINKRONISASI OTOMATIS API KHGT MUHAMMADIYAH --}}
-        <section class="prayer-card" id="sinkron-khgt">
-            <div class="prayer-card-header">
-                <div class="prayer-card-title">
-                    <h2>Sinkronisasi Jadwal Sholat KHGT Muhammadiyah</h2>
-                    <p>
-                        Ambil jam mulai waktu sholat otomatis dari API resmi Kalender Hijriah Global Tunggal (<code>khgt.muhammadiyah.or.id</code>) sesuai koordinat lokasi sekolah.
-                    </p>
-                </div>
-
-                <span class="prayer-badge {{ !empty($khgt['auto_sync']) ? 'status-open' : 'status-closed' }}">
-                    {{ !empty($khgt['auto_sync']) ? 'Sinkron Harian Otomatis Aktif' : 'Mode Sinkron Manual' }}
-                </span>
+        {{-- Banner Header Waktu Solat --}}
+        <section class="prayer-hero-card" aria-label="Header Waktu Solat">
+            <div class="prayer-hero-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
             </div>
+            <div>
+                <h2 class="prayer-hero-title">Pengaturan Waktu Solat &amp; Hari Aktif</h2>
+                <p class="prayer-hero-sub">Sinkronisasi jadwal KHGT Muhammadiyah, atur hari masuk sekolah, pilih waktu sholat aktif, serta ubah jam dan toleransi keterlambatan.</p>
+            </div>
+        </section>
+
+        {{-- 0. SINKRONISASI OTOMATIS API KHGT MUHAMMADIYAH --}}
+        <details class="prayer-card prayer-accordion" id="sinkron-khgt" data-accordion="khgt">
+            <summary class="prayer-accordion-summary">
+                <div class="prayer-accordion-left">
+                    <div class="prayer-accordion-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </div>
+                    <div class="prayer-card-title">
+                        <h2>Sinkronisasi Jadwal Sholat KHGT Muhammadiyah</h2>
+                        <p>
+                            Ambil jam mulai waktu sholat otomatis dari API resmi Kalender Hijriah Global Tunggal (<code>khgt.muhammadiyah.or.id</code>).
+                        </p>
+                    </div>
+                </div>
+                <div class="prayer-accordion-right">
+                    <span class="prayer-badge {{ !empty($khgt['auto_sync']) ? 'status-open' : 'status-closed' }}">
+                        {{ !empty($khgt['auto_sync']) ? 'Sinkron Otomatis Aktif' : 'Mode Manual' }}
+                    </span>
+                    <span class="prayer-accordion-chevron" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </span>
+                </div>
+            </summary>
+            <div class="prayer-accordion-body">
 
             <div class="khgt-meta-bar">
                 <div>
@@ -461,22 +612,40 @@
                     </div>
                 </div>
             </form>
-        </section>
+            </div>
+        </details>
 
         {{-- 1. HARI ABSEN SEKOLAH --}}
-        <section class="prayer-card" id="hari-absen">
-            <div class="prayer-card-header">
-                <div class="prayer-card-title">
-                    <h2>Hari Aktif Presensi Sekolah</h2>
-                    <p>
-                        Pilih hari sekolah di mana sesi absen solat disiapkan dan dibuka otomatis. Pada hari libur, sistem tidak akan membuat sesi otomatis kecuali dibuat manual oleh admin.
-                    </p>
+        <details class="prayer-card prayer-accordion" id="hari-absen" data-accordion="days">
+            <summary class="prayer-accordion-summary">
+                <div class="prayer-accordion-left">
+                    <div class="prayer-accordion-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div class="prayer-card-title">
+                        <h2>Hari Aktif Presensi Sekolah</h2>
+                        <p>
+                            Pilih hari sekolah di mana sesi absen solat disiapkan dan dibuka otomatis.
+                        </p>
+                    </div>
                 </div>
-
-                <span class="prayer-badge status-open">
-                    {{ $daysSummary['summary'] }}
-                </span>
-            </div>
+                <div class="prayer-accordion-right">
+                    <span class="prayer-badge status-open">
+                        {{ $daysSummary['summary'] }}
+                    </span>
+                    <span class="prayer-accordion-chevron" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </span>
+                </div>
+            </summary>
+            <div class="prayer-accordion-body">
 
             <form method="POST" action="{{ route('prayer-times.days.update') }}">
                 @csrf
@@ -510,25 +679,41 @@
                     </span>
                 </div>
             </form>
-        </section>
+            </div>
+        </details>
 
         {{-- 2. PILIHAN WAKTU SOLAT YANG DIPAKAI (SISTEM CEKBOX 6 WAKTU) --}}
         @php
             $activePrayerCount = $prayers->where('is_active', true)->count();
         @endphp
-        <section class="prayer-card" id="pilihan-waktu-solat">
-            <div class="prayer-card-header">
-                <div class="prayer-card-title">
-                    <h2>Pilihan Waktu Solat yang Dipakai</h2>
-                    <p>
-                        Centang waktu solat mana saja yang ingin diambil atau dipakai oleh sekolah (total 6 waktu: Subuh, Duha, Zuhur, Ashar, Maghrib, dan Isya). Data di bawah dapat diedit jam serta toleransinya, namun tidak dapat dihapus.
-                    </p>
+        <details class="prayer-card prayer-accordion" id="pilihan-waktu-solat" data-accordion="active-prayers">
+            <summary class="prayer-accordion-summary">
+                <div class="prayer-accordion-left">
+                    <div class="prayer-accordion-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 11 12 14 22 4"></polyline>
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                        </svg>
+                    </div>
+                    <div class="prayer-card-title">
+                        <h2>Pilihan Waktu Solat yang Dipakai</h2>
+                        <p>
+                            Centang waktu solat mana saja yang ingin dipakai sekolah (Subuh, Duha, Zuhur, Ashar, Maghrib, Isya).
+                        </p>
+                    </div>
                 </div>
-
-                <span class="prayer-badge {{ $activePrayerCount > 0 ? 'status-open' : 'status-closed' }}">
-                    {{ $activePrayerCount }} dari {{ $prayers->count() }} Waktu Dipakai
-                </span>
-            </div>
+                <div class="prayer-accordion-right">
+                    <span class="prayer-badge {{ $activePrayerCount > 0 ? 'status-open' : 'status-closed' }}">
+                        {{ $activePrayerCount }} dari {{ $prayers->count() }} Waktu Dipakai
+                    </span>
+                    <span class="prayer-accordion-chevron" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </span>
+                </div>
+            </summary>
+            <div class="prayer-accordion-body">
 
             <form method="POST" action="{{ route('prayer-times.active.update') }}">
                 @csrf
@@ -559,9 +744,36 @@
                     </span>
                 </div>
             </form>
-        </section>
+            </div>
+        </details>
 
         {{-- 3. PENGATURAN JAM & TOLERANSI 6 WAKTU SOLAT (BISA DIEDIT, TIDAK BISA DIHAPUS) --}}
+        <details class="prayer-card prayer-accordion" id="daftar-waktu-solat" data-accordion="list" open>
+            <summary class="prayer-accordion-summary">
+                <div class="prayer-accordion-left">
+                    <div class="prayer-accordion-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <div class="prayer-card-title">
+                        <h2>Atur Jam &amp; Toleransi 6 Waktu Solat</h2>
+                        <p>
+                            Sesuaikan jam mulai, jam selesai, dan toleransi keterlambatan (menit) masing-masing waktu sholat.
+                        </p>
+                    </div>
+                </div>
+                <div class="prayer-accordion-right">
+                    <span class="prayer-badge status-open">{{ $prayers->count() }} Waktu</span>
+                    <span class="prayer-accordion-chevron" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </span>
+                </div>
+            </summary>
+            <div class="prayer-accordion-body">
         <div data-live="waktu-solat">
             <div class="prayer-list-grid">
                 @foreach ($prayers as $prayer)
@@ -631,5 +843,55 @@
                 @endforeach
             </div>
         </div>
+            </div>
+        </details>
+
+        {{-- Informasi Footer --}}
+        <section class="prayer-info-footer" aria-label="Informasi Waktu Solat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <div>
+                <strong style="display: block; font-size: 13.5px; margin-bottom: 2px;">Informasi</strong>
+                <span>Klik judul bagian di atas untuk membuka atau menutup pengaturan. Perubahan jadwal langsung disinkronkan ke sesi hari ini dan halaman pengguna.</span>
+            </div>
+        </section>
     </div>
+
+    <script>
+        (function () {
+            const accordions = Array.from(document.querySelectorAll('details.prayer-accordion[data-accordion]'));
+            if (accordions.length === 0) return;
+
+            const STORAGE_KEY = 'prayer_open_accordion';
+
+            let hasError = false;
+            accordions.forEach(function (acc) {
+                if (acc.querySelector('.field-error')) {
+                    acc.open = true;
+                    hasError = true;
+                }
+            });
+
+            if (!hasError) {
+                const saved = sessionStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const target = accordions.find(a => a.dataset.accordion === saved);
+                    if (target) {
+                        accordions.forEach(a => { a.open = (a === target); });
+                    }
+                }
+            }
+
+            accordions.forEach(function (acc) {
+                acc.addEventListener('toggle', function () {
+                    if (acc.open) {
+                        sessionStorage.setItem(STORAGE_KEY, acc.dataset.accordion || '');
+                    }
+                });
+            });
+        })();
+    </script>
 @endsection
